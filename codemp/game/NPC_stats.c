@@ -234,9 +234,10 @@ extern qboolean BG_ParseLiteral( const char **data, const char *string );
 
 //
 // NPC parameters file : scripts/NPCs.cfg
+// Olol 31/10/2025: Changed to a big number, not sure of the impact but allows to just have tons of pk3s with NPC (it's vanilla number x10)
 //
-#define MAX_NPC_DATA_SIZE 0x40000
-//#define MAX_NPC_DATA_SIZE 0x16000
+#define MAX_NPC_DATA_SIZE 0x160000
+
 char	NPCParms[MAX_NPC_DATA_SIZE];
 
 /*
