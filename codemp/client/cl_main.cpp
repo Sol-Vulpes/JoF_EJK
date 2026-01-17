@@ -34,6 +34,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "cl_cgameapi.h"
 #include "cl_uiapi.h"
 #include "cl_lan.h"
+#include "cl_addonapi.h"
 #include "snd_local.h"
 #include "sys/sys_loadlib.h"
 #include <string>
@@ -158,6 +159,17 @@ char cl_reconnectArgs[MAX_OSPATH] = {0};
 // Structure containing functions exported from refresh DLL
 refexport_t	*re = NULL;
 static void	*rendererLib = NULL;
+
+// Addon system
+#define MAX_ADDONS 32
+typedef struct addonInfo_s {
+	char name[MAX_QPATH];
+	void *handle;
+	addonexport_t *addon;
+} addonInfo_t;
+
+static addonInfo_t loadedAddons[MAX_ADDONS];
+static int numLoadedAddons = 0;
 
 ping_t	cl_pinglist[MAX_PINGREQUESTS];
 
@@ -3685,6 +3697,130 @@ static void CL_GenerateQKey(void)
 }
 
 /*
+============
+CL_LoadAddons
+============
+*/
+static void CL_LoadAddons( void ) {
+	char **fileList;
+	int numFiles, i;
+	char dllName[MAX_OSPATH];
+	char addonName[MAX_QPATH];
+
+	Com_Printf( "---------- Loading Addons ----------\n" );
+
+	// List all DLL files in the addons directory
+	fileList = FS_ListFiles( "addons", ".dll", &numFiles );
+
+	if ( !fileList || numFiles <= 0 ) {
+		Com_Printf( "No addons found in addons/ directory\n" );
+		return;
+	}
+
+	for ( i = 0; i < numFiles && numLoadedAddons < MAX_ADDONS; i++ ) {
+		const char *fileName = fileList[i];
+
+		// Skip files that don't look like addon DLLs
+		if ( !fileName || !*fileName ) {
+			continue;
+		}
+
+		// Extract addon name (remove .dll extension)
+		Q_strncpyz( addonName, fileName, sizeof(addonName) );
+		COM_StripExtension( addonName, addonName, sizeof(addonName) );
+
+		// Build full DLL path
+		Com_sprintf( dllName, sizeof(dllName), "addons/%s.dll", addonName );
+
+		Com_Printf( "Loading addon: %s\n", addonName );
+
+		// Load the DLL
+		void *addonLib = Sys_LoadDll( dllName, qfalse );
+		if ( !addonLib ) {
+			Com_Printf( "Failed to load addon %s: %s\n", addonName, Sys_LibraryError() );
+			continue;
+		}
+
+		// Get the addon API function
+		GetAddonAPI_t GetAddonAPI = (GetAddonAPI_t)Sys_LoadFunction( addonLib, "GetAddonAPI" );
+		if ( !GetAddonAPI ) {
+			Com_Printf( "Failed to find GetAddonAPI in %s: %s\n", addonName, Sys_LibraryError() );
+			Sys_UnloadLibrary( addonLib );
+			continue;
+		}
+
+		// Set up the import structure
+		static addonimport_t ai;
+		memset( &ai, 0, sizeof(ai) );
+
+		ai.Printf = Com_Printf;
+		ai.Error = Com_Error;
+		ai.Cmd_AddCommand = Cmd_AddCommand;
+		ai.Cmd_RemoveCommand = Cmd_RemoveCommand;
+		ai.Cvar_Get = Cvar_Get;
+		ai.Cvar_VariableString = Cvar_VariableString;
+		ai.Cvar_VariableValue = Cvar_VariableValue;
+		ai.FS_ReadFile = FS_ReadFile;
+		ai.FS_FreeFile = FS_FreeFile;
+		ai.FS_FileExists = FS_FileExists;
+		ai.Z_Malloc = Z_Malloc;
+		ai.Z_Free = Z_Free;
+
+		// Get the addon export structure
+		addonexport_t *addon = GetAddonAPI( ADDON_API_VERSION, &ai );
+		if ( !addon ) {
+			Com_Printf( "GetAddonAPI failed for %s\n", addonName );
+			Sys_UnloadLibrary( addonLib );
+			continue;
+		}
+
+		// Initialize the addon
+		if ( addon->Init && !addon->Init() ) {
+			Com_Printf( "Addon %s initialization failed\n", addonName );
+			Sys_UnloadLibrary( addonLib );
+			continue;
+		}
+
+		// Store the loaded addon info
+		addonInfo_t *info = &loadedAddons[numLoadedAddons++];
+		Q_strncpyz( info->name, addonName, sizeof(info->name) );
+		info->handle = addonLib;
+		info->addon = addon;
+
+		Com_Printf( "Successfully loaded addon: %s\n", addonName );
+	}
+
+	FS_FreeFileList( fileList );
+
+	Com_Printf( "Loaded %d addon(s)\n", numLoadedAddons );
+}
+
+/*
+============
+CL_ShutdownAddons
+============
+*/
+void CL_ShutdownAddons( qboolean restarting ) {
+	int i;
+
+	for ( i = 0; i < numLoadedAddons; i++ ) {
+		addonInfo_t *info = &loadedAddons[i];
+
+		if ( info->addon && info->addon->Shutdown ) {
+			info->addon->Shutdown( restarting );
+		}
+
+		if ( info->handle ) {
+			Sys_UnloadLibrary( info->handle );
+		}
+
+		Com_Printf( "Unloaded addon: %s\n", info->name );
+	}
+
+	numLoadedAddons = 0;
+}
+
+/*
 ====================
 CL_Init
 ====================
@@ -3910,6 +4046,8 @@ void CL_Init( void ) {
 
 	CL_InitRef();
 
+	CL_LoadAddons();
+
 	SCR_Init ();
 
 	Cbuf_Execute ();
@@ -3959,6 +4097,8 @@ void CL_Shutdown( void ) {
 
 	// RJ: added the shutdown all to close down the cgame (to free up some memory, such as in the fx system)
 	CL_ShutdownAll( qtrue );
+
+	CL_ShutdownAddons( qfalse );
 
 	S_Shutdown();
 	//CL_ShutdownUI();
