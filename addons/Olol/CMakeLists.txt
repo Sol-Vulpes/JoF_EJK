@@ -5,10 +5,10 @@ project(OlolAddon)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Include directories
+# Include directories - use absolute paths
 include_directories(
-	../../codemp
-	../../shared
+	${CMAKE_CURRENT_SOURCE_DIR}/../../codemp
+	${CMAKE_CURRENT_SOURCE_DIR}/../../shared
 )
 
 # Source files
@@ -38,6 +38,14 @@ if(WIN32)
 	target_compile_definitions(OlolAddon PRIVATE
 		WIN32
 		_WINDOWS
+	)
+
+	# Disable some warnings that might come from the game headers
+	target_compile_options(OlolAddon PRIVATE
+		/wd4244  # conversion from 'type1' to 'type2', possible loss of data
+		/wd4305  # truncation from 'type1' to 'type2'
+		/wd4018  # signed/unsigned mismatch
+		/wd4996  # deprecated functions
 	)
 endif()
 
