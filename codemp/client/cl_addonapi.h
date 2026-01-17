@@ -44,8 +44,8 @@ typedef struct addonexport_s {
 // these are the functions imported by the addon module
 //
 typedef struct addonimport_s {
-	void			(QDECL *Printf)						( int printLevel, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
-	void			(QDECL *Error)						( int errorLevel, const char *fmt, ...) NORETURN_PTR __attribute__ ((format (printf, 2, 3)));
+	void			(QDECL *Printf)						( const char *msg, ... ) __attribute__ ((format (printf, 1, 2)));
+	void			(QDECL *Error)						( int level, const char *error, ... ) NORETURN_PTR __attribute__ ((format (printf, 2, 3)));
 
 	// console commands
 	void			(*Cmd_AddCommand)					( const char *cmd_name, xcommand_t function, const char *cmd_desc );

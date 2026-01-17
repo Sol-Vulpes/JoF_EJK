@@ -29,7 +29,7 @@ static addonimport_t *ai = NULL;
 
 // Test command function
 static void Cmd_TestOlol_f( void ) {
-	ai->Printf( PRINT_ALL, "test success\n" );
+	ai->Printf( "test success\n" );
 }
 
 /*
@@ -41,7 +41,7 @@ static qboolean Addon_Init( void ) {
 	// Add our test command
 	ai->Cmd_AddCommand( "test_olol", Cmd_TestOlol_f, "Test command for Olol addon" );
 
-	ai->Printf( PRINT_ALL, "Olol addon initialized successfully\n" );
+	ai->Printf( "Olol addon initialized successfully\n" );
 
 	return qtrue;
 }
@@ -55,7 +55,7 @@ static void Addon_Shutdown( qboolean restarting ) {
 	// Remove our commands
 	ai->Cmd_RemoveCommand( "test_olol" );
 
-	ai->Printf( PRINT_ALL, "Olol addon shut down\n" );
+	ai->Printf( "Olol addon shut down\n" );
 }
 
 // Export structure
@@ -75,7 +75,7 @@ extern "C" {
 
 Q_EXPORT addonexport_t* QDECL GetAddonAPI( int apiVersion, addonimport_t *import ) {
 	if ( apiVersion != ADDON_API_VERSION ) {
-		import->Printf( PRINT_ALL, "Olol addon: API version mismatch (%d != %d)\n", apiVersion, ADDON_API_VERSION );
+		import->Printf( "Olol addon: API version mismatch (%d != %d)\n", apiVersion, ADDON_API_VERSION );
 		return NULL;
 	}
 
