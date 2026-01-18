@@ -3711,20 +3711,106 @@ static void CL_LoadAddons( void ) {
 
 	// Get the base path where the game executable is located
 	const char *basePath = Cvar_VariableString( "fs_basepath" );
+	Com_Printf( "fs_basepath is: '%s'\n", basePath ? basePath : "NULL" );
 	if ( !basePath || !*basePath ) {
 		Com_Printf( "Failed to get base path for addon loading\n" );
 		return;
 	}
 
-	// List all DLL files in the base directory
-	fileList = Sys_ListFiles( basePath, "*.dll", NULL, &numFiles, qfalse );
+	// Build the addons directory path (ensure no trailing separator)
+	char addonsPath[MAX_OSPATH];
+	Q_strncpyz( addonsPath, basePath, sizeof(addonsPath) );
+	
+	// Remove trailing separator if present
+	int len = strlen(addonsPath);
+	if (len > 0 && (addonsPath[len-1] == '/' || addonsPath[len-1] == '\\')) {
+		addonsPath[len-1] = '\0';
+	}
+	
+	// Add addons subdirectory
+	Com_sprintf( addonsPath + strlen(addonsPath), sizeof(addonsPath) - strlen(addonsPath), "%caddons", PATH_SEP );
+
+	Com_Printf( "Base path: '%s'\n", basePath );
+	Com_Printf( "Addons path: '%s'\n", addonsPath );
+
+	// For testing: try to load Olol.dll using relative path
+	Com_Printf( "Testing addon loading with relative path...\n" );
+	const char *testDllPath = "addons\\Olol.dll";
+	Com_Printf( "Attempting to load: %s\n", testDllPath );
+
+	void *testLib = Sys_LoadDll( testDllPath, qfalse );
+	if ( testLib ) {
+		Com_Printf( "Relative path loading succeeded!\n" );
+
+		// Get the addon API function
+		GetAddonAPI_t GetAddonAPI = (GetAddonAPI_t)Sys_LoadFunction( testLib, "GetAddonAPI" );
+		if ( GetAddonAPI ) {
+			Com_Printf( "GetAddonAPI found!\n" );
+
+			// Set up the import structure
+			static addonimport_t ai;
+			memset( &ai, 0, sizeof(ai) );
+			ai.Printf = Com_Printf;
+			ai.Error = Com_Error;
+			ai.Cmd_AddCommand = Cmd_AddCommand;
+			ai.Cmd_RemoveCommand = Cmd_RemoveCommand;
+			ai.Cvar_Get = Cvar_Get;
+			ai.Cvar_VariableString = Cvar_VariableString;
+			ai.Cvar_VariableValue = Cvar_VariableValue;
+			ai.FS_ReadFile = FS_ReadFile;
+			ai.FS_FreeFile = FS_FreeFile;
+			ai.FS_FileExists = FS_FileExists;
+			ai.Z_Malloc = Z_Malloc;
+			ai.Z_Free = Z_Free;
+
+			// Get the addon export structure
+			addonexport_t *addon = GetAddonAPI( ADDON_API_VERSION, &ai );
+			if ( addon ) {
+				Com_Printf( "Addon API initialized!\n" );
+
+				// Initialize the addon
+				if ( addon->Init && addon->Init() ) {
+					Com_Printf( "Addon initialized successfully!\n" );
+
+					// Store the loaded addon info
+					addonInfo_t *info = &loadedAddons[numLoadedAddons++];
+					Q_strncpyz( info->name, "Olol", sizeof(info->name) );
+					info->handle = testLib;
+					info->addon = addon;
+				} else {
+					Com_Printf( "Addon initialization failed\n" );
+					Sys_UnloadLibrary( testLib );
+				}
+			} else {
+				Com_Printf( "GetAddonAPI failed\n" );
+				Sys_UnloadLibrary( testLib );
+			}
+		} else {
+			Com_Printf( "GetAddonAPI not found\n" );
+			Sys_UnloadLibrary( testLib );
+		}
+	} else {
+		Com_Printf( "Relative path loading failed: %s\n", Sys_LibraryError() );
+	}
+
+	// Try to list files directly
+	Com_Printf( "Attempting to list *.dll files...\n" );
+	fileList = Sys_ListFiles( addonsPath, "*.dll", NULL, &numFiles, qfalse );
+	Com_Printf( "Sys_ListFiles returned: %d files (fileList = %p)\n", numFiles, fileList );
+
+	if ( fileList && numFiles > 0 ) {
+		Com_Printf( "Files found:\n" );
+		for ( int i = 0; i < numFiles && i < 5; i++ ) {
+			Com_Printf( "  [%d] %s\n", i, fileList[i] );
+		}
+	}
 
 	if ( !fileList || numFiles <= 0 ) {
-		Com_Printf( "No addon DLLs found in game directory\n" );
+		Com_Printf( "No addon DLLs found in %s\n", addonsPath );
 		return;
 	}
 
-	Com_Printf( "Found %d potential addon DLLs\n", numFiles );
+	Com_Printf( "Found %d potential addon DLLs in %s\n", numFiles, addonsPath );
 
 	for ( i = 0; i < numFiles && numLoadedAddons < MAX_ADDONS; i++ ) {
 		const char *fileName = fileList[i];
@@ -3758,8 +3844,8 @@ static void CL_LoadAddons( void ) {
 			continue;
 		}
 
-		// Build full path to the DLL
-		Com_sprintf( dllName, sizeof(dllName), "%s%c%s.dll", basePath, PATH_SEP, addonName );
+		// Construct relative path for Sys_LoadDll
+		Com_sprintf( dllName, sizeof(dllName), "addons%c%s", PATH_SEP, fileName );
 
 		Com_Printf( "Trying to load addon: %s from %s\n", addonName, dllName );
 
