@@ -3709,13 +3709,22 @@ static void CL_LoadAddons( void ) {
 
 	Com_Printf( "---------- Loading Addons ----------\n" );
 
-	// List all DLL files in the addons directory
-	fileList = FS_ListFiles( "addons", ".dll", &numFiles );
-
-	if ( !fileList || numFiles <= 0 ) {
-		Com_Printf( "No addons found in addons/ directory\n" );
+	// Get the base path where the game executable is located
+	const char *basePath = Cvar_VariableString( "fs_basepath" );
+	if ( !basePath || !*basePath ) {
+		Com_Printf( "Failed to get base path for addon loading\n" );
 		return;
 	}
+
+	// List all DLL files in the base directory
+	fileList = Sys_ListFiles( basePath, "*.dll", NULL, &numFiles, qfalse );
+
+	if ( !fileList || numFiles <= 0 ) {
+		Com_Printf( "No addon DLLs found in game directory\n" );
+		return;
+	}
+
+	Com_Printf( "Found %d potential addon DLLs\n", numFiles );
 
 	for ( i = 0; i < numFiles && numLoadedAddons < MAX_ADDONS; i++ ) {
 		const char *fileName = fileList[i];
@@ -3725,14 +3734,34 @@ static void CL_LoadAddons( void ) {
 			continue;
 		}
 
-		// Extract addon name (remove .dll extension)
-		Q_strncpyz( addonName, fileName, sizeof(addonName) );
+		// Extract addon name (remove .dll extension and path)
+		const char *baseName = COM_SkipPath( const_cast<char*>(fileName) );
+		if ( !baseName || !*baseName ) {
+			continue;
+		}
+
+		Q_strncpyz( addonName, baseName, sizeof(addonName) );
 		COM_StripExtension( addonName, addonName, sizeof(addonName) );
 
-		// Build full DLL path
-		Com_sprintf( dllName, sizeof(dllName), "addons/%s.dll", addonName );
+		// Skip known game DLLs
+		if ( Q_stricmp( addonName, "eternaljk" ) == 0 ||
+			 Q_stricmp( addonName, "cgamex86" ) == 0 ||
+			 Q_stricmp( addonName, "uix86" ) == 0 ||
+			 Q_stricmp( addonName, "jampgamex86" ) == 0 ||
+			 Q_stricmp( addonName, "rd-eternaljk_x86" ) == 0 ||
+			 Q_stricmp( addonName, "rd-rend2-etjk_x86" ) == 0 ||
+			 strstr( addonName, "eternaljkded" ) ||
+			 strstr( addonName, "cgame" ) ||
+			 strstr( addonName, "ui" ) ||
+			 strstr( addonName, "jampgame" ) ||
+			 strstr( addonName, "rd-" ) ) {
+			continue;
+		}
 
-		Com_Printf( "Loading addon: %s\n", addonName );
+		// Build full path to the DLL
+		Com_sprintf( dllName, sizeof(dllName), "%s%c%s.dll", basePath, PATH_SEP, addonName );
+
+		Com_Printf( "Trying to load addon: %s from %s\n", addonName, dllName );
 
 		// Load the DLL
 		void *addonLib = Sys_LoadDll( dllName, qfalse );
@@ -3790,7 +3819,7 @@ static void CL_LoadAddons( void ) {
 		Com_Printf( "Successfully loaded addon: %s\n", addonName );
 	}
 
-	FS_FreeFileList( fileList );
+	Sys_FreeFileList( fileList );
 
 	Com_Printf( "Loaded %d addon(s)\n", numLoadedAddons );
 }
