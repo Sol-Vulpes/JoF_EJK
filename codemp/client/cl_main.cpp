@@ -193,6 +193,93 @@ void CL_CheckForResend( void );
 void CL_ShowIP_f(void);
 void CL_ServerStatus_f(void);
 void CL_ServerStatusResponse( netadr_t from, msg_t *msg );
+
+// Addon API wrapper functions
+static int Addon_Cmd_Argc( void ) {
+	return Cmd_Argc();
+}
+
+static char *Addon_Cmd_Argv( int arg ) {
+	return Cmd_Argv( arg );
+}
+
+static void Addon_SendClientCommand( const char *cmd ) {
+	CL_AddReliableCommand( cmd, qfalse );
+}
+
+static const void *Addon_GetPredictedPlayerState( void ) {
+	if ( cl.snap.valid ) {
+		return &cl.snap.ps;
+	}
+	return NULL;
+}
+
+static const void *Addon_GetEntityState( int entityNum ) {
+	if ( entityNum >= 0 && entityNum < MAX_GENTITIES && cl.snap.valid && entityNum < cl.snap.numEntities ) {
+		return &cl.parseEntities[entityNum];
+	}
+	return NULL;
+}
+
+static int Addon_GetClientNum( void ) {
+	if ( cl.snap.valid ) {
+		return cl.snap.ps.clientNum;
+	}
+	return -1;
+}
+
+static int Addon_CrosshairPlayer( void ) {
+	// Simplified crosshair player detection
+	// This is a basic implementation - real cgame version is more sophisticated
+	if ( !cl.snap.valid ) {
+		return -1;
+	}
+
+	trace_t trace;
+	vec3_t start, end, forward;
+	float *viewangles = cl.snap.ps.viewangles;
+
+	// Calculate forward direction
+	AngleVectors( viewangles, forward, NULL, NULL );
+
+	// Trace from view origin
+	VectorCopy( cl.snap.ps.origin, start );
+	start[2] += cl.snap.ps.viewheight;
+
+	VectorMA( start, 8192.0f, forward, end );
+
+	CM_BoxTrace( &trace, start, end, NULL, NULL, 0, CONTENTS_SOLID|CONTENTS_BODY, 0 );
+
+	if ( trace.entityNum >= 0 && trace.entityNum < MAX_CLIENTS ) {
+		return trace.entityNum;
+	}
+
+	return -1;
+}
+
+static int Addon_ClientNumberFromString( const char *s ) {
+	// Simplified client number parsing
+	if ( !s || !s[0] ) {
+		return -1;
+	}
+
+	// Check if it's a number
+	if ( s[0] >= '0' && s[0] <= '9' ) {
+		int num = atoi( s );
+		if ( num >= 0 && num < MAX_CLIENTS ) {
+			return num;
+		}
+	}
+
+	// TODO: Name lookup would require access to client info
+	// For now, return -1 for names
+	return -1;
+}
+
+static void Addon_Trace( void *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentMask ) {
+	CM_BoxTrace( (trace_t *)results, start, end, mins, maxs, 0, contentMask, 0 );
+}
+
 static void CL_ShutdownRef( qboolean restarting );
 
 /*
@@ -3762,6 +3849,17 @@ static void CL_LoadAddons( void ) {
 			ai.FS_FileExists = FS_FileExists;
 			ai.Z_Malloc = Z_Malloc;
 			ai.Z_Free = Z_Free;
+
+			// Extended API functions
+			ai.Cmd_Argc = Addon_Cmd_Argc;
+			ai.Cmd_Argv = Addon_Cmd_Argv;
+			ai.SendClientCommand = Addon_SendClientCommand;
+			ai.GetPredictedPlayerState = Addon_GetPredictedPlayerState;
+			ai.GetEntityState = Addon_GetEntityState;
+			ai.GetClientNum = Addon_GetClientNum;
+			ai.CrosshairPlayer = Addon_CrosshairPlayer;
+			ai.ClientNumberFromString = Addon_ClientNumberFromString;
+			ai.Trace = Addon_Trace;
 
 			// Get the addon export structure
 			addonexport_t *addon = GetAddonAPI( ADDON_API_VERSION, &ai );

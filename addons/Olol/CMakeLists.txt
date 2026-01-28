@@ -14,6 +14,7 @@ include_directories(
 # Source files
 set(SOURCES
 	addon_olol.cpp
+	../../shared/qcommon/q_math.c
 )
 
 # Create the DLL

@@ -27,7 +27,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "../qcommon/qcommon.h"
 
-#define ADDON_API_VERSION 1
+#define ADDON_API_VERSION 2
 
 //
 // these are the functions exported by the addon module
@@ -64,6 +64,24 @@ typedef struct addonimport_s {
 	// memory management
 	void *			(*Z_Malloc)							( int iSize, memtag_t eTag, qboolean bZeroit /*= qfalse*/, int iAlign /*= 4*/);
 	void			(*Z_Free)							( void *ptr );
+
+	// Extended API for game functionality (version 2+)
+	// Command arguments
+	int				(*Cmd_Argc)							( void );
+	char *			(*Cmd_Argv)							( int arg );
+
+	// Client commands
+	void			(*SendClientCommand)				( const char *cmd );
+
+	// Game state access (read-only)
+	const void *	(*GetPredictedPlayerState)			( void ); // returns playerState_t*
+	const void *	(*GetEntityState)					( int entityNum ); // returns entityState_t*
+	int				(*GetClientNum)						( void );
+
+	// Utility functions
+	int				(*CrosshairPlayer)					( void );
+	int				(*ClientNumberFromString)			( const char *s );
+	void			(*Trace)							( void *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentMask );
 } addonimport_t;
 
 // this is the only function actually exported at the linker level
