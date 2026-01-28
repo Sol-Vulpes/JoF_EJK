@@ -3730,7 +3730,71 @@ static void CL_LoadAddons( void ) {
 	// Add addons subdirectory
 	Com_sprintf( addonsPath + strlen(addonsPath), sizeof(addonsPath) - strlen(addonsPath), "%caddons", PATH_SEP );
 
-	// List all DLL files in the addons directory
+	Com_Printf( "Base path: '%s'\n", basePath );
+	Com_Printf( "Addons path: '%s'\n", addonsPath );
+
+	// For testing: try to load Olol.dll using relative path
+	Com_Printf( "Testing addon loading with relative path...\n" );
+	const char *testDllPath = "addons\\Olol.dll";
+	Com_Printf( "Attempting to load: %s\n", testDllPath );
+
+	void *testLib = Sys_LoadDll( testDllPath, qfalse );
+	if ( testLib ) {
+		Com_Printf( "Relative path loading succeeded!\n" );
+
+		// Get the addon API function
+		GetAddonAPI_t GetAddonAPI = (GetAddonAPI_t)Sys_LoadFunction( testLib, "GetAddonAPI" );
+		if ( GetAddonAPI ) {
+			Com_Printf( "GetAddonAPI found!\n" );
+
+			// Set up the import structure
+			static addonimport_t ai;
+			memset( &ai, 0, sizeof(ai) );
+			ai.Printf = Com_Printf;
+			ai.Error = Com_Error;
+			ai.Cmd_AddCommand = Cmd_AddCommand;
+			ai.Cmd_RemoveCommand = Cmd_RemoveCommand;
+			ai.Cvar_Get = Cvar_Get;
+			ai.Cvar_VariableString = Cvar_VariableString;
+			ai.Cvar_VariableValue = Cvar_VariableValue;
+			ai.FS_ReadFile = FS_ReadFile;
+			ai.FS_FreeFile = FS_FreeFile;
+			ai.FS_FileExists = FS_FileExists;
+			ai.Z_Malloc = Z_Malloc;
+			ai.Z_Free = Z_Free;
+
+			// Get the addon export structure
+			addonexport_t *addon = GetAddonAPI( ADDON_API_VERSION, &ai );
+			if ( addon ) {
+				Com_Printf( "Addon API initialized!\n" );
+
+				// Initialize the addon
+				if ( addon->Init && addon->Init() ) {
+					Com_Printf( "Addon initialized successfully!\n" );
+
+					// Store the loaded addon info
+					addonInfo_t *info = &loadedAddons[numLoadedAddons++];
+					Q_strncpyz( info->name, "Olol", sizeof(info->name) );
+					info->handle = testLib;
+					info->addon = addon;
+				} else {
+					Com_Printf( "Addon initialization failed\n" );
+					Sys_UnloadLibrary( testLib );
+				}
+			} else {
+				Com_Printf( "GetAddonAPI failed\n" );
+				Sys_UnloadLibrary( testLib );
+			}
+		} else {
+			Com_Printf( "GetAddonAPI not found\n" );
+			Sys_UnloadLibrary( testLib );
+		}
+	} else {
+		Com_Printf( "Relative path loading failed: %s\n", Sys_LibraryError() );
+	}
+
+	// Try to list files directly
+	Com_Printf( "Attempting to list *.dll files...\n" );
 	fileList = Sys_ListFiles( addonsPath, "*.dll", NULL, &numFiles, qfalse );
 	Com_Printf( "Sys_ListFiles returned: %d files (fileList = %p)\n", numFiles, fileList );
 
