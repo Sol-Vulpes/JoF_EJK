@@ -166,14 +166,20 @@ static void CG_TeleFrag_f(void) {
 		return;
 	}
 
-	// Base position
+	// Base position - using pos.trBase since we don't have lerpOrigin in addon
 	VectorCopy(cent->pos.trBase, targetOrigin);
 
 	// Calculate speed
 	speed = VectorLength(cent->pos.trDelta);
 
-	// Convert ping to seconds, clamp (assume 100ms ping for simplicity)
-	pingSec = 0.1f;
+	// Get player state for ping and yaw
+	const playerState_t* ps = (const playerState_t*)ai->GetPredictedPlayerState();
+	if (!ps) {
+		return;
+	}
+
+	// Convert ping to seconds, clamp
+	pingSec = ps->ping / 1000.0f;
 	if (pingSec > 0.25f) pingSec = 0.25f;
 
 	// Apply prediction if moving
@@ -181,12 +187,6 @@ static void CG_TeleFrag_f(void) {
 		targetOrigin[0] += cent->pos.trDelta[0] * pingSec;
 		targetOrigin[1] += cent->pos.trDelta[1] * pingSec;
 		targetOrigin[2] += cent->pos.trDelta[2] * pingSec;
-	}
-
-	// Get player state for yaw
-	const playerState_t* ps = (const playerState_t*)ai->GetPredictedPlayerState();
-	if (!ps) {
-		return;
 	}
 
 	// Teleport
@@ -278,7 +278,7 @@ static void CG_TeleCrosshair_f(void) {
 	VectorCopy(trace.endpos, crosshairPos);
 
 	char cmd[256];
-	Com_sprintf(cmd, sizeof(cmd), "amTele %f %f %f %f",
+	Com_sprintf(cmd, sizeof(cmd), "amtele %f %f %f %f\n",
 		crosshairPos[0], crosshairPos[1], crosshairPos[2] + 24, ps->viewangles[YAW]);
 	ai->SendClientCommand(cmd);
 }
@@ -339,7 +339,7 @@ static void CG_TeleSafeCrosshair_f(void) {
 	}
 
 	char cmd[256];
-	Com_sprintf(cmd, sizeof(cmd), "amTele %f %f %f %f",
+	Com_sprintf(cmd, sizeof(cmd), "amtele %f %f %f %f\n",
 		newPos[0], newPos[1], newPos[2], ps->viewangles[YAW]);
 	ai->SendClientCommand(cmd);
 }
@@ -390,7 +390,7 @@ static void CG_TeleTargetPlayer_f(void) {
 	VectorMA(ps->origin, offset, forward, newPos);
 
 	char cmd[256];
-	Com_sprintf(cmd, sizeof(cmd), "amTele %d %f %f %f r", targetNum, newPos[0], newPos[1], newPos[2]);
+	Com_sprintf(cmd, sizeof(cmd), "amtele %d %f %f %f %f\n", targetNum, newPos[0], newPos[1], newPos[2], ps->viewangles[YAW]);
 	ai->SendClientCommand(cmd);
 }
 
@@ -412,26 +412,9 @@ static void CG_TeleCrosshairToMe_f(void) {
 		return;
 	}
 
-	vec3_t viewAngles, forward, newPos;
-	float offset = 100.0f; // Distance in front of the player
-
-	// Copy the current player's view angles (direction they are looking at)
-	VectorCopy(ps->viewangles, viewAngles);
-
-	// Calculate the forward direction based on view angles
-	AngleVectors(viewAngles, forward, NULL, NULL);
-
-	// Calculate the new position in front of the player by 'offset' units
-	VectorMA(ps->origin, offset, forward, newPos);
-
-	// If there are less than or equal to 2 command arguments, adjust the Z position
-	if (ai->Cmd_Argc() <= 2) {
-		newPos[2] = ps->origin[2] + 24; // Slightly above the ground
-	}
-
-	// Send the command to teleport the player under the crosshair to the new position
+	// Teleport the player under crosshair to our position
 	char cmd[256];
-	Com_sprintf(cmd, sizeof(cmd), "amTele %d %.2f %.2f %.2f r", clientNum, newPos[0], newPos[1], newPos[2]);
+	Com_sprintf(cmd, sizeof(cmd), "amtele %d %f %f %f %f\n", clientNum, ps->origin[0], ps->origin[1], ps->origin[2], ps->viewangles[YAW]);
 	ai->SendClientCommand(cmd);
 }
 
@@ -497,7 +480,7 @@ static void CG_PTele_Offset_f(void) {
 					teleOffsetZ = targetOrigin[2] + offsetZ;
 
 					char cmd[256];
-					Com_sprintf(cmd, sizeof(cmd), "amtele %i %i %i %i", teleOffsetX, teleOffsetY, teleOffsetZ, yaw);
+					Com_sprintf(cmd, sizeof(cmd), "amtele %i %i %i %i %i\n", targetNum, teleOffsetX, teleOffsetY, teleOffsetZ, yaw);
 					ai->SendClientCommand(cmd);
 				}
 			}
@@ -515,7 +498,7 @@ static void CG_PTele_Offset_f(void) {
 					teleOffsetZ = targetOrigin[2] + offsetZ;
 
 					char cmd[256];
-					Com_sprintf(cmd, sizeof(cmd), "amtele %i %i %i %i", teleOffsetX, teleOffsetY, teleOffsetZ, yaw);
+					Com_sprintf(cmd, sizeof(cmd), "amtele %i %i %i %i %i\n", targetNum, teleOffsetX, teleOffsetY, teleOffsetZ, yaw);
 					ai->SendClientCommand(cmd);
 				}
 			}
@@ -567,7 +550,7 @@ static void CG_TeleportToCrosshairWithDistance_f(void) {
 	}
 
 	char cmd[256];
-	Com_sprintf(cmd, sizeof(cmd), "amtele %f %f %f %f", new_pos[0], new_pos[1], new_pos[2], ps->viewangles[YAW]);
+	Com_sprintf(cmd, sizeof(cmd), "amtele %f %f %f %f\n", new_pos[0], new_pos[1], new_pos[2], ps->viewangles[YAW]);
 	ai->SendClientCommand(cmd);
 }
 
@@ -644,7 +627,7 @@ static void CG_TeleTargetToMark_f(void) {
 
 	// Teleport the target to the custom telemark position
 	char cmd[256];
-	Com_sprintf(cmd, sizeof(cmd), "amtele %i %f %f %f %f", targetNum, customTelemarkX, customTelemarkY, customTelemarkZ, customTelemarkYaw);
+	Com_sprintf(cmd, sizeof(cmd), "amtele %i %f %f %f %f\n", targetNum, customTelemarkX, customTelemarkY, customTelemarkZ, customTelemarkYaw);
 	ai->SendClientCommand(cmd);
 }
 
@@ -661,7 +644,7 @@ static void CG_TeleSelfToMark_f(void) {
 	}
 
 	char cmd[256];
-	Com_sprintf(cmd, sizeof(cmd), "amtele %f %f %f %f", customTelemarkX, customTelemarkY, customTelemarkZ, customTelemarkYaw);
+	Com_sprintf(cmd, sizeof(cmd), "amtele %f %f %f %f\n", customTelemarkX, customTelemarkY, customTelemarkZ, customTelemarkYaw);
 	ai->SendClientCommand(cmd);
 }
 
@@ -709,7 +692,7 @@ static void CG_TeleToMark_f(void) {
 	}
 
 	char cmd[256];
-	Com_sprintf(cmd, sizeof(cmd), "amtele %f %f %f %f", x, y, z, yaw);
+	Com_sprintf(cmd, sizeof(cmd), "amtele %f %f %f %f\n", x, y, z, yaw);
 	ai->SendClientCommand(cmd);
 }
 
