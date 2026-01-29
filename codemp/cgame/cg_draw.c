@@ -7277,7 +7277,7 @@ void CG_SaberClashFlare( void )
 		return;
 	}
 
-	v = ( 1.0f - ((float)t / maxTime )) * ((1.0f - ( len / 800.0f )) * 2.0f + 0.35f);
+	v = ( 1.0f - ((float)t / maxTime )) * ((1.0f - ( len / 800.0f )) * 2.0f + 0.35f) * cg_saberClashSize.value;
 	if (v < 0.001f)
 	{
 		v = 0.001f;
