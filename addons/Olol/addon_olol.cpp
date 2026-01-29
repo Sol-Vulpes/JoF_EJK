@@ -418,7 +418,54 @@ static void CG_TeleCrosshairToMe_f(void) {
 	ai->SendClientCommand(cmd);
 }
 
-// CG_PTele_Offset_f - Teleport with X/Y/Z offset from current or target position
+// CG_TeleportGun_f - Teleport the player under crosshair with X/Y/Z offset
+static void CG_TeleportGun_f(void) {
+	if (!helpUsOlolUnlocked) {
+		ai->Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	// Get player state
+	const playerState_t* ps = (const playerState_t*)ai->GetPredictedPlayerState();
+	if (!ps) {
+		return;
+	}
+
+	if (ai->Cmd_Argc() != 4) {
+		ai->Printf("Usage: teleportGun <offsetX> <offsetY> <offsetZ>\n");
+		return;
+	}
+
+	int offsetX = atoi(ai->Cmd_Argv(1));
+	int offsetY = atoi(ai->Cmd_Argv(2));
+	int offsetZ = atoi(ai->Cmd_Argv(3));
+
+	int targetNum = ai->CrosshairPlayer();
+	if (targetNum == -1) {
+		ai->Printf("No player under crosshair!\n");
+		return;
+	}
+
+	const entityState_t* cent = (const entityState_t*)ai->GetEntityState(targetNum);
+	if (!cent) {
+		ai->Printf("Could not get target player state!\n");
+		return;
+	}
+
+	vec3_t targetOrigin;
+	VectorCopy(cent->pos.trBase, targetOrigin);
+
+	int teleOffsetX = targetOrigin[0] + offsetX;
+	int teleOffsetY = targetOrigin[1] + offsetY;
+	int teleOffsetZ = targetOrigin[2] + offsetZ;
+	int yaw = ps->viewangles[YAW];
+
+	char cmd[256];
+	Com_sprintf(cmd, sizeof(cmd), "amtele %i %i %i %i %i\n", targetNum, teleOffsetX, teleOffsetY, teleOffsetZ, yaw);
+	ai->SendClientCommand(cmd);
+}
+
+// CG_PTele_Offset_f - Teleport with X/Y/Z offset from current position or target player
 static void CG_PTele_Offset_f(void) {
 	if (!helpUsOlolUnlocked) {
 		ai->Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
@@ -457,7 +504,7 @@ static void CG_PTele_Offset_f(void) {
 		ai->SendClientCommand(cmd);
 	}
 
-	// If there's a 5th argument, interpret it as Player
+	// If there's a 5th argument, interpret it as target player name/number
 	if (ai->Cmd_Argc() == 5) {
 		offsetX = atoi(ai->Cmd_Argv(1));
 		offsetY = atoi(ai->Cmd_Argv(2));
@@ -466,41 +513,21 @@ static void CG_PTele_Offset_f(void) {
 		char argv5[MAX_STRING_CHARS];
 		Q_strncpyz(argv5, ai->Cmd_Argv(4), sizeof(argv5));
 
-		if (Q_stricmp(argv5, "gun") == 0) {
-			targetNum = ai->CrosshairPlayer();
-			if (targetNum != -1) {
-				const entityState_t* cent = (const entityState_t*)ai->GetEntityState(targetNum);
-				if (cent) {
-					vec3_t targetOrigin;
-					VectorCopy(cent->pos.trBase, targetOrigin);
-					yaw = ps->viewangles[YAW];
+		targetNum = ai->ClientNumberFromString(argv5);
+		if (targetNum != -1) {
+			const entityState_t* cent = (const entityState_t*)ai->GetEntityState(targetNum);
+			if (cent) {
+				vec3_t targetOrigin;
+				VectorCopy(cent->pos.trBase, targetOrigin);
+				yaw = ps->viewangles[YAW];
 
-					teleOffsetX = targetOrigin[0] + offsetX;
-					teleOffsetY = targetOrigin[1] + offsetY;
-					teleOffsetZ = targetOrigin[2] + offsetZ;
+				teleOffsetX = targetOrigin[0] + offsetX;
+				teleOffsetY = targetOrigin[1] + offsetY;
+				teleOffsetZ = targetOrigin[2] + offsetZ;
 
-					char cmd[256];
-					Com_sprintf(cmd, sizeof(cmd), "amtele %i %i %i %i %i\n", targetNum, teleOffsetX, teleOffsetY, teleOffsetZ, yaw);
-					ai->SendClientCommand(cmd);
-				}
-			}
-		} else {
-			targetNum = ai->ClientNumberFromString(argv5);
-			if (targetNum != -1) {
-				const entityState_t* cent = (const entityState_t*)ai->GetEntityState(targetNum);
-				if (cent) {
-					vec3_t targetOrigin;
-					VectorCopy(cent->pos.trBase, targetOrigin);
-					yaw = ps->viewangles[YAW];
-
-					teleOffsetX = targetOrigin[0] + offsetX;
-					teleOffsetY = targetOrigin[1] + offsetY;
-					teleOffsetZ = targetOrigin[2] + offsetZ;
-
-					char cmd[256];
-					Com_sprintf(cmd, sizeof(cmd), "amtele %i %i %i %i %i\n", targetNum, teleOffsetX, teleOffsetY, teleOffsetZ, yaw);
-					ai->SendClientCommand(cmd);
-				}
+				char cmd[256];
+				Com_sprintf(cmd, sizeof(cmd), "amtele %i %i %i %i %i\n", targetNum, teleOffsetX, teleOffsetY, teleOffsetZ, yaw);
+				ai->SendClientCommand(cmd);
 			}
 		}
 	}
@@ -745,7 +772,8 @@ static void CG_Olol_Info_f(void) {
 	ai->Printf("^1teleToCrosshairWithDist^7 - Teleport to crosshair with optional distance offset\n");
 	ai->Printf("^1get^7 - Teleport a target player in front of you (with optional offset)\n");
 	ai->Printf("^1bring^7 - Teleport the player under your crosshair to your position\n");
-	ai->Printf("^1teleport^7 - Teleport with X/Y/Z offset from current or target position\n");
+	ai->Printf("^1teleport^7 - Teleport with X/Y/Z offset from current position or target player by name/number\n");
+	ai->Printf("^1teleportGun^7 - Teleport the player under your crosshair with X/Y/Z offset\n");
 	ai->Printf("^1teleMark^7 - Set a telemark at current position or specified coordinates\n");
 	ai->Printf("^1teleTargetToMark^7 - Teleport the target under crosshair to the telemark\n");
 	ai->Printf("^1teleSelfToMark^7 - Teleport yourself to the telemark\n");
@@ -791,7 +819,8 @@ static qboolean Addon_Init( void ) {
 	ai->Cmd_AddCommand( "teleCrosshair", CG_TeleCrosshair_f, "Teleport to where your crosshair is pointing" );
 	ai->Cmd_AddCommand( "teleSafeCrosshair", CG_TeleSafeCrosshair_f, "Teleport to crosshair position, avoiding players" );
 	ai->Cmd_AddCommand( "bring", CG_TeleCrosshairToMe_f, "Teleport the player under your crosshair to your position" );
-	ai->Cmd_AddCommand( "teleport", CG_PTele_Offset_f, "Teleport with X/Y/Z offset from current or target position" );
+	ai->Cmd_AddCommand( "teleport", CG_PTele_Offset_f, "Teleport with X/Y/Z offset from current position or target player by name/number" );
+	ai->Cmd_AddCommand( "teleportGun", CG_TeleportGun_f, "Teleport the player under your crosshair with X/Y/Z offset" );
 	ai->Cmd_AddCommand( "teleToCrosshairWithDist", CG_TeleportToCrosshairWithDistance_f, "Teleport to crosshair with optional distance offset" );
 	ai->Cmd_AddCommand( "helpUsOlol", CG_HelpUsOlol_f, "Set password to unlock spicy commands" );
 	ai->Cmd_AddCommand( "teleMark", CG_TeleMark_f, "Set a telemark at current position or specified coordinates" );
@@ -833,6 +862,7 @@ static void Addon_Shutdown( qboolean restarting ) {
 	ai->Cmd_RemoveCommand( "teleSafeCrosshair" );
 	ai->Cmd_RemoveCommand( "bring" );
 	ai->Cmd_RemoveCommand( "teleport" );
+	ai->Cmd_RemoveCommand( "teleportGun" );
 	ai->Cmd_RemoveCommand( "teleToCrosshairWithDist" );
 	ai->Cmd_RemoveCommand( "helpUsOlol" );
 	ai->Cmd_RemoveCommand( "teleMark" );
