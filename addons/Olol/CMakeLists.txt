@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(
 	${CMAKE_CURRENT_SOURCE_DIR}/../../codemp
 	${CMAKE_CURRENT_SOURCE_DIR}/../../shared
+	${CMAKE_BINARY_DIR}/codemp/versionfile
 )
 
 # Source files
