@@ -34,6 +34,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "cl_cgameapi.h"
 #include "cl_uiapi.h"
 #include "cl_lan.h"
+#include "cl_addonapi.h"
 #include "snd_local.h"
 #include "sys/sys_loadlib.h"
 #include <string>
@@ -159,6 +160,17 @@ char cl_reconnectArgs[MAX_OSPATH] = {0};
 refexport_t	*re = NULL;
 static void	*rendererLib = NULL;
 
+// Addon system
+#define MAX_ADDONS 32
+typedef struct addonInfo_s {
+	char name[MAX_QPATH];
+	void *handle;
+	addonexport_t *addon;
+} addonInfo_t;
+
+static addonInfo_t loadedAddons[MAX_ADDONS];
+static int numLoadedAddons = 0;
+
 ping_t	cl_pinglist[MAX_PINGREQUESTS];
 
 typedef struct serverStatus_s
@@ -181,6 +193,93 @@ void CL_CheckForResend( void );
 void CL_ShowIP_f(void);
 void CL_ServerStatus_f(void);
 void CL_ServerStatusResponse( netadr_t from, msg_t *msg );
+
+// Addon API wrapper functions
+static int Addon_Cmd_Argc( void ) {
+	return Cmd_Argc();
+}
+
+static char *Addon_Cmd_Argv( int arg ) {
+	return Cmd_Argv( arg );
+}
+
+static void Addon_SendClientCommand( const char *cmd ) {
+	CL_AddReliableCommand( cmd, qfalse );
+}
+
+static const void *Addon_GetPredictedPlayerState( void ) {
+	if ( cl.snap.valid ) {
+		return &cl.snap.ps;
+	}
+	return NULL;
+}
+
+static const void *Addon_GetEntityState( int entityNum ) {
+	if ( entityNum >= 0 && entityNum < MAX_GENTITIES && cl.snap.valid && entityNum < cl.snap.numEntities ) {
+		return &cl.parseEntities[entityNum];
+	}
+	return NULL;
+}
+
+static int Addon_GetClientNum( void ) {
+	if ( cl.snap.valid ) {
+		return cl.snap.ps.clientNum;
+	}
+	return -1;
+}
+
+static int Addon_CrosshairPlayer( void ) {
+	// Simplified crosshair player detection
+	// This is a basic implementation - real cgame version is more sophisticated
+	if ( !cl.snap.valid ) {
+		return -1;
+	}
+
+	trace_t trace;
+	vec3_t start, end, forward;
+	float *viewangles = cl.snap.ps.viewangles;
+
+	// Calculate forward direction
+	AngleVectors( viewangles, forward, NULL, NULL );
+
+	// Trace from view origin
+	VectorCopy( cl.snap.ps.origin, start );
+	start[2] += cl.snap.ps.viewheight;
+
+	VectorMA( start, 8192.0f, forward, end );
+
+	CM_BoxTrace( &trace, start, end, NULL, NULL, 0, CONTENTS_SOLID|CONTENTS_BODY, 0 );
+
+	if ( trace.entityNum >= 0 && trace.entityNum < MAX_CLIENTS ) {
+		return trace.entityNum;
+	}
+
+	return -1;
+}
+
+static int Addon_ClientNumberFromString( const char *s ) {
+	// Simplified client number parsing
+	if ( !s || !s[0] ) {
+		return -1;
+	}
+
+	// Check if it's a number
+	if ( s[0] >= '0' && s[0] <= '9' ) {
+		int num = atoi( s );
+		if ( num >= 0 && num < MAX_CLIENTS ) {
+			return num;
+		}
+	}
+
+	// TODO: Name lookup would require access to client info
+	// For now, return -1 for names
+	return -1;
+}
+
+static void Addon_Trace( void *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentMask ) {
+	CM_BoxTrace( (trace_t *)results, start, end, mins, maxs, 0, contentMask, 0 );
+}
+
 static void CL_ShutdownRef( qboolean restarting );
 
 /*
@@ -3685,6 +3784,256 @@ static void CL_GenerateQKey(void)
 }
 
 /*
+============
+CL_LoadAddons
+============
+*/
+static void CL_LoadAddons( void ) {
+	char **fileList;
+	int numFiles, i;
+	char dllName[MAX_OSPATH];
+	char addonName[MAX_QPATH];
+
+	Com_Printf( "---------- Loading Addons ----------\n" );
+
+	// Get the base path where the game executable is located
+	const char *basePath = Cvar_VariableString( "fs_basepath" );
+	Com_Printf( "fs_basepath is: '%s'\n", basePath ? basePath : "NULL" );
+	if ( !basePath || !*basePath ) {
+		Com_Printf( "Failed to get base path for addon loading\n" );
+		return;
+	}
+
+	// Build the addons directory path (ensure no trailing separator)
+	char addonsPath[MAX_OSPATH];
+	Q_strncpyz( addonsPath, basePath, sizeof(addonsPath) );
+	
+	// Remove trailing separator if present
+	int len = strlen(addonsPath);
+	if (len > 0 && (addonsPath[len-1] == '/' || addonsPath[len-1] == '\\')) {
+		addonsPath[len-1] = '\0';
+	}
+	
+	// Add addons subdirectory
+	Com_sprintf( addonsPath + strlen(addonsPath), sizeof(addonsPath) - strlen(addonsPath), "%caddons", PATH_SEP );
+
+	Com_Printf( "Base path: '%s'\n", basePath );
+	Com_Printf( "Addons path: '%s'\n", addonsPath );
+
+	// For testing: try to load Olol.dll using relative path
+	Com_Printf( "Testing addon loading with relative path...\n" );
+	const char *testDllPath = "addons\\Olol.dll";
+	Com_Printf( "Attempting to load: %s\n", testDllPath );
+
+	void *testLib = Sys_LoadDll( testDllPath, qfalse );
+	if ( testLib ) {
+		Com_Printf( "Relative path loading succeeded!\n" );
+
+		// Get the addon API function
+		GetAddonAPI_t GetAddonAPI = (GetAddonAPI_t)Sys_LoadFunction( testLib, "GetAddonAPI" );
+		if ( GetAddonAPI ) {
+			Com_Printf( "GetAddonAPI found!\n" );
+
+			// Set up the import structure
+			static addonimport_t ai;
+			memset( &ai, 0, sizeof(ai) );
+			ai.Printf = Com_Printf;
+			ai.Error = Com_Error;
+			ai.Cmd_AddCommand = Cmd_AddCommand;
+			ai.Cmd_RemoveCommand = Cmd_RemoveCommand;
+			ai.Cvar_Get = Cvar_Get;
+			ai.Cvar_VariableString = Cvar_VariableString;
+			ai.Cvar_VariableValue = Cvar_VariableValue;
+			ai.FS_ReadFile = FS_ReadFile;
+			ai.FS_FreeFile = FS_FreeFile;
+			ai.FS_FileExists = FS_FileExists;
+			ai.Z_Malloc = Z_Malloc;
+			ai.Z_Free = Z_Free;
+
+			// Extended API functions
+			ai.Cmd_Argc = Addon_Cmd_Argc;
+			ai.Cmd_Argv = Addon_Cmd_Argv;
+			ai.SendClientCommand = Addon_SendClientCommand;
+			ai.GetPredictedPlayerState = Addon_GetPredictedPlayerState;
+			ai.GetEntityState = Addon_GetEntityState;
+			ai.GetClientNum = Addon_GetClientNum;
+			ai.CrosshairPlayer = Addon_CrosshairPlayer;
+			ai.ClientNumberFromString = Addon_ClientNumberFromString;
+			ai.Trace = Addon_Trace;
+
+			// Get the addon export structure
+			addonexport_t *addon = GetAddonAPI( ADDON_API_VERSION, &ai );
+			if ( addon ) {
+				Com_Printf( "Addon API initialized!\n" );
+
+				// Initialize the addon
+				if ( addon->Init && addon->Init() ) {
+					Com_Printf( "Addon initialized successfully!\n" );
+
+					// Store the loaded addon info
+					addonInfo_t *info = &loadedAddons[numLoadedAddons++];
+					Q_strncpyz( info->name, "Olol", sizeof(info->name) );
+					info->handle = testLib;
+					info->addon = addon;
+				} else {
+					Com_Printf( "Addon initialization failed\n" );
+					Sys_UnloadLibrary( testLib );
+				}
+			} else {
+				Com_Printf( "GetAddonAPI failed\n" );
+				Sys_UnloadLibrary( testLib );
+			}
+		} else {
+			Com_Printf( "GetAddonAPI not found\n" );
+			Sys_UnloadLibrary( testLib );
+		}
+	} else {
+		Com_Printf( "Relative path loading failed: %s\n", Sys_LibraryError() );
+	}
+
+	// Try to list files directly
+	Com_Printf( "Attempting to list *.dll files...\n" );
+	fileList = Sys_ListFiles( addonsPath, "*.dll", NULL, &numFiles, qfalse );
+	Com_Printf( "Sys_ListFiles returned: %d files (fileList = %p)\n", numFiles, fileList );
+
+	if ( fileList && numFiles > 0 ) {
+		Com_Printf( "Files found:\n" );
+		for ( int i = 0; i < numFiles && i < 5; i++ ) {
+			Com_Printf( "  [%d] %s\n", i, fileList[i] );
+		}
+	}
+
+	if ( !fileList || numFiles <= 0 ) {
+		Com_Printf( "No addon DLLs found in %s\n", addonsPath );
+		return;
+	}
+
+	Com_Printf( "Found %d potential addon DLLs in %s\n", numFiles, addonsPath );
+
+	for ( i = 0; i < numFiles && numLoadedAddons < MAX_ADDONS; i++ ) {
+		const char *fileName = fileList[i];
+
+		// Skip files that don't look like addon DLLs
+		if ( !fileName || !*fileName ) {
+			continue;
+		}
+
+		// Extract addon name (remove .dll extension and path)
+		const char *baseName = COM_SkipPath( const_cast<char*>(fileName) );
+		if ( !baseName || !*baseName ) {
+			continue;
+		}
+
+		Q_strncpyz( addonName, baseName, sizeof(addonName) );
+		COM_StripExtension( addonName, addonName, sizeof(addonName) );
+
+		// Skip known game DLLs
+		if ( Q_stricmp( addonName, "eternaljk" ) == 0 ||
+			 Q_stricmp( addonName, "cgamex86" ) == 0 ||
+			 Q_stricmp( addonName, "uix86" ) == 0 ||
+			 Q_stricmp( addonName, "jampgamex86" ) == 0 ||
+			 Q_stricmp( addonName, "rd-eternaljk_x86" ) == 0 ||
+			 Q_stricmp( addonName, "rd-rend2-etjk_x86" ) == 0 ||
+			 strstr( addonName, "eternaljkded" ) ||
+			 strstr( addonName, "cgame" ) ||
+			 strstr( addonName, "ui" ) ||
+			 strstr( addonName, "jampgame" ) ||
+			 strstr( addonName, "rd-" ) ) {
+			continue;
+		}
+
+		// Construct relative path for Sys_LoadDll
+		Com_sprintf( dllName, sizeof(dllName), "addons%c%s", PATH_SEP, fileName );
+
+		Com_Printf( "Trying to load addon: %s from %s\n", addonName, dllName );
+
+		// Load the DLL
+		void *addonLib = Sys_LoadDll( dllName, qfalse );
+		if ( !addonLib ) {
+			Com_Printf( "Failed to load addon %s: %s\n", addonName, Sys_LibraryError() );
+			continue;
+		}
+
+		// Get the addon API function
+		GetAddonAPI_t GetAddonAPI = (GetAddonAPI_t)Sys_LoadFunction( addonLib, "GetAddonAPI" );
+		if ( !GetAddonAPI ) {
+			Com_Printf( "Failed to find GetAddonAPI in %s: %s\n", addonName, Sys_LibraryError() );
+			Sys_UnloadLibrary( addonLib );
+			continue;
+		}
+
+		// Set up the import structure
+		static addonimport_t ai;
+		memset( &ai, 0, sizeof(ai) );
+
+		ai.Printf = Com_Printf;
+		ai.Error = Com_Error;
+		ai.Cmd_AddCommand = Cmd_AddCommand;
+		ai.Cmd_RemoveCommand = Cmd_RemoveCommand;
+		ai.Cvar_Get = Cvar_Get;
+		ai.Cvar_VariableString = Cvar_VariableString;
+		ai.Cvar_VariableValue = Cvar_VariableValue;
+		ai.FS_ReadFile = FS_ReadFile;
+		ai.FS_FreeFile = FS_FreeFile;
+		ai.FS_FileExists = FS_FileExists;
+		ai.Z_Malloc = Z_Malloc;
+		ai.Z_Free = Z_Free;
+
+		// Get the addon export structure
+		addonexport_t *addon = GetAddonAPI( ADDON_API_VERSION, &ai );
+		if ( !addon ) {
+			Com_Printf( "GetAddonAPI failed for %s\n", addonName );
+			Sys_UnloadLibrary( addonLib );
+			continue;
+		}
+
+		// Initialize the addon
+		if ( addon->Init && !addon->Init() ) {
+			Com_Printf( "Addon %s initialization failed\n", addonName );
+			Sys_UnloadLibrary( addonLib );
+			continue;
+		}
+
+		// Store the loaded addon info
+		addonInfo_t *info = &loadedAddons[numLoadedAddons++];
+		Q_strncpyz( info->name, addonName, sizeof(info->name) );
+		info->handle = addonLib;
+		info->addon = addon;
+
+		Com_Printf( "Successfully loaded addon: %s\n", addonName );
+	}
+
+	Sys_FreeFileList( fileList );
+
+	Com_Printf( "Loaded %d addon(s)\n", numLoadedAddons );
+}
+
+/*
+============
+CL_ShutdownAddons
+============
+*/
+void CL_ShutdownAddons( qboolean restarting ) {
+	int i;
+
+	for ( i = 0; i < numLoadedAddons; i++ ) {
+		addonInfo_t *info = &loadedAddons[i];
+
+		if ( info->addon && info->addon->Shutdown ) {
+			info->addon->Shutdown( restarting );
+		}
+
+		if ( info->handle ) {
+			Sys_UnloadLibrary( info->handle );
+		}
+
+		Com_Printf( "Unloaded addon: %s\n", info->name );
+	}
+
+	numLoadedAddons = 0;
+}
+
+/*
 ====================
 CL_Init
 ====================
@@ -3910,6 +4259,8 @@ void CL_Init( void ) {
 
 	CL_InitRef();
 
+	CL_LoadAddons();
+
 	SCR_Init ();
 
 	Cbuf_Execute ();
@@ -3959,6 +4310,8 @@ void CL_Shutdown( void ) {
 
 	// RJ: added the shutdown all to close down the cgame (to free up some memory, such as in the fx system)
 	CL_ShutdownAll( qtrue );
+
+	CL_ShutdownAddons( qfalse );
 
 	S_Shutdown();
 	//CL_ShutdownUI();

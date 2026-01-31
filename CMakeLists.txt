@@ -47,6 +47,7 @@ option(BuildDiscordRichPresence "Whether to build with Discord Rich Presence int
 option(BuildMPRend2 "Whether to create projects for the EXPERIMENTAL MP rend2 renderer (rd-rend2-etjk_x86.dll)" ON)
 
 option(BuildTests "Whether to build automatic unit tests (requires Boost)" OFF)
+option(BuildAddons "Whether to build addons" ON)
 
 Include(CMakeDependentOption)
 CMAKE_DEPENDENT_OPTION(BuildSymbolServer "Build WIP Windows Symbol Server (experimental and unused)" OFF "NOT WIN32 OR NOT MSVC" OFF)
@@ -218,9 +219,7 @@ if(MSVC)
 	
 	# Configure MSVC Runtime
 	include(MSVCRuntime)
-	if(NOT DEFINED MSVC_RUNTIME)
-		set(MSVC_RUNTIME "dynamic")
-	endif()
+	set(MSVC_RUNTIME "static")
 	configure_msvc_runtime()
 
 	# We don't try to control symbol visibility under MSVC.
@@ -413,6 +412,9 @@ add_subdirectory(lib/minizip)
 
 # Add projects
 add_subdirectory(${MPDir})
+if(BuildAddons)
+	add_subdirectory("addons")
+endif()
 # Windows Symbol Server tools
 if(BuildSymbolServer)
 	add_subdirectory("tools/WinSymbol")
