@@ -185,3 +185,7 @@ build-NVML/
 buildi686/
 
 lib/libcurl/
+
+build-win32/
+
+build32temp/

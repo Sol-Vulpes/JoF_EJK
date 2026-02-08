@@ -19,15 +19,49 @@ function Write-Header {
     Write-Host ""
 }
 
+function Get-CMakeCommand {
+    # Try to get cmake path from multiple sources
+    $cmakePath = $null
+
+    # 1. Check cmake-path.txt file
+    if (Test-Path "cmake-path.txt") {
+        $content = Get-Content "cmake-path.txt" | Where-Object { $_ -notmatch "^#" -and $_.Trim() -ne "" }
+        if ($content) {
+            $cmakePath = $content[0].Trim()
+        }
+    }
+
+    # 2. Check CMAKE_PATH environment variable
+    if (!$cmakePath -and $env:CMAKE_PATH) {
+        $cmakePath = $env:CMAKE_PATH
+    }
+
+    # 3. Default to cmake in PATH
+    if (!$cmakePath) {
+        $cmakePath = "cmake"
+    }
+
+    return $cmakePath
+}
+
 function Test-Prerequisites {
+    $cmakeCmd = Get-CMakeCommand
+
     # Check for CMake
     try {
-        $cmakeVersion = & cmake --version 2>$null | Select-String -Pattern "cmake version" | ForEach-Object { $_.Line -replace "cmake version ", "" }
-        Write-Host "✓ CMake found: $cmakeVersion" -ForegroundColor Green
+        $cmakeVersion = & $cmakeCmd --version 2>$null | Select-String -Pattern "cmake version" | ForEach-Object { $_.Line -replace "cmake version ", "" }
+        Write-Host "✓ CMake found: $cmakeVersion ($cmakeCmd)" -ForegroundColor Green
     } catch {
-        Write-Error "✗ CMake not found. Please install CMake 3.1 or later."
+        Write-Error "✗ CMake not found at: $cmakeCmd"
+        Write-Host "Please either:" -ForegroundColor Yellow
+        Write-Host "1. Add cmake to your PATH" -ForegroundColor Yellow
+        Write-Host "2. Set CMAKE_PATH environment variable" -ForegroundColor Yellow
+        Write-Host "3. Edit cmake-path.txt with the full path to cmake.exe" -ForegroundColor Yellow
         exit 1
     }
+
+    return $cmakeCmd
+}
 
     # Check for Visual Studio (if building for Windows)
     if ($Target -like "win*") {
@@ -41,8 +75,37 @@ function Test-Prerequisites {
     }
 }
 
+function Get-BestVSGenerator {
+    $generators = & $cmakeCmd --help 2>$null | Select-String -Pattern "Visual Studio" | ForEach-Object {
+        $_.Line.Trim() -replace '\[arch\]', '' -replace '.*= ', ''
+    }
+
+    # Prefer newer versions first
+    $vs2022 = $generators | Where-Object { $_ -like "*2022*" }
+    $vs2019 = $generators | Where-Object { $_ -like "*2019*" }
+    $vs2017 = $generators | Where-Object { $_ -like "*2017*" }
+    $vs2015 = $generators | Where-Object { $_ -like "*2015*" }
+
+    if ($vs2022) { return $vs2022 }
+    if ($vs2019) { return $vs2019 }
+    if ($vs2017) { return $vs2017 }
+    if ($vs2015) { return $vs2015 }
+
+    throw "No compatible Visual Studio generator found. Please install Visual Studio 2015 or later."
+}
+
 function Invoke-Win64Build {
+    param([string]$CMakeCmd)
+
     Write-Host "Building for Windows 64-bit ($Configuration)..." -ForegroundColor Yellow
+
+    try {
+        $vsGenerator = Get-BestVSGenerator
+        Write-Host "Using generator: $vsGenerator" -ForegroundColor Cyan
+    } catch {
+        Write-Error $_.Exception.Message
+        return
+    }
 
     $buildDir = "build-win64-$Configuration"
     if (!(Test-Path $buildDir)) {
@@ -52,9 +115,16 @@ function Invoke-Win64Build {
     Push-Location $buildDir
 
     try {
+        # Clean previous CMake cache if it exists
+        if (Test-Path "CMakeCache.txt") {
+            Write-Host "Cleaning previous CMake cache..."
+            Remove-Item "CMakeFiles" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item "CMakeCache.txt" -Force -ErrorAction SilentlyContinue
+        }
+
         # Configure
         Write-Host "Running CMake configuration..."
-        & cmake -G $Generator -A x64 -DCMAKE_BUILD_TYPE=$Configuration ..
+        & $CMakeCmd -G $vsGenerator -A x64 -DCMAKE_BUILD_TYPE=$Configuration ..
 
         if ($LASTEXITCODE -ne 0) {
             throw "CMake configuration failed"
@@ -62,7 +132,7 @@ function Invoke-Win64Build {
 
         # Build
         Write-Host "Building..."
-        & cmake --build . --config $Configuration
+        & $CMakeCmd --build . --config $Configuration
 
         if ($LASTEXITCODE -ne 0) {
             throw "Build failed"
@@ -77,7 +147,17 @@ function Invoke-Win64Build {
 }
 
 function Invoke-Win32Build {
+    param([string]$CMakeCmd)
+
     Write-Host "Building for Windows 32-bit ($Configuration)..." -ForegroundColor Yellow
+
+    try {
+        $vsGenerator = Get-BestVSGenerator
+        Write-Host "Using generator: $vsGenerator" -ForegroundColor Cyan
+    } catch {
+        Write-Error $_.Exception.Message
+        return
+    }
 
     $buildDir = "build-win32-$Configuration"
     if (!(Test-Path $buildDir)) {
@@ -87,9 +167,16 @@ function Invoke-Win32Build {
     Push-Location $buildDir
 
     try {
+        # Clean previous CMake cache if it exists
+        if (Test-Path "CMakeCache.txt") {
+            Write-Host "Cleaning previous CMake cache..."
+            Remove-Item "CMakeFiles" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item "CMakeCache.txt" -Force -ErrorAction SilentlyContinue
+        }
+
         # Configure
         Write-Host "Running CMake configuration..."
-        & cmake -G $Generator -A Win32 -DCMAKE_BUILD_TYPE=$Configuration ..
+        & $CMakeCmd -G $vsGenerator -A Win32 -DCMAKE_BUILD_TYPE=$Configuration ..
 
         if ($LASTEXITCODE -ne 0) {
             throw "CMake configuration failed"
@@ -97,7 +184,7 @@ function Invoke-Win32Build {
 
         # Build
         Write-Host "Building..."
-        & cmake --build . --config $Configuration
+        & $CMakeCmd --build . --config $Configuration
 
         if ($LASTEXITCODE -ne 0) {
             throw "Build failed"
@@ -171,11 +258,11 @@ function Show-Status {
 
 # Main execution
 Write-Header
-Test-Prerequisites
+$cmakeCmd = Test-Prerequisites
 
 switch ($Target) {
-    "win64" { Invoke-Win64Build }
-    "win32" { Invoke-Win32Build }
+    "win64" { Invoke-Win64Build -CMakeCmd $cmakeCmd }
+    "win32" { Invoke-Win32Build -CMakeCmd $cmakeCmd }
     "linux" { Invoke-LinuxBuild }
     "clean" { Clear-BuildDirectories }
     "status" { Show-Status }

@@ -19,12 +19,82 @@ exit /b 1
 
 :win64
 echo Building for Windows 64-bit...
-call build-win64.bat
+REM Get cmake path
+for /f "tokens=*" %%i in ('call cmake-path.bat') do set CMAKE_CMD=%%i
+if %errorlevel% neq 0 goto end
+
+REM Detect available Visual Studio generator
+for /f "tokens=*" %%i in ('call detect-vs-generator.bat') do set VS_GENERATOR=%%i
+if %errorlevel% neq 0 goto end
+
+echo Using generator: %VS_GENERATOR%
+
+if not exist build-win64 mkdir build-win64
+cd build-win64
+
+REM Clean previous CMake cache if generator changed
+if exist CMakeCache.txt (
+    echo Cleaning previous CMake cache...
+    rmdir /s /q CMakeFiles 2>nul
+    del CMakeCache.txt 2>nul
+)
+
+"%CMAKE_CMD%" -G "%VS_GENERATOR%" -A x64 -DCMAKE_BUILD_TYPE=Release ..
+if %errorlevel% neq 0 (
+    echo CMake configuration failed!
+    cd ..
+    goto end
+)
+
+"%CMAKE_CMD%" --build . --config Release
+if %errorlevel% neq 0 (
+    echo Build failed!
+    cd ..
+    goto end
+)
+
+echo Build completed successfully! Files are in build-win64\Release\
+cd ..
 goto end
 
 :win32
 echo Building for Windows 32-bit...
-call build-win32.bat
+REM Get cmake path
+for /f "tokens=*" %%i in ('call cmake-path.bat') do set CMAKE_CMD=%%i
+if %errorlevel% neq 0 goto end
+
+REM Detect available Visual Studio generator
+for /f "tokens=*" %%i in ('call detect-vs-generator.bat') do set VS_GENERATOR=%%i
+if %errorlevel% neq 0 goto end
+
+echo Using generator: %VS_GENERATOR%
+
+if not exist build-win32 mkdir build-win32
+cd build-win32
+
+REM Clean previous CMake cache if generator changed
+if exist CMakeCache.txt (
+    echo Cleaning previous CMake cache...
+    rmdir /s /q CMakeFiles 2>nul
+    del CMakeCache.txt 2>nul
+)
+
+"%CMAKE_CMD%" -G "%VS_GENERATOR%" -A Win32 -DCMAKE_BUILD_TYPE=Release ..
+if %errorlevel% neq 0 (
+    echo CMake configuration failed!
+    cd ..
+    goto end
+)
+
+"%CMAKE_CMD%" --build . --config Release
+if %errorlevel% neq 0 (
+    echo Build failed!
+    cd ..
+    goto end
+)
+
+echo Build completed successfully! Files are in build-win32\Release\
+cd ..
 goto end
 
 :linux
