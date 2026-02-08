@@ -11,6 +11,66 @@ It was based on an [![Fork](https://img.shields.io/badge/repository-EternalJK-br
 
 OpenJK is licensed under GPLv2 as free software. You are free to use, modify and redistribute OpenJK following the terms in LICENSE.txt.
 
+## Build Instructions
+
+For detailed build instructions across all platforms (Windows 32/64-bit, Linux, cross-compilation), see [BUILD.md](BUILD.md).
+
+### Easy Build Scripts
+
+Use the provided build scripts for quick setup:
+
+**Windows:**
+```batch
+# Interactive menu (recommended for beginners)
+build-cross-platform.bat
+
+# Direct builds
+build-win64.bat    # 64-bit Windows
+build-win32.bat    # 32-bit Windows
+
+# Advanced configuration
+build-config.bat
+```
+
+**PowerShell (cross-platform):**
+```powershell
+# 64-bit Windows (default)
+.\build.ps1
+
+# 32-bit Windows
+.\build.ps1 -Target win32
+
+# Linux (requires WSL on Windows)
+.\build.ps1 -Target linux
+```
+
+**Linux:**
+```bash
+./build-linux.sh
+```
+
+### Manual CMake Build
+
+**Windows:**
+```batch
+# 64-bit (default)
+cmake -G "Visual Studio 16 2019" -A x64 .
+cmake --build . --config Release
+
+# 32-bit
+cmake -G "Visual Studio 16 2019" -A Win32 .
+cmake --build . --config Release
+```
+
+**Linux:**
+```bash
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+```
+
+See [BUILD_SCRIPTS_README.md](BUILD_SCRIPTS_README.md) for detailed script usage.
+
 ## For players
 
 Installing and running EternalJK:
@@ -18,7 +78,6 @@ Installing and running EternalJK:
 1. [Download the latest release](https://github.com/Milamber0/JoF_EJK/releases).
 2. Extract the file into the Jedi Academy `GameData` folder. For Steam users, this will be in `<Steam Folder>/steamapps/common/Jedi Academy/GameData/`.
 3. Run eternaljk.x86.exe (Rename to jamp.exe for better steam support)
-
 
 ## Credits
 ### JoF Maintainers/Contributors
