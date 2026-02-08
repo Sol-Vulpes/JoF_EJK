@@ -15,6 +15,8 @@ OpenJK is licensed under GPLv2 as free software. You are free to use, modify and
 
 For detailed build instructions across all platforms (Windows 32/64-bit, Linux, cross-compilation), see [BUILD.md](BUILD.md).
 
+**Custom CMake Path**: If you use a specific CMake version, see [CMAKE_PATH_README.md](CMAKE_PATH_README.md) for configuration options.
+
 ### Easy Build Scripts
 
 Use the provided build scripts for quick setup:

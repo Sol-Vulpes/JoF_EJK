@@ -17,6 +17,13 @@ This guide provides instructions for building JoF EternalJK for different platfo
 - **CMake 3.1 or later**
 - **Git** (for cloning and version info)
 
+### CMake Path Configuration
+The build scripts support custom CMake installations. You can specify your CMake path in several ways:
+
+1. **cmake-path.txt file**: Edit this file with your CMake executable path
+2. **CMAKE_PATH environment variable**: Set this variable to your CMake path
+3. **PATH**: Add CMake to your system PATH (default behavior)
+
 ### Linux
 - **CMake 3.1 or later**
 - **GCC or Clang compiler**
@@ -62,12 +69,20 @@ make -j$(nproc)
 
 #### 64-bit Build
 ```batch
+# Automatic detection (recommended)
+.\build-win64.bat
+
+# Manual specification
 cmake -G "Visual Studio 16 2019" -A x64 .
 cmake --build . --config Release
 ```
 
 #### 32-bit Build
 ```batch
+# Automatic detection (recommended)
+.\build-win32.bat
+
+# Manual specification
 cmake -G "Visual Studio 16 2019" -A Win32 .
 cmake --build . --config Release
 ```

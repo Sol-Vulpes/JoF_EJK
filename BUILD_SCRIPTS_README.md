@@ -65,6 +65,18 @@ Builds JoF EternalJK for Linux (detects architecture automatically).
 
 ## Configuration
 
+### `cmake-path.txt`
+Specify a custom CMake executable path. Uncomment and modify the path as needed:
+```
+# Example for Windows
+C:\Program Files\CMake\bin\cmake.exe
+
+# Example for Linux/Mac
+/usr/local/bin/cmake
+```
+
+Alternatively, set the `CMAKE_PATH` environment variable.
+
 ### `build-config.ini`
 Configuration file for customizing build settings. Edit this file to change default options.
 
@@ -93,17 +105,27 @@ Configuration file for customizing build settings. Edit this file to change defa
 ## Troubleshooting
 
 ### Visual Studio Not Found
-If you get errors about Visual Studio generators:
-1. Install Visual Studio with C++ build tools
-2. Use the correct generator name for your VS version:
-   - VS 2019: `"Visual Studio 16 2019"`
-   - VS 2022: `"Visual Studio 17 2022"`
-   - VS 2017: `"Visual Studio 15 2017"`
+The build scripts automatically detect available Visual Studio versions. If you get errors:
+1. Install Visual Studio with C++ build tools (2015 or later)
+2. Install Visual Studio Build Tools if you don't want the full IDE
+3. Ensure Visual Studio is properly registered with Windows
+4. Try running the scripts as Administrator
+
+**Automatic Detection Order:**
+- Visual Studio 2022 (preferred)
+- Visual Studio 2019
+- Visual Studio 2017
+- Visual Studio 2015 (minimum supported)
+
+If no Visual Studio is detected, you can:
+- Install Visual Studio Community (free)
+- Use alternative generators like Ninja (requires additional setup)
 
 ### CMake Errors
-- Ensure CMake is in your PATH
+- Ensure CMake is accessible via PATH, cmake-path.txt, or CMAKE_PATH environment variable
 - Clear build directories: `.\build.ps1 -Target clean`
 - Try different generator
+- Check cmake-path.txt for correct path syntax
 
 ### Linux Dependencies
 ```bash
@@ -203,6 +225,18 @@ Builds JoF EternalJK for Linux (detects architecture automatically).
 
 ## Configuration
 
+### `cmake-path.txt`
+Specify a custom CMake executable path. Uncomment and modify the path as needed:
+```
+# Example for Windows
+C:\Program Files\CMake\bin\cmake.exe
+
+# Example for Linux/Mac
+/usr/local/bin/cmake
+```
+
+Alternatively, set the `CMAKE_PATH` environment variable.
+
 ### `build-config.ini`
 Configuration file for customizing build settings. Edit this file to change default options.
 
@@ -231,17 +265,27 @@ Configuration file for customizing build settings. Edit this file to change defa
 ## Troubleshooting
 
 ### Visual Studio Not Found
-If you get errors about Visual Studio generators:
-1. Install Visual Studio with C++ build tools
-2. Use the correct generator name for your VS version:
-   - VS 2019: `"Visual Studio 16 2019"`
-   - VS 2022: `"Visual Studio 17 2022"`
-   - VS 2017: `"Visual Studio 15 2017"`
+The build scripts automatically detect available Visual Studio versions. If you get errors:
+1. Install Visual Studio with C++ build tools (2015 or later)
+2. Install Visual Studio Build Tools if you don't want the full IDE
+3. Ensure Visual Studio is properly registered with Windows
+4. Try running the scripts as Administrator
+
+**Automatic Detection Order:**
+- Visual Studio 2022 (preferred)
+- Visual Studio 2019
+- Visual Studio 2017
+- Visual Studio 2015 (minimum supported)
+
+If no Visual Studio is detected, you can:
+- Install Visual Studio Community (free)
+- Use alternative generators like Ninja (requires additional setup)
 
 ### CMake Errors
-- Ensure CMake is in your PATH
+- Ensure CMake is accessible via PATH, cmake-path.txt, or CMAKE_PATH environment variable
 - Clear build directories: `.\build.ps1 -Target clean`
 - Try different generator
+- Check cmake-path.txt for correct path syntax
 
 ### Linux Dependencies
 ```bash

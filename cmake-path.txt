@@ -1,0 +1,8 @@
+# Custom CMake Path Configuration
+# Uncomment and modify the line below to specify a custom CMake executable path
+# Example: C:\Program Files\CMake\bin\cmake.exe
+# Example: /usr/local/bin/cmake
+# cmake.exe
+
+# Default: use cmake from PATH
+cmake.exe

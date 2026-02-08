@@ -27,11 +27,29 @@ goto menu
 
 :quick64
 echo Setting up 64-bit Release build...
+REM Get cmake path
+for /f "tokens=*" %%i in ('call cmake-path.bat') do set CMAKE_CMD=%%i
+if %errorlevel% neq 0 goto menu
+
+REM Detect available Visual Studio generator
+for /f "tokens=*" %%i in ('call detect-vs-generator.bat') do set VS_GENERATOR=%%i
+if %errorlevel% neq 0 goto menu
+
+echo Using generator: %VS_GENERATOR%
+
 if not exist build-release-x64 mkdir build-release-x64
 cd build-release-x64
-cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release ..
+
+REM Clean previous CMake cache if generator changed
+if exist CMakeCache.txt (
+    echo Cleaning previous CMake cache...
+    rmdir /s /q CMakeFiles 2>nul
+    del CMakeCache.txt 2>nul
+)
+
+"%CMAKE_CMD%" -G "%VS_GENERATOR%" -A x64 -DCMAKE_BUILD_TYPE=Release ..
 if %errorlevel% neq 0 goto cmake_error
-cmake --build . --config Release
+"%CMAKE_CMD%" --build . --config Release
 if %errorlevel% neq 0 goto build_error
 echo Build completed successfully!
 cd ..
@@ -39,11 +57,29 @@ goto menu
 
 :quick32
 echo Setting up 32-bit Release build...
+REM Get cmake path
+for /f "tokens=*" %%i in ('call cmake-path.bat') do set CMAKE_CMD=%%i
+if %errorlevel% neq 0 goto menu
+
+REM Detect available Visual Studio generator
+for /f "tokens=*" %%i in ('call detect-vs-generator.bat') do set VS_GENERATOR=%%i
+if %errorlevel% neq 0 goto menu
+
+echo Using generator: %VS_GENERATOR%
+
 if not exist build-release-x86 mkdir build-release-x86
 cd build-release-x86
-cmake -G "Visual Studio 16 2019" -A Win32 -DCMAKE_BUILD_TYPE=Release ..
+
+REM Clean previous CMake cache if generator changed
+if exist CMakeCache.txt (
+    echo Cleaning previous CMake cache...
+    rmdir /s /q CMakeFiles 2>nul
+    del CMakeCache.txt 2>nul
+)
+
+"%CMAKE_CMD%" -G "%VS_GENERATOR%" -A Win32 -DCMAKE_BUILD_TYPE=Release ..
 if %errorlevel% neq 0 goto cmake_error
-cmake --build . --config Release
+"%CMAKE_CMD%" --build . --config Release
 if %errorlevel% neq 0 goto build_error
 echo Build completed successfully!
 cd ..
