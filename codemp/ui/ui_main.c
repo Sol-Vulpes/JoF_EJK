@@ -12282,7 +12282,7 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 
 	uiInfo.playerSpeciesCount = 0;
 	uiInfo.playerSpeciesIndex = 0;
-	uiInfo.playerSpeciesMax = 8;
+	uiInfo.playerSpeciesMax = 256;
 	uiInfo.playerSpecies = (playerSpeciesInfo_t *)malloc(uiInfo.playerSpeciesMax * sizeof(playerSpeciesInfo_t));
 
 	// iterate directory of all player models
@@ -12364,9 +12364,9 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 				Com_Printf(S_COLOR_RED"UI_BuildPlayerModel_List: Errors parsing '%s'\n", fpath);
 			}
 
-			species->SkinHeadMax = 8;
-			species->SkinTorsoMax = 8;
-			species->SkinLegMax = 8;
+			species->SkinHeadMax = 64;
+			species->SkinTorsoMax = 64;
+			species->SkinLegMax = 64;
 
 			species->SkinHead = (skinName_t *)malloc(species->SkinHeadMax * sizeof(skinName_t));
 			species->SkinTorso = (skinName_t *)malloc(species->SkinTorsoMax * sizeof(skinName_t));
