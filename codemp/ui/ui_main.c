@@ -12190,6 +12190,12 @@ static qboolean UI_ParseColorData(char* buf, playerSpeciesInfo_t *species,char*	
 	species->ColorCount = 0;
 	species->ColorMax = 16;
 	species->Color = (playerColor_t *)malloc(species->ColorMax * sizeof(playerColor_t));
+	if (!species->Color)
+	{
+		Com_Printf(S_COLOR_RED"UI_ParseColorData: Failed to allocate memory for color array, continuing with NULL\n");
+		species->ColorCount = 0;
+		return qtrue; // Continue but with no colors
+	}
 
 	while ( p )
 	{
@@ -12201,7 +12207,14 @@ static qboolean UI_ParseColorData(char* buf, playerSpeciesInfo_t *species,char*	
 		if (species->ColorCount >= species->ColorMax)
 		{
 			species->ColorMax *= 2;
-			species->Color = (playerColor_t *)realloc(species->Color, species->ColorMax * sizeof(playerColor_t));
+			playerColor_t *newColors = (playerColor_t *)realloc(species->Color, species->ColorMax * sizeof(playerColor_t));
+			if (!newColors)
+			{
+				Com_Printf(S_COLOR_RED"UI_ParseColorData: Failed to allocate memory for color array expansion, keeping current size\n");
+				species->ColorMax /= 2; // Revert the size increase
+				continue; // Skip adding this color
+			}
+			species->Color = newColors;
 		}
 
 		memset(&species->Color[species->ColorCount], 0, sizeof(playerColor_t));
@@ -12257,7 +12270,7 @@ UI_BuildPlayerModel_List
 */
 void UI_BuildPlayerModel_List( qboolean inGameLoad )
 {
-	static const size_t DIR_LIST_SIZE = 65536;//16384; //65536 is 8 times PROFILE_SKIN_SIZE
+	static const size_t DIR_LIST_SIZE = 262144;//65536; //262144 is 4 times larger to handle many species
 
 	int			numdirs;
 	size_t		dirListSize = DIR_LIST_SIZE;
@@ -12284,9 +12297,16 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 	uiInfo.playerSpeciesIndex = 0;
 	uiInfo.playerSpeciesMax = 256;
 	uiInfo.playerSpecies = (playerSpeciesInfo_t *)malloc(uiInfo.playerSpeciesMax * sizeof(playerSpeciesInfo_t));
+	if (!uiInfo.playerSpecies)
+	{
+		Com_Printf(S_COLOR_RED"UI_BuildPlayerModel_List: Failed to allocate initial species array (%d bytes)\n",
+			uiInfo.playerSpeciesMax * sizeof(playerSpeciesInfo_t));
+		return;
+	}
 
 	// iterate directory of all player models
 	numdirs = trap->FS_GetFileList("models/players", "/", dirlist, dirListSize );
+
 	dirptr  = dirlist;
 	for (i=0; i<numdirs; i++,dirptr+=dirlen+1)
 	{
@@ -12295,17 +12315,25 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 		int		f = 0;
 		char	fpath[MAX_QPATH];
 
+		// Safety check - ensure we don't go beyond buffer
+		if (dirptr >= dirlist + dirListSize) {
+			Com_Printf(S_COLOR_RED "Directory list parsing exceeded buffer bounds\n");
+			break;
+		}
+
 		dirlen = strlen(dirptr);
 
-		if (dirlen)
-		{
-			if (dirptr[dirlen-1]=='/')
-				dirptr[dirlen-1]='\0';
-		}
-		else
-		{
+		// Validate directory entry
+		if (dirlen == 0 || dirlen >= MAX_QPATH) {
+			Com_Printf(S_COLOR_RED "Invalid directory entry length: %d, skipping\n", dirlen);
 			continue;
 		}
+
+		if (dirptr[dirlen-1]=='/')
+			dirptr[dirlen-1]='\0';
+
+		if (!Q_stricmp(dirptr, ".") || !Q_stricmp(dirptr, ".."))
+			continue;
 
 		if (!Q_stricmp(dirptr, ".") || !Q_stricmp(dirptr, ".."))
 			continue;
@@ -12353,11 +12381,19 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 			if (uiInfo.playerSpeciesCount >= uiInfo.playerSpeciesMax)
 			{
 				uiInfo.playerSpeciesMax *= 2;
-				uiInfo.playerSpecies = (playerSpeciesInfo_t *)realloc(uiInfo.playerSpecies, uiInfo.playerSpeciesMax*sizeof(playerSpeciesInfo_t));
+				playerSpeciesInfo_t *newArray = (playerSpeciesInfo_t *)realloc(uiInfo.playerSpecies, uiInfo.playerSpeciesMax*sizeof(playerSpeciesInfo_t));
+				if (!newArray)
+				{
+					Com_Printf(S_COLOR_RED"UI_BuildPlayerModel_List: Failed to allocate memory for species array expansion, keeping current size\n");
+					uiInfo.playerSpeciesMax /= 2; // Revert the size increase
+					continue; // Skip this species
+				}
+				uiInfo.playerSpecies = newArray;
 			}
 			species = &uiInfo.playerSpecies[uiInfo.playerSpeciesCount];
 			memset(species, 0, sizeof(playerSpeciesInfo_t));
 			Q_strncpyz( species->Name, dirptr, MAX_QPATH );
+
 
 			if (!UI_ParseColorData(buffer,species,fpath))
 			{
@@ -12371,6 +12407,13 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 			species->SkinHead = (skinName_t *)malloc(species->SkinHeadMax * sizeof(skinName_t));
 			species->SkinTorso = (skinName_t *)malloc(species->SkinTorsoMax * sizeof(skinName_t));
 			species->SkinLeg = (skinName_t *)malloc(species->SkinLegMax * sizeof(skinName_t));
+
+			if (!species->SkinHead || !species->SkinTorso || !species->SkinLeg)
+			{
+				Com_Printf(S_COLOR_RED"UI_BuildPlayerModel_List: Failed to allocate memory for skin arrays, using NULL\n");
+				// Don't skip the species, just set arrays to NULL
+				species->SkinHeadCount = species->SkinTorsoCount = species->SkinLegCount = 0;
+			}
 
 			free(buffer);
 
@@ -12395,7 +12438,14 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 						if (species->SkinHeadCount >= species->SkinHeadMax)
 						{
 							species->SkinHeadMax *= 2;
-							species->SkinHead = (skinName_t *)realloc(species->SkinHead, species->SkinHeadMax*sizeof(skinName_t));
+							skinName_t *newSkinHead = (skinName_t *)realloc(species->SkinHead, species->SkinHeadMax*sizeof(skinName_t));
+							if (!newSkinHead)
+							{
+								Com_Printf(S_COLOR_RED"UI_BuildPlayerModel_List: Failed to allocate memory for SkinHead array expansion, keeping current size\n");
+								species->SkinHeadMax /= 2; // Revert the size increase
+								continue; // Skip this skin file
+							}
+							species->SkinHead = newSkinHead;
 						}
 						Q_strncpyz(species->SkinHead[species->SkinHeadCount++].name, skinname, SKIN_LENGTH);
 						iSkinParts |= 1<<0;
@@ -12405,7 +12455,14 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 						if (species->SkinTorsoCount >= species->SkinTorsoMax)
 						{
 							species->SkinTorsoMax *= 2;
-							species->SkinTorso = (skinName_t *)realloc(species->SkinTorso, species->SkinTorsoMax*sizeof(skinName_t));
+							skinName_t *newSkinTorso = (skinName_t *)realloc(species->SkinTorso, species->SkinTorsoMax*sizeof(skinName_t));
+							if (!newSkinTorso)
+							{
+								Com_Printf(S_COLOR_RED"UI_BuildPlayerModel_List: Failed to allocate memory for SkinTorso array expansion, keeping current size\n");
+								species->SkinTorsoMax /= 2; // Revert the size increase
+								continue; // Skip this skin file
+							}
+							species->SkinTorso = newSkinTorso;
 						}
 						Q_strncpyz(species->SkinTorso[species->SkinTorsoCount++].name, skinname, SKIN_LENGTH);
 						iSkinParts |= 1<<1;
@@ -12415,7 +12472,14 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 						if (species->SkinLegCount >= species->SkinLegMax)
 						{
 							species->SkinLegMax *= 2;
-							species->SkinLeg = (skinName_t *)realloc(species->SkinLeg, species->SkinLegMax*sizeof(skinName_t));
+							skinName_t *newSkinLeg = (skinName_t *)realloc(species->SkinLeg, species->SkinLegMax*sizeof(skinName_t));
+							if (!newSkinLeg)
+							{
+								Com_Printf(S_COLOR_RED"UI_BuildPlayerModel_List: Failed to allocate memory for SkinLeg array expansion, keeping current size\n");
+								species->SkinLegMax /= 2; // Revert the size increase
+								continue; // Skip this skin file
+							}
+							species->SkinLeg = newSkinLeg;
 						}
 						Q_strncpyz(species->SkinLeg[species->SkinLegCount++].name, skinname, SKIN_LENGTH);
 						iSkinParts |= 1<<2;
@@ -12447,6 +12511,7 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 	{
 		free(dirlist);
 	}
+
 }
 
 static qhandle_t UI_RegisterShaderNoMip( const char *name ) {
