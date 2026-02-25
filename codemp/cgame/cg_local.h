@@ -1318,6 +1318,20 @@ Ghoul2 Insert End
 	int					telemarkY;//japro
 	int					telemarkZ;//japro
 	int					telemarkYaw;//japro
+
+	// Olol custom telemarks (client-side helper only)
+	float				customTelemarkX;
+	float				customTelemarkY;
+	float				customTelemarkZ;
+	float				customTelemarkYaw;
+
+	// Respawn telemark used after death / respawn
+	float				respawnTelemarkX;
+	float				respawnTelemarkY;
+	float				respawnTelemarkZ;
+	float				respawnTelemarkYaw;
+	qboolean			useRespawnTelemark;
+
 	int					lastAutoKillTime;
 
 	//int				predictedRocketJumpTime;

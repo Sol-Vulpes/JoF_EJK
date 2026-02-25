@@ -29,6 +29,13 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "game/bg_saga.h"
 #include "ui/ui_shared.h"
 
+// Olol teleport tools state
+extern vmCvar_t olol_helpUsOlolUnlocked;
+qboolean helpUsOlolUnlocked = qfalse;
+
+// Crosshair world position (from cg_draw)
+extern vec3_t cg_crosshairPos;
+
 /*
 =================
 CG_TargetCommand_f
@@ -2277,6 +2284,700 @@ static void CG_TeleToCheckpoint_f(void)
 	trap->SendConsoleCommand(va("amtele %i %i %i\n", midX, midY, z));
 }
 
+/*
+=================
+Olol teleport tools
+=================
+*/
+
+// Telemark & respawn‑telemark commands
+
+static void CG_TeleMark_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	if (trap->Cmd_Argc() == 1) {
+		// No arguments - use current position
+		cg.customTelemarkX = cg.predictedPlayerState.origin[0];
+		cg.customTelemarkY = cg.predictedPlayerState.origin[1];
+		cg.customTelemarkZ = cg.predictedPlayerState.origin[2];
+		cg.customTelemarkYaw = cg.predictedPlayerState.viewangles[YAW];
+	}
+	else if (trap->Cmd_Argc() == 5) {
+		// Four arguments - use specified coordinates
+		cg.customTelemarkX = (float)atof(CG_Argv(1));
+		cg.customTelemarkY = (float)atof(CG_Argv(2));
+		cg.customTelemarkZ = (float)atof(CG_Argv(3));
+		cg.customTelemarkYaw = (float)atof(CG_Argv(4));
+	}
+	else {
+		trap->Print("Usage: teleMark [<x> <y> <z> <yaw>]\n");
+		return;
+	}
+
+	trap->Print("Custom telemark set (%.2f %.2f %.2f) : %.2f\n",
+		cg.customTelemarkX, cg.customTelemarkY, cg.customTelemarkZ, cg.customTelemarkYaw);
+}
+
+static void CG_TeleTargetToMark_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	// Check if custom telemark is set
+	if (!cg.customTelemarkX && !cg.customTelemarkY &&
+		!cg.customTelemarkZ && !cg.customTelemarkYaw) {
+		return; // Silently fail if no telemark is set
+	}
+
+	{
+		int targetNum = CG_CrosshairPlayer();
+		if (targetNum == -1) {
+			return; // Silently fail if no target under crosshair
+		}
+
+		// Teleport the target to the custom telemark position
+		trap->SendClientCommand(va("amtele %i %f %f %f %f", targetNum,
+			cg.customTelemarkX, cg.customTelemarkY, cg.customTelemarkZ, cg.customTelemarkYaw));
+	}
+}
+
+static void CG_TeleSelfToMark_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	if (!cg.customTelemarkX && !cg.customTelemarkY &&
+		!cg.customTelemarkZ && !cg.customTelemarkYaw) {
+		trap->Print("No custom telemark set!\n");
+		return;
+	}
+
+	trap->SendClientCommand(va("amtele %f %f %f %f",
+		cg.customTelemarkX, cg.customTelemarkY, cg.customTelemarkZ, cg.customTelemarkYaw));
+}
+
+static void CG_TeleToMark_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	if (trap->Cmd_Argc() < 2) {
+		trap->Print("Usage: teleToMark <player name or number>\n");
+		return;
+	}
+
+	{
+		char playerArg[MAX_STRING_CHARS];
+		int targetNum;
+		centity_t *cent;
+		float x, y, z, yaw;
+
+		trap->Cmd_Argv(1, playerArg, sizeof(playerArg));
+
+		targetNum = CG_ClientNumberFromString(playerArg);
+		if (targetNum == -1) {
+			trap->Print("Player not found!\n");
+			return;
+		}
+
+		cent = &cg_entities[targetNum];
+
+		if (targetNum == cg.clientNum && !cg.demoPlayback) {
+			x = cg.predictedPlayerState.origin[0];
+			y = cg.predictedPlayerState.origin[1];
+			z = cg.predictedPlayerState.origin[2];
+			yaw = cg.predictedPlayerState.viewangles[YAW];
+		}
+		else {
+			x = cent->lerpOrigin[0];
+			y = cent->lerpOrigin[1];
+			z = cent->lerpOrigin[2];
+			yaw = cent->lerpAngles[YAW];
+		}
+
+		trap->SendClientCommand(va("amtele %f %f %f %f", x, y, z, yaw));
+	}
+}
+
+static void CG_TeleRespawnMark_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	cg.respawnTelemarkX = cg.predictedPlayerState.origin[0];
+	cg.respawnTelemarkY = cg.predictedPlayerState.origin[1];
+	cg.respawnTelemarkZ = cg.predictedPlayerState.origin[2];
+	cg.respawnTelemarkYaw = cg.predictedPlayerState.viewangles[YAW];
+	cg.useRespawnTelemark = qtrue;
+
+	trap->Print("Respawn telemark set (%.2f %.2f %.2f) : %.2f\n",
+		cg.respawnTelemarkX, cg.respawnTelemarkY, cg.respawnTelemarkZ, cg.respawnTelemarkYaw);
+}
+
+static void CG_TeleRespawnMarkClear_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	cg.useRespawnTelemark = qfalse;
+	cg.respawnTelemarkX = 0.0f;
+	cg.respawnTelemarkY = 0.0f;
+	cg.respawnTelemarkZ = 0.0f;
+	cg.respawnTelemarkYaw = 0.0f;
+
+	trap->Print("Respawn telemark cleared.\n");
+}
+
+// Telefrag to predicted target position
+
+static void CG_TeleFrag_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	{
+		char argv1[MAX_STRING_CHARS];
+		int targetNum = -1;
+		centity_t* cent;
+		vec3_t targetOrigin;
+		float pingSec, speed;
+
+		trap->Cmd_Argv(1, argv1, sizeof(argv1));
+
+		if (!argv1[0]) {
+			return; // no argument given
+		}
+
+		// Case 1: crosshair
+		if (Q_stricmp(argv1, "gun") == 0) {
+			targetNum = CG_CrosshairPlayer();
+		}
+		// Case 2: numeric clientNum
+		else if (argv1[0] >= '0' && argv1[0] <= '9') {
+			targetNum = atoi(argv1);
+		}
+		// Case 3: treat as player name
+		else {
+			targetNum = CG_ClientNumberFromString(argv1);
+		}
+
+		if (targetNum < 0 || targetNum >= MAX_CLIENTS) {
+			return;
+		}
+
+		cent = &cg_entities[targetNum];
+
+		// Base position
+		VectorCopy(cent->lerpOrigin, targetOrigin);
+
+		// Calculate speed
+		speed = VectorLength(cent->currentState.pos.trDelta);
+
+		// Convert ping to seconds, clamp
+		if (!cg.snap) {
+			return;
+		}
+
+		pingSec = cg.snap->ping / 1000.0f;
+		if (pingSec > 0.25f) {
+			pingSec = 0.25f;
+		}
+
+		// Apply prediction if moving
+		if (speed > 1.0f) {
+			targetOrigin[0] += cent->currentState.pos.trDelta[0] * pingSec;
+			targetOrigin[1] += cent->currentState.pos.trDelta[1] * pingSec;
+			targetOrigin[2] += cent->currentState.pos.trDelta[2] * pingSec;
+		}
+
+		// Teleport
+		trap->SendClientCommand(va("amtele %f %f %f %f\n",
+			targetOrigin[0], targetOrigin[1], targetOrigin[2],
+			cent->lerpAngles[YAW]));
+	}
+}
+
+static void CG_TeleFragSelf_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	{
+		char argv1[MAX_STRING_CHARS];
+		int targetNum = -1;
+
+		trap->Cmd_Argv(1, argv1, sizeof(argv1));
+
+		if (!argv1[0]) {
+			return; // no argument given
+		}
+
+		// Case 1: crosshair
+		if (Q_stricmp(argv1, "gun") == 0) {
+			targetNum = CG_CrosshairPlayer();
+		}
+		// Case 2: numeric clientNum
+		else if (argv1[0] >= '0' && argv1[0] <= '9') {
+			targetNum = atoi(argv1);
+		}
+		// Case 3: treat as player name
+		else {
+			targetNum = CG_ClientNumberFromString(argv1);
+		}
+
+		if (targetNum < 0 || targetNum >= MAX_CLIENTS) {
+			return;
+		}
+
+		// Teleport the target to your position with your yaw
+		trap->SendClientCommand(va("amtele %i %f %f %f %f\n",
+			targetNum,
+			cg.predictedPlayerState.origin[0],
+			cg.predictedPlayerState.origin[1],
+			cg.predictedPlayerState.origin[2],
+			cg.predictedPlayerState.viewangles[YAW]));
+	}
+}
+
+// Crosshair teleports + safe free‑spot search
+
+static qboolean CG_IsPositionFree(vec3_t pos) {
+	const float radius = 50.0f; // Minimum distance to other players
+	int i;
+
+	for (i = 0; i < MAX_CLIENTS; i++) {
+		centity_t *cent;
+		vec3_t diff;
+
+		if (i == cg.clientNum) {
+			continue; // Skip self
+		}
+
+		cent = &cg_entities[i];
+		if (cent->currentState.eType != ET_PLAYER) {
+			continue;
+		}
+
+		VectorSubtract(cent->lerpOrigin, pos, diff);
+		if (VectorLength(diff) < radius) {
+			return qfalse;
+		}
+	}
+	return qtrue;
+}
+
+static qboolean CG_FindNearestFreeSpot(vec3_t original, vec3_t result) {
+	static const vec3_t offsets[] = {
+		{ 0,   0,   0 },
+		{ 50,  0,   0 },
+		{ -50, 0,   0 },
+		{ 0,   50,  0 },
+		{ 0,  -50,  0 },
+		{ 50,  50,  0 },
+		{ 50, -50,  0 },
+		{ -50, 50,  0 },
+		{ -50,-50,  0 },
+		{ 0,   0,  50 },
+		{ 0,   0, -50 },
+		{ 100, 0,   0 },
+		{ -100,0,   0 },
+		{ 0,   100, 0 },
+		{ 0,  -100, 0 },
+		{ 100, 100, 0 },
+		{ 100,-100, 0 },
+		{ -100,100, 0 },
+		{ -100,-100,0 },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_LEN(offsets); i++) {
+		VectorAdd(original, offsets[i], result);
+		if (CG_IsPositionFree(result)) {
+			return qtrue;
+		}
+	}
+	return qfalse;
+}
+
+static void CG_TeleCrosshair_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	if (VectorCompare(cg_crosshairPos, vec3_origin)) {
+		Com_Printf("blank cg_crosshairPos\n");
+		return;
+	}
+
+	trap->SendClientCommand(va("amTele %f %f %f %f",
+		cg_crosshairPos[0],
+		cg_crosshairPos[1],
+		cg_crosshairPos[2] + 24.0f,
+		cg.predictedPlayerState.viewangles[YAW]));
+}
+
+static void CG_TeleSafeCrosshair_f(void) {
+	vec3_t newPos;
+
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	if (VectorCompare(cg_crosshairPos, vec3_origin)) {
+		Com_Printf("blank cg_crosshairPos\n");
+		return;
+	}
+
+	VectorCopy(cg_crosshairPos, newPos);
+	newPos[2] += 24.0f; // Adjust Z position
+
+	if (!CG_IsPositionFree(newPos)) {
+		// Find nearest free spot
+		if (!CG_FindNearestFreeSpot(newPos, newPos)) {
+			Com_Printf("No free spot found near crosshair position\n");
+			return;
+		}
+	}
+
+	trap->SendClientCommand(va("amTele %f %f %f %f",
+		newPos[0], newPos[1], newPos[2],
+		cg.predictedPlayerState.viewangles[YAW]));
+}
+
+// "get" – teleport target player in front of you (optional offset)
+
+static void CG_TeleTargetPlayer_f(void) {
+	vec3_t viewAngles, forward, newPos;
+	int targetNum;
+	float offset = 100.0f;
+	char arg1[MAX_STRING_CHARS];
+
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	if (trap->Cmd_Argc() > 1) {
+		trap->Cmd_Argv(1, arg1, sizeof(arg1));
+
+		if (Q_stricmp(arg1, "gun") == 0) {
+			targetNum = CG_CrosshairPlayer();
+		}
+		else {
+			targetNum = CG_ClientNumberFromString(arg1);
+		}
+
+		if (trap->Cmd_Argc() > 2) {
+			offset = (float)atof(CG_Argv(2));
+		}
+	}
+	else {
+		targetNum = CG_CrosshairPlayer();
+	}
+
+	if (targetNum == -1) {
+		return;
+	}
+
+	VectorCopy(cg.predictedPlayerState.viewangles, viewAngles);
+	AngleVectors(viewAngles, forward, NULL, NULL);
+	VectorMA(cg.predictedPlayerState.origin, offset, forward, newPos);
+
+	if (trap->Cmd_Argc() <= 2) {
+		newPos[2] = cg.predictedPlayerState.origin[2] + 24.0f;
+	}
+
+	trap->SendClientCommand(va("amTele %i %f %f %f %f",
+		targetNum,
+		newPos[0], newPos[1], newPos[2],
+		cg.predictedPlayerState.viewangles[YAW] + 180.0f));
+}
+
+// "bring" – teleport crosshair target in front of you
+
+static void CG_TeleCrosshairToMe_f(void) {
+	int clientNum;
+	vec3_t viewAngles, forward, newPos;
+	float offset = 100.0f; // Distance in front of the player
+
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	// Get the player under the crosshair
+	clientNum = CG_CrosshairPlayer();
+	if (clientNum == -1) {
+		return;
+	}
+
+	// Copy the current player's view angles
+	VectorCopy(cg.predictedPlayerState.viewangles, viewAngles);
+
+	// Calculate the forward direction based on view angles
+	AngleVectors(viewAngles, forward, NULL, NULL);
+
+	// Calculate the new position in front of the player by 'offset' units
+	VectorMA(cg.predictedPlayerState.origin, offset, forward, newPos);
+
+	// If there are <= 2 command args, adjust Z to stand‑height
+	if (trap->Cmd_Argc() <= 2) {
+		newPos[2] = cg.predictedPlayerState.origin[2] + 24.0f;
+	}
+
+	// Send the command to teleport the player under the crosshair to the new position
+	trap->SendClientCommand(va("amTele %d %.2f %.2f %.2f r",
+		clientNum, newPos[0], newPos[1], newPos[2]));
+}
+
+// "teleport" – generic XYZ offsets, from self or from a target/gun
+
+static void CG_PTele_Offset_f(void) {
+	centity_t* cent;
+	int x, y, z, yaw;
+	int offsetX, offsetY, offsetZ;
+	int teleOffsetX, teleOffsetY, teleOffsetZ;
+	int targetNum, controlX, controlY, controlZ;
+	vec3_t targetOrigin;
+	char offsetXStr[32], offsetYStr[32], offsetZStr[32], argv5[32];
+	float barrier;
+
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	barrier = 50.0f; // Prevent telecrush - barrier
+	offsetX = offsetY = offsetZ = 0;
+
+	if (trap->Cmd_Argc() == 4) {
+		trap->Cmd_Argv(1, offsetXStr, sizeof(offsetXStr));
+		trap->Cmd_Argv(2, offsetYStr, sizeof(offsetYStr));
+		trap->Cmd_Argv(3, offsetZStr, sizeof(offsetZStr));
+
+		offsetX = atoi(offsetXStr);
+		offsetY = atoi(offsetYStr);
+		offsetZ = atoi(offsetZStr);
+
+		if ((cg.clientNum == cg.predictedPlayerState.clientNum && !cg.demoPlayback) || !cg.snap) {
+			x = cg.predictedPlayerState.origin[0];
+			y = cg.predictedPlayerState.origin[1];
+			z = cg.predictedPlayerState.origin[2];
+			yaw = cg.predictedPlayerState.viewangles[YAW];
+		}
+		else {
+			x = cg.snap->ps.origin[0];
+			y = cg.snap->ps.origin[1];
+			z = cg.snap->ps.origin[2];
+			yaw = cg.snap->ps.viewangles[YAW];
+		}
+
+		teleOffsetX = x + offsetX;
+		teleOffsetY = y + offsetY;
+		teleOffsetZ = z + offsetZ;
+
+		trap->SendClientCommand(va("amtele %i %i %i %i\n",
+			teleOffsetX, teleOffsetY, teleOffsetZ, yaw));
+	}
+
+	// If there's a 5th argument, interpret it as "gun" or a player name
+	if (trap->Cmd_Argc() == 5) {
+		trap->Cmd_Argv(1, offsetXStr, sizeof(offsetXStr));
+		trap->Cmd_Argv(2, offsetYStr, sizeof(offsetYStr));
+		trap->Cmd_Argv(3, offsetZStr, sizeof(offsetZStr));
+		trap->Cmd_Argv(4, argv5, sizeof(argv5));
+
+		offsetX = atoi(offsetXStr);
+		offsetY = atoi(offsetYStr);
+		offsetZ = atoi(offsetZStr);
+
+		if (Q_stricmp(argv5, "gun") == 0) {
+			targetNum = CG_CrosshairPlayer();
+			if (targetNum != -1) {
+				cent = &cg_entities[targetNum];
+				if (!cent->playerState) {
+					return;
+				}
+				targetOrigin[0] = cent->playerState->origin[0];
+				targetOrigin[1] = cent->playerState->origin[1];
+				targetOrigin[2] = cent->playerState->origin[2];
+				yaw = cg.predictedPlayerState.viewangles[YAW];
+
+				teleOffsetX = (int)(targetOrigin[0] + offsetX);
+				teleOffsetY = (int)(targetOrigin[1] + offsetY);
+				teleOffsetZ = (int)(targetOrigin[2] + offsetZ);
+
+				controlX = teleOffsetX + (int)barrier;
+				controlY = teleOffsetY + (int)barrier;
+				controlZ = teleOffsetZ + (int)barrier;
+
+				// This sends to "control" first as a safety check in original code
+				trap->SendClientCommand(va("amtele %i %i %i %i",
+					controlX, controlY, controlZ, yaw));
+			}
+		}
+		else {
+			targetNum = CG_ClientNumberFromString(argv5);
+			if (targetNum != -1) {
+				cent = &cg_entities[targetNum];
+				if (!cent->playerState) {
+					return;
+				}
+
+				targetOrigin[0] = cent->playerState->origin[0];
+				targetOrigin[1] = cent->playerState->origin[1];
+				targetOrigin[2] = cent->playerState->origin[2];
+				yaw = cg.predictedPlayerState.viewangles[YAW];
+
+				teleOffsetX = (int)(targetOrigin[0] + offsetX);
+				teleOffsetY = (int)(targetOrigin[1] + offsetY);
+				teleOffsetZ = (int)(targetOrigin[2] + offsetZ);
+
+				controlX = teleOffsetX + (int)barrier;
+				controlY = teleOffsetY + (int)barrier;
+				controlZ = teleOffsetZ + (int)barrier;
+
+				trap->SendClientCommand(va("amtele %i %i %i %i",
+					controlX, controlY, controlZ, yaw));
+			}
+		}
+	}
+}
+
+// "teleToCrosshairWithDist" – raycast to crosshair and optionally go further along that line
+
+static void CG_TeleportToCrosshairWithDistance_f(void) {
+	vec3_t current_pos, forward, crosshair_pos, new_pos;
+	float added_distance = 0.0f;
+
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	if (trap->Cmd_Argc() == 2) {
+		added_distance = (float)atof(CG_Argv(1));
+	}
+
+	VectorCopy(cg.predictedPlayerState.origin, current_pos);
+	AngleVectors(cg.predictedPlayerState.viewangles, forward, NULL, NULL);
+
+	{
+		vec3_t end;
+		trace_t trace;
+		vec3_t to_crosshair;
+		float dist;
+		vec3_t unit_direction;
+
+		VectorMA(current_pos, 8192.0f, forward, end);
+
+		CG_CrosshairTrace(&trace, current_pos, vec3_origin, vec3_origin, end,
+			cg.predictedPlayerState.clientNum, qfalse);
+
+		VectorCopy(trace.endpos, crosshair_pos);
+		VectorSubtract(crosshair_pos, current_pos, to_crosshair);
+
+		dist = VectorLength(to_crosshair);
+
+		if (dist > 0.0f) {
+			VectorScale(to_crosshair, 1.0f / dist, unit_direction);
+			VectorMA(crosshair_pos, added_distance, unit_direction, new_pos);
+		}
+		else {
+			VectorMA(current_pos, added_distance, forward, new_pos);
+		}
+	}
+
+	trap->SendClientCommand(va("amtele %f %f %f %f",
+		new_pos[0], new_pos[1], new_pos[2],
+		cg.predictedPlayerState.viewangles[YAW]));
+}
+
+// Password gate + info text
+
+static void CG_HelpUsOlol_f(void) {
+	char argv1[MAX_STRING_CHARS];
+	int value;
+
+	if (trap->Cmd_Argc() < 2) {
+		Com_Printf("Usage: helpUsOlol <value>\n");
+		return;
+	}
+
+	trap->Cmd_Argv(1, argv1, sizeof(argv1));
+	value = atoi(argv1);
+
+	if (value == 69) {
+		helpUsOlolUnlocked = qtrue;
+		trap->Cvar_Set("olol_helpUsOlolUnlocked", "69");
+		Com_Printf("^2Commands unlocked!\n");
+	}
+	else {
+		Com_Printf("^1Invalid value. Password not set.\n");
+	}
+}
+
+static void CG_Olol_Info_f(void) {
+	Com_Printf("^3=== Olol Teleport Commands Info ===\n");
+	Com_Printf("^5To unlock locked commands, use: ^2helpUsOlol <value>\n\n");
+
+	Com_Printf("^6--- Locked Commands (Password Required) ---\n");
+	Com_Printf("^1teleFrag^7 - Teleport to a target player's predicted position (accounts for movement)\n");
+	Com_Printf("^1teleFragSelf^7 - Teleport target player to your position\n");
+	Com_Printf("^1teleCrosshair^7 - Teleport to where your crosshair is pointing\n");
+	Com_Printf("^1teleSafeCrosshair^7 - Teleport to crosshair position, avoiding players (finds nearest free spot)\n");
+	Com_Printf("^1teleToCrosshairWithDist^7 - Teleport to crosshair with optional distance offset\n");
+	Com_Printf("^1get^7 - Teleport a target player in front of you (with optional offset)\n");
+	Com_Printf("^1bring^7 - Teleport the player under your crosshair to your position\n");
+	Com_Printf("^1teleport^7 - Teleport with X/Y/Z offset from current or target position\n");
+	Com_Printf("^1teleMark^7 - Set a telemark at current position or specified coordinates\n");
+	Com_Printf("^1teleTargetToMark^7 - Teleport the target under crosshair to the telemark\n");
+	Com_Printf("^1teleSelfToMark^7 - Teleport yourself to the telemark\n");
+	Com_Printf("^1teleToMark^7 - Teleport to a player's position (by name or number)\n");
+	Com_Printf("^1teleRespawnMark^7 - Set a respawn telemark at current position\n");
+	Com_Printf("^1teleRespawnMarkClear^7 - Clear the respawn telemark\n");
+	Com_Printf("^1mimic^7 - ^3[For fun - Not finished yet]^7 Mimic another player's movements\n");
+	Com_Printf("^1mimicMirror^7 - ^3[For fun - Not finished yet]^7 Mirror mimic another player's movements\n\n");
+
+	Com_Printf("^2--- Unlocked Commands (Always Available) ---\n");
+	Com_Printf("^2helpUsOlol^7 - Set password to unlock teleport commands (usage: helpUsOlol <value>)\n");
+	Com_Printf("^2Olol_Info^7 - Display this help message\n\n");
+
+	Com_Printf("^4Note:^7 Some commands require a password to prevent abuse. Contact Olol for access.\n");
+}
+
+// Stub mimic commands – not implemented
+
+static void CG_Mimic_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	Com_Printf("^3mimic is not implemented in this client build.\n");
+}
+
+static void CG_MimicMirror_f(void) {
+	if (!helpUsOlolUnlocked) {
+		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
+		return;
+	}
+
+	Com_Printf("^3mimicMirror is not implemented in this client build.\n");
+}
+
 #if _NEWTRAILS
 void CG_RemoveStrafeTrail(int clientNum);
 #else
@@ -2587,6 +3288,29 @@ static consoleCommand_t	commands[] = {
 	{ "teleToCheckpoint",			CG_TeleToCheckpoint_f },
 	{ "clearTrail",					CG_DeleteStrafeTrail_f },
 	{ "strafeTrail",				CG_AddStrafeTrail_f },
+
+	// Olol teleport tools
+	{ "teleMark",					CG_TeleMark_f },
+	{ "teleTargetToMark",			CG_TeleTargetToMark_f },
+	{ "teleSelfToMark",				CG_TeleSelfToMark_f },
+	{ "teleToMark",					CG_TeleToMark_f },
+	{ "teleRespawnMark",			CG_TeleRespawnMark_f },
+	{ "teleRespawnMarkClear",		CG_TeleRespawnMarkClear_f },
+
+	{ "get",						CG_TeleTargetPlayer_f },
+	{ "teleFrag",					CG_TeleFrag_f },
+	{ "teleFragSelf",				CG_TeleFragSelf_f },
+	{ "teleCrosshair",				CG_TeleCrosshair_f },
+	{ "teleSafeCrosshair",			CG_TeleSafeCrosshair_f },
+	{ "bring",						CG_TeleCrosshairToMe_f },
+	{ "teleport",					CG_PTele_Offset_f },
+	{ "teleToCrosshairWithDist",	CG_TeleportToCrosshairWithDistance_f },
+
+	{ "mimic",						CG_Mimic_f },
+	{ "mimicMirror",				CG_MimicMirror_f },
+
+	{ "helpUsOlol",					CG_HelpUsOlol_f },
+	{ "Olol_Info",					CG_Olol_Info_f },
 
 	{ "PTelemark",					CG_PTelemark_f },
 	{ "PTele",						CG_PTele_f },
