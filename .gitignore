@@ -189,3 +189,5 @@ lib/libcurl/
 build-win32/
 
 build32temp/
+
+build64temp/
