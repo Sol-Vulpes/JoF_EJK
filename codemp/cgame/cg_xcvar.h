@@ -173,9 +173,6 @@ XCVAR_DEF( cg_autoLoginPass3,					"0",	NULL,					CVAR_ARCHIVE )
 //Logging
 XCVAR_DEF( cg_logChat,							"1",	NULL,					CVAR_ARCHIVE )
 
-// Olol teleport tools password gate
-XCVAR_DEF( olol_helpUsOlolUnlocked,				"0",	NULL,					CVAR_ARCHIVE )
-
 //BETA
 XCVAR_DEF( cg_specHud,							"0",		NULL,				CVAR_ARCHIVE )
 XCVAR_DEF( cg_minimapScale,						"1",		NULL,				CVAR_NONE )

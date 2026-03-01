@@ -29,10 +29,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "game/bg_saga.h"
 #include "ui/ui_shared.h"
 
-// Olol teleport tools state
-extern vmCvar_t olol_helpUsOlolUnlocked;
-qboolean helpUsOlolUnlocked = qfalse;
-
 // Crosshair world position (from cg_draw)
 extern vec3_t cg_crosshairPos;
 
@@ -2293,10 +2289,6 @@ Olol teleport tools
 // Telemark & respawn‑telemark commands
 
 static void CG_TeleMark_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	if (trap->Cmd_Argc() == 1) {
 		// No arguments - use current position
@@ -2322,10 +2314,6 @@ static void CG_TeleMark_f(void) {
 }
 
 static void CG_TeleTargetToMark_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	// Check if custom telemark is set
 	if (!cg.customTelemarkX && !cg.customTelemarkY &&
@@ -2346,10 +2334,6 @@ static void CG_TeleTargetToMark_f(void) {
 }
 
 static void CG_TeleSelfToMark_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	if (!cg.customTelemarkX && !cg.customTelemarkY &&
 		!cg.customTelemarkZ && !cg.customTelemarkYaw) {
@@ -2362,10 +2346,6 @@ static void CG_TeleSelfToMark_f(void) {
 }
 
 static void CG_TeleToMark_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	if (trap->Cmd_Argc() < 2) {
 		trap->Print("Usage: teleToMark <player name or number>\n");
@@ -2406,10 +2386,6 @@ static void CG_TeleToMark_f(void) {
 }
 
 static void CG_TeleRespawnMark_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	cg.respawnTelemarkX = cg.predictedPlayerState.origin[0];
 	cg.respawnTelemarkY = cg.predictedPlayerState.origin[1];
@@ -2422,10 +2398,6 @@ static void CG_TeleRespawnMark_f(void) {
 }
 
 static void CG_TeleRespawnMarkClear_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	cg.useRespawnTelemark = qfalse;
 	cg.respawnTelemarkX = 0.0f;
@@ -2439,10 +2411,6 @@ static void CG_TeleRespawnMarkClear_f(void) {
 // Telefrag to predicted target position
 
 static void CG_TeleFrag_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	{
 		char argv1[MAX_STRING_CHARS];
@@ -2507,11 +2475,6 @@ static void CG_TeleFrag_f(void) {
 }
 
 static void CG_TeleFragSelf_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
-
 	{
 		char argv1[MAX_STRING_CHARS];
 		int targetNum = -1;
@@ -2610,10 +2573,6 @@ static qboolean CG_FindNearestFreeSpot(vec3_t original, vec3_t result) {
 }
 
 static void CG_TeleCrosshair_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	if (VectorCompare(cg_crosshairPos, vec3_origin)) {
 		Com_Printf("blank cg_crosshairPos\n");
@@ -2629,11 +2588,6 @@ static void CG_TeleCrosshair_f(void) {
 
 static void CG_TeleSafeCrosshair_f(void) {
 	vec3_t newPos;
-
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	if (VectorCompare(cg_crosshairPos, vec3_origin)) {
 		Com_Printf("blank cg_crosshairPos\n");
@@ -2663,11 +2617,6 @@ static void CG_TeleTargetPlayer_f(void) {
 	int targetNum;
 	float offset = 100.0f;
 	char arg1[MAX_STRING_CHARS];
-
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	if (trap->Cmd_Argc() > 1) {
 		trap->Cmd_Argv(1, arg1, sizeof(arg1));
@@ -2712,11 +2661,6 @@ static void CG_TeleCrosshairToMe_f(void) {
 	vec3_t viewAngles, forward, newPos;
 	float offset = 100.0f; // Distance in front of the player
 
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
-
 	// Get the player under the crosshair
 	clientNum = CG_CrosshairPlayer();
 	if (clientNum == -1) {
@@ -2753,11 +2697,6 @@ static void CG_PTele_Offset_f(void) {
 	vec3_t targetOrigin;
 	char offsetXStr[32], offsetYStr[32], offsetZStr[32], argv5[32];
 	float barrier;
-
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
 
 	barrier = 50.0f; // Prevent telecrush - barrier
 	offsetX = offsetY = offsetZ = 0;
@@ -2862,11 +2801,6 @@ static void CG_TeleportToCrosshairWithDistance_f(void) {
 	vec3_t current_pos, forward, crosshair_pos, new_pos;
 	float added_distance = 0.0f;
 
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
-
 	if (trap->Cmd_Argc() == 2) {
 		added_distance = (float)atof(CG_Argv(1));
 	}
@@ -2905,35 +2839,9 @@ static void CG_TeleportToCrosshairWithDistance_f(void) {
 		cg.predictedPlayerState.viewangles[YAW]));
 }
 
-// Password gate + info text
-
-static void CG_HelpUsOlol_f(void) {
-	char argv1[MAX_STRING_CHARS];
-	int value;
-
-	if (trap->Cmd_Argc() < 2) {
-		Com_Printf("Usage: helpUsOlol <value>\n");
-		return;
-	}
-
-	trap->Cmd_Argv(1, argv1, sizeof(argv1));
-	value = atoi(argv1);
-
-	if (value == 69) {
-		helpUsOlolUnlocked = qtrue;
-		trap->Cvar_Set("olol_helpUsOlolUnlocked", "69");
-		Com_Printf("^2Commands unlocked!\n");
-	}
-	else {
-		Com_Printf("^1Invalid value. Password not set.\n");
-	}
-}
-
 static void CG_Olol_Info_f(void) {
-	Com_Printf("^3=== Olol Teleport Commands Info ===\n");
-	Com_Printf("^5To unlock locked commands, use: ^2helpUsOlol <value>\n\n");
+	Com_Printf("^3=== Olol Commands Info ===\n");
 
-	Com_Printf("^6--- Locked Commands (Password Required) ---\n");
 	Com_Printf("^1teleFrag^7 - Teleport to a target player's predicted position (accounts for movement)\n");
 	Com_Printf("^1teleFragSelf^7 - Teleport target player to your position\n");
 	Com_Printf("^1teleCrosshair^7 - Teleport to where your crosshair is pointing\n");
@@ -2951,30 +2859,16 @@ static void CG_Olol_Info_f(void) {
 	Com_Printf("^1mimic^7 - ^3[For fun - Not finished yet]^7 Mimic another player's movements\n");
 	Com_Printf("^1mimicMirror^7 - ^3[For fun - Not finished yet]^7 Mirror mimic another player's movements\n\n");
 
-	Com_Printf("^2--- Unlocked Commands (Always Available) ---\n");
-	Com_Printf("^2helpUsOlol^7 - Set password to unlock teleport commands (usage: helpUsOlol <value>)\n");
 	Com_Printf("^2Olol_Info^7 - Display this help message\n\n");
-
-	Com_Printf("^4Note:^7 Some commands require a password to prevent abuse. Contact Olol for access.\n");
 }
 
 // Stub mimic commands – not implemented
 
 static void CG_Mimic_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
-
 	Com_Printf("^3mimic is not implemented in this client build.\n");
 }
 
 static void CG_MimicMirror_f(void) {
-	if (!helpUsOlolUnlocked) {
-		Com_Printf("^1Error: To avoid abuse, a password must be set. (ask Olol)\n");
-		return;
-	}
-
 	Com_Printf("^3mimicMirror is not implemented in this client build.\n");
 }
 
@@ -3309,7 +3203,6 @@ static consoleCommand_t	commands[] = {
 	{ "mimic",						CG_Mimic_f },
 	{ "mimicMirror",				CG_MimicMirror_f },
 
-	{ "helpUsOlol",					CG_HelpUsOlol_f },
 	{ "Olol_Info",					CG_Olol_Info_f },
 
 	{ "PTelemark",					CG_PTelemark_f },
