@@ -1013,6 +1013,12 @@ static QINLINE int FindGrappleHook( int clientNum ) {
 }
 #endif
 
+static qboolean CG_FakeNoclipActive( void ) {
+	char buf[4];
+	trap->Cvar_VariableStringBuffer( "cl_fakenoclipActive", buf, sizeof( buf ) );
+	return atoi( buf ) != 0;
+}
+
 void CG_PredictPlayerState( void ) {
 	int			cmdNum, current, i;
 	playerState_t	oldPlayerState;
@@ -1023,6 +1029,7 @@ void CG_PredictPlayerState( void ) {
 	centity_t *pEnt;
 	clientInfo_t *ci;
 	const int REAL_CMD_BACKUP = (cl_commandsize.integer >= 4 && cl_commandsize.integer <= 512 ) ? (cl_commandsize.integer) : (CMD_BACKUP); //Loda - FPS UNLOCK client modcode
+	qboolean	fakeNoclip = CG_FakeNoclipActive();
 
 	cg.hyperspace = qfalse;	// will be set if touching a trigger_teleport
 
@@ -1063,7 +1070,6 @@ void CG_PredictPlayerState( void ) {
 	cg_pmove.trace = CG_Trace;
 	cg_pmove.pointcontents = CG_PointContents;
 
-
 	pEnt = &cg_entities[cg.predictedPlayerState.clientNum];
 	//rww - bgghoul2
 	if (cg_pmove.ghoul2 != pEnt->ghoul2) //only update it if the g2 instance has changed
@@ -1098,6 +1104,13 @@ void CG_PredictPlayerState( void ) {
 	if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR || cg.snap->ps.pm_type == PM_SPECTATOR ) {
 		cg_pmove.tracemask &= ~CONTENTS_BODY;	// spectators can fly through bodies
 	}
+
+	// Client-side fake noclip: disable collisions in prediction while active.
+	// Leave pm_type alone (so prediction still runs), but set tracemask to 0
+	// so movement is effectively noclip on the client only.
+	if ( fakeNoclip ) {
+		cg_pmove.tracemask = 0;
+	}
 	cg_pmove.noFootsteps = ( cgs.dmflags & DF_NO_FOOTSTEPS ) > 0;
 
 	// save the state before the pmove so we can detect transitions
@@ -1116,10 +1129,12 @@ void CG_PredictPlayerState( void ) {
 	trap->GetUserCmd( cmdNum, &oldestCmd );
 	if ( oldestCmd.serverTime > cg.snap->ps.commandTime
 		&& oldestCmd.serverTime < cg.time ) {	// special check for map_restart
-		if ( cg_showMiss.integer ) {
-			trap->Print ("exceeded PACKET_BACKUP on commands\n");
+		if ( !fakeNoclip ) {
+			if ( cg_showMiss.integer ) {
+				trap->Print ("exceeded PACKET_BACKUP on commands\n");
+			}
+			return;
 		}
-		return;
 	}
 
 	// get the latest command so we can know which commands are from previous map_restarts

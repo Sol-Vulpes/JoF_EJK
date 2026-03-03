@@ -5913,6 +5913,18 @@ static void CG_DrawDisconnect( void ) {
 	usercmd_t	cmd;
 	const char		*s;
 	int			w;  // bk010215 - FIXME char message[1024];
+
+	// When running the client-side fake noclip test, we intentionally stop
+	// sending movement commands to the server. That will naturally look like
+	// a stalled connection from the usual perspective, but for this test we
+	// don't want to show the \"Connection Interrupted\" overlay.
+	{
+		char fakenoclipBuf[4];
+		trap->Cvar_VariableStringBuffer( "cl_fakenoclipActive", fakenoclipBuf, sizeof( fakenoclipBuf ) );
+		if ( atoi( fakenoclipBuf ) ) {
+			return;
+		}
+	}
 	const int REAL_CMD_BACKUP = (cl_commandsize.integer >= 4 && cl_commandsize.integer <= 512 ) ? (cl_commandsize.integer) : (CMD_BACKUP);
 
 	if (cgs.localServer || cg.demoPlayback)

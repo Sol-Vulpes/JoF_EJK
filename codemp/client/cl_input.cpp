@@ -832,6 +832,9 @@ cvar_t	*cl_run;
 
 cvar_t	*cl_anglespeedkey;
 
+// Client-side fake noclip test: stop sending move packets to server for a few seconds
+static int cl_fakenoclipEndTime = 0;
+
 /*
 ================
 CL_AdjustAngles
@@ -1961,6 +1964,13 @@ void CL_WritePacket( void ) {
 		return;
 	}
 
+	// Fake noclip: when timer expires, clear and notify
+	if ( cl_fakenoclipEndTime && cls.realtime >= cl_fakenoclipEndTime ) {
+		cl_fakenoclipEndTime = 0;
+		Cvar_Set( "cl_fakenoclipActive", "0" );
+		Com_Printf( "Fake noclip ended.\n" );
+	}
+
 	Com_Memset( &nullcmd, 0, sizeof(nullcmd) );
 	oldcmd = &nullcmd;
 
@@ -2006,7 +2016,8 @@ void CL_WritePacket( void ) {
 		count = MAX_PACKET_USERCMDS;
 		Com_Printf("MAX_PACKET_USERCMDS\n");
 	}
-	if ( count >= 1 ) {
+	// Only send move commands when not in client-side "fake noclip" test window
+	if ( count >= 1 && !(cl_fakenoclipEndTime && cls.realtime < cl_fakenoclipEndTime) ) {
 		const int REAL_CMD_MASK = (cl_commandsize->integer >= 4 && cl_commandsize->integer <= 512) ? (cl_commandsize->integer - 1) : (CMD_MASK);//Loda - FPS UNLOCK ENGINE
 
 		if ( cl_showSend->integer ) {
@@ -2219,6 +2230,35 @@ static const cmdList_t inputCmds[] =
 
 /*
 ============
+CL_FakeNoclip_f
+
+Client-side only: stop sending movement packets to the server for a few seconds
+(to test how servers react). Your client keeps moving locally but the server
+doesn't get position updates until the timer ends.
+============
+*/
+static void CL_FakeNoclip_f( void ) {
+	float duration;
+	cvar_t *durationCvar;
+
+	if ( cls.state < CA_CONNECTED ) {
+		Com_Printf( "Not connected to a server.\n" );
+		return;
+	}
+
+	durationCvar = Cvar_Get( "cl_fakenoclipDuration", "3", 0 );
+	duration = durationCvar->value;
+	if ( duration <= 0.0f || duration > 30.0f ) {
+		duration = 3.0f;
+	}
+
+	cl_fakenoclipEndTime = cls.realtime + (int)( duration * 1000.0f );
+	Cvar_Set( "cl_fakenoclipActive", "1" );
+	Com_Printf( "Fake noclip: not sending move packets for %.1f seconds (client-side only).\n", duration );
+}
+
+/*
+============
 CL_InitInput
 ============
 */
@@ -2229,6 +2269,10 @@ void CL_InitInput( void ) {
 	cl_debugMove = Cvar_Get ("cl_debugMove", "0", 0);
 
 	cl_idrive = Cvar_Get ("cl_idrive", "0", CVAR_ARCHIVE);//JAPRO ENGINE
+
+	Cvar_Get( "cl_fakenoclipDuration", "3", 0 );
+	Cvar_Get( "cl_fakenoclipActive", "0", 0 );
+	Cmd_AddCommand( "fakenoclip", CL_FakeNoclip_f, "Client-side test: stop sending move packets for a few seconds" );
 }
 
 /*
@@ -2238,4 +2282,5 @@ CL_ShutdownInput
 */
 void CL_ShutdownInput( void ) {
 	Cmd_RemoveCommandList( inputCmds );
+	Cmd_RemoveCommand( "fakenoclip" );
 }
