@@ -86,6 +86,9 @@ Installing and running EternalJK:
 * [Milamber](https://github.com/Milamber0)
 * Daniel
 * [Jediman](https://github.com/Jediman9973)
+* [lumayaa](https://github.com/lumayaa)
+* [Sol-Vulpes](https://github.com/Sol-Vulpes)
+* [Clix (looZ149)](https://github.com/looZ149)
 
 ### External Contributors
 * [bucky](https://github.com/Bucky21659) - special thanks for giving us the starting point of this client.
