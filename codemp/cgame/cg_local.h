@@ -581,7 +581,8 @@ typedef struct centity_s {
 	
 	unsigned int	flameSndDebounceTime;
 	unsigned int	flameThrowerHitTime;
-	qboolean		flameThrowerSndActive;
+	qboolean		  flameThrowerSndActive;
+	qboolean	hasPlayedJetpackSounds;
 } centity_t;
 
 
@@ -1792,6 +1793,11 @@ typedef struct cgMedia_s {
 	sfxHandle_t	countFightSound;
 
 	sfxHandle_t flameThrowerSound;
+	sfxHandle_t jetpackOnSound;
+	sfxHandle_t jetpackOn2Sound;
+	sfxHandle_t jetpackOffSound;
+	sfxHandle_t jetpackHoverSound;
+	sfxHandle_t jetpackHover2Sound;
 
 	// new stuff
 	qhandle_t patrolShader;

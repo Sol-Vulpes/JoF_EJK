@@ -112,7 +112,7 @@ XCVAR_DEF( cg_duelMusic,						"1",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_saberHum,							"0",	NULL,								CVAR_ARCHIVE )
 
 //Visuals
-XCVAR_DEF( cg_remaps,							"1",	NULL,								CVAR_ARCHIVE|CVAR_LATCH )
+XCVAR_DEF( cg_remaps,							"2",	NULL,								CVAR_ARCHIVE|CVAR_LATCH )
 XCVAR_DEF( cg_instantDuck,						"0",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_screenShake,						"2",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawScreenTints,					"1",	NULL,								CVAR_ARCHIVE )
@@ -120,6 +120,8 @@ XCVAR_DEF( cg_cameraFPS,						"125",	CG_ClearThirdPersonDamp,			CVAR_ARCHIVE ) /
 XCVAR_DEF( cg_blood,							"0",	NULL,								CVAR_ARCHIVE ) //JAPRO - Clientside - re add cg_blood
 XCVAR_DEF( cg_thirdPersonFlagAlpha,				"1",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_stylePlayer,						"0",	NULL,								CVAR_ARCHIVE )
+XCVAR_DEF( cg_jetpackOnSound,					"1",	NULL,								CVAR_ARCHIVE )
+XCVAR_DEF( cg_jetpackHoverSound,				"1",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_headTurn,							"1",	NULL,								CVAR_NONE )
 
 XCVAR_DEF( cg_alwaysShowAbsorb,					"0",	NULL,								CVAR_ARCHIVE )
@@ -300,14 +302,12 @@ XCVAR_DEF( cg_fov,								"90",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_fovAspectAdjust,					"1",					NULL,					CVAR_ARCHIVE ) //fixed skyportal issue
 XCVAR_DEF( cg_fovViewmodel,						"80",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_fovViewmodelAdjust,				"1",					NULL,					CVAR_ARCHIVE ) // shifts viewmodels down above 90 fov
-XCVAR_DEF( cg_fpls,								"0",					NULL,					CVAR_NONE )
+XCVAR_DEF( cg_fpls,								"0",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_g2TraceLod,						"2",					NULL,					CVAR_NONE )
 XCVAR_DEF( cg_ghoul2Marks,						"16",					NULL,					CVAR_NONE )
 XCVAR_DEF( cg_gunX,								"0",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_gunY,								"0",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_gunZ,								"0",					NULL,					CVAR_ARCHIVE )
-XCVAR_DEF( cg_weaponBob,						"1",					NULL,					CVAR_ARCHIVE )
-XCVAR_DEF( cg_fallingBob,						"1",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_hudFiles,							"0",					CG_UpdateHUD,			CVAR_ARCHIVE )
 XCVAR_DEF( cg_lagometer,						"0",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_lagometerX,						"48",					NULL,					CVAR_ARCHIVE )
@@ -332,6 +332,7 @@ XCVAR_DEF( cg_saberDynamicMarkTime,				"60000",				NULL,					CVAR_NONE )
 XCVAR_DEF( cg_saberModelTraceEffect,			"0",					NULL,					CVAR_NONE )
 XCVAR_DEF( cg_saberTrail,						"1",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_saberClash,						"1",					NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_saberClashSize,					"1.0",					CG_SaberClashSizeChange,CVAR_ARCHIVE )
 XCVAR_DEF( cg_shaderSaberCore,					"0.625",				NULL,					CVAR_NONE )
 XCVAR_DEF( cg_shaderSaberGlow,					"0.625",				NULL,					CVAR_NONE )//1.25?
 XCVAR_DEF( cg_saberTeamColors,					"1",					NULL,					CVAR_ARCHIVE )
