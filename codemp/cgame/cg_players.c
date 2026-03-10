@@ -9968,6 +9968,7 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     vec3_t boltOrg, boltOrg2, bAngles;
     refEntity_t re, re2;
     vec3_t holsterPos;
+	vec3_t holsterAng1, holsterAng2;
 
 	if (!cg_drawHolsteredSaber.integer)
 		return;
@@ -10001,6 +10002,8 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 
 	// Parse cvar values
 	sscanf(cg_holsteredSaberPos.string, "%f %f %f", &holsterPos[0], &holsterPos[1], &holsterPos[2]);
+	sscanf(cg_holsteredSaberAng1.string, "%f %f %f", &holsterAng1[0], &holsterAng1[1], &holsterAng1[2]);
+	sscanf(cg_holsteredSaberAng2.string, "%f %f %f", &holsterAng2[0], &holsterAng2[1], &holsterAng2[2]);
 
 	newBolt = trap->G2API_AddBolt( cent->ghoul2, 0, cg_holsteredSaberBolt.string );
 	newBolt2 = trap->G2API_AddBolt( cent->ghoul2, 0, cg_holsteredSaberBolt2.string );
@@ -10009,7 +10012,8 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 	{
 		// or not...
 		//const qboolean isStill = VectorLength(cent->playerState->velocity) <= 0;
-		vec3_t angles;
+		vec3_t boltAxis0, boltAxis1, boltAxis2;
+		matrix3_t angAxis, tempAxis;
 
 		memset( &re, 0, sizeof( refEntity_t ) );
 		AxisClear(re.axis);
@@ -10030,11 +10034,15 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 		VectorMA(boltOrg, holsterPos[0], re.axis[1], boltOrg);
 		VectorMA(boltOrg, holsterPos[1], re.axis[0], boltOrg);
 		VectorMA(boltOrg, holsterPos[2], re.axis[2], boltOrg);
-
-		angles[PITCH] = 180;
-		angles[YAW] = cent->turAngles[YAW] + 15;
-		angles[ROLL] = ci->saber[0].type == SABER_STAFF ? 5 : 15;
-		AnglesToAxis(angles, re.axis);
+		VectorCopy(re.axis[0], boltAxis0);
+		VectorCopy(re.axis[1], boltAxis1);
+		VectorCopy(re.axis[2], boltAxis2);
+		VectorScale(boltAxis2, -1.0f, re.axis[2]); // holster1 blade axis points down relative to bolt
+		VectorCopy(boltAxis1, re.axis[1]);
+		CrossProduct(re.axis[1], re.axis[2], re.axis[0]);
+		AnglesToAxis(holsterAng1, angAxis);
+		MatrixMultiply(angAxis, re.axis, tempAxis);
+		AxisCopy(tempAxis, re.axis);
 
 		trap->G2API_GetBoltMatrix( cent->ghoul2, 0, newBolt2, &matrix, bAngles, cent->lerpOrigin, time, gameModels, cent->modelScale );
 
@@ -10045,10 +10053,15 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 		VectorMA(boltOrg2, -holsterPos[0], re2.axis[1], boltOrg2);
 		VectorMA(boltOrg2, -holsterPos[1], re2.axis[0], boltOrg2);
 		VectorMA(boltOrg2, holsterPos[2], re2.axis[2], boltOrg2);
-		angles[PITCH] = 180;
-		angles[YAW] = cent->turAngles[YAW] - 15;
-		angles[ROLL] = -10;
-		AnglesToAxis(angles, re2.axis);
+		VectorCopy(re2.axis[0], boltAxis0);
+		VectorCopy(re2.axis[1], boltAxis1);
+		VectorCopy(re2.axis[2], boltAxis2);
+		VectorScale(boltAxis2, -1.0f, re2.axis[0]);
+		VectorCopy(boltAxis1, re2.axis[1]);
+		VectorCopy(boltAxis0, re2.axis[2]);
+		AnglesToAxis(holsterAng2, angAxis);
+		MatrixMultiply(angAxis, re2.axis, tempAxis);
+		AxisCopy(tempAxis, re2.axis);
 
     	
 		if (!ci->holsterGhoul2 && ci->saber[0].model[0]) {
