@@ -11665,30 +11665,31 @@ skipTrail:
 	}
 
 
-				if (cent->currentState.torsoAnim == BOTH_CHOKE3 && cent->currentState.legsAnim == BOTH_CHOKE3) {
-					vec3_t efOrg;
-					if (cent->ghoul2 && ci && ci->bolt_head != -1)
-					{
-						trap->G2API_GetBoltMatrix(
-							cent->ghoul2,           
-							0,                      
-							ci->bolt_head,          
-							&headMatrix,            
-							cent->turAngles, 
-							cent->lerpOrigin,       
-							cg.time,                
-							cgs.gameModels,         
-							cent->modelScale        
-						);
+	if (cent->currentState.torsoAnim == BOTH_CHOKE3 && cent->currentState.legsAnim == BOTH_CHOKE3)
+	{
+		vec3_t efOrg;
+		if (cent->ghoul2 && ci && ci->bolt_head != -1)
+		{
+			trap->G2API_GetBoltMatrix(
+				cent->ghoul2,
+				0,
+				ci->bolt_head,
+				&headMatrix,
+				cent->turAngles,
+				cent->lerpOrigin,
+				cg.time,
+				cgs.gameModels,
+				cent->modelScale
+			);
 
-						efOrg[0] = headMatrix.matrix[0][3];
-						efOrg[1] = headMatrix.matrix[1][3];
-						efOrg[2] = headMatrix.matrix[2][3];
+			efOrg[0] = headMatrix.matrix[0][3];
+			efOrg[1] = headMatrix.matrix[1][3];
+			efOrg[2] = headMatrix.matrix[2][3];
 
-						efOrg[2] -= 8;
-						CG_ForceGripped(efOrg, qtrue);
-					}
-				}
+			efOrg[2] -= 8;
+			CG_ForceGripped(efOrg, qtrue);
+		}
+	}
 
 	if ( cent->currentState.powerups & (1 << PW_DISINT_4) )
 	{
