@@ -2278,7 +2278,6 @@ void CG_NewClientInfo( int clientNum, qboolean entitiesInitialized ) {
 			CG_LoadClientInfo( &newInfo, clientNum );
 		}
 	}
-	
 	// replace whatever was there with the new one
 	newInfo.infoValid = qtrue;
 	if ( !ci->infoValid )
