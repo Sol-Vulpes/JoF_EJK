@@ -9970,7 +9970,7 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     vec3_t holsterPos;
 	vec3_t holsterAng1, holsterAng2;
 
-	if (!cg_drawHolsteredSaber.integer)
+	if (!(cp_pluginDisable.integer & JAPRO_PLUGIN_HOLSTEREDSABER))
 		return;
 
 	if (cgs.serverMod != SVMOD_JAPLUS)
@@ -9997,8 +9997,8 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     if ( CG_IsMindTricked( cent->currentState.trickedentindex, cent->currentState.trickedentindex2, cent->currentState.trickedentindex3, cent->currentState.trickedentindex4, cg.snap->ps.clientNum ) )
         return;
 
-	if ( cent->currentState.m_iVehicleNum )
-		return;
+	//if ( cent->currentState.m_iVehicleNum )
+	//	return;
 
 	// Parse cvar values
 	sscanf(cg_holsteredSaberPos.string, "%f %f %f", &holsterPos[0], &holsterPos[1], &holsterPos[2]);
@@ -10010,6 +10010,7 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 
 	if ( newBolt != -1 )
 	{
+		VectorScale(holsterPos, cent->modelScale[0], holsterPos);
 		// or not...
 		//const qboolean isStill = VectorLength(cent->playerState->velocity) <= 0;
 		vec3_t boltAxis0, boltAxis1, boltAxis2;
@@ -10030,7 +10031,6 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 		BG_GiveMeVectorFromMatrix( &matrix, POSITIVE_X, re.axis[0] );
 		BG_GiveMeVectorFromMatrix( &matrix, POSITIVE_Y, re.axis[1] );
 		BG_GiveMeVectorFromMatrix( &matrix, POSITIVE_Z, re.axis[2] );
-
 		VectorMA(boltOrg, holsterPos[0], re.axis[1], boltOrg);
 		VectorMA(boltOrg, holsterPos[1], re.axis[0], boltOrg);
 		VectorMA(boltOrg, holsterPos[2], re.axis[2], boltOrg);
@@ -10080,6 +10080,7 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     		VectorCopy(boltOrg, re.lightingOrigin);
     		re.renderfx = parent.renderfx | RF_NOSHADOW;
     		re.customShader = parent.customShader;
+    		VectorCopy(cent->modelScale, re.modelScale);
     		trap->R_AddRefEntityToScene(&re);
     	}
 
@@ -10091,6 +10092,7 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     		VectorCopy(boltOrg2, re2.lightingOrigin);
     		re2.renderfx = parent.renderfx | RF_NOSHADOW;
     		re2.customShader = parent.customShader;
+    		VectorCopy(cent->modelScale, re2.modelScale);
     		trap->R_AddRefEntityToScene(&re2);
     	}
 	}
