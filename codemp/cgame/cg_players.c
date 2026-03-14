@@ -9983,7 +9983,7 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 	if (cgs.serverMod != SVMOD_JAPLUS)
 		return;
 
-	if (cent->currentState.eFlags & EF_NOT_USED_3)
+	if (cent->currentState.eFlags & EF_BOBAFIRE)
 		return;
 
     if ( !cent->ghoul2 )
