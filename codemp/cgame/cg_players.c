@@ -3252,9 +3252,7 @@ static void CG_SetLerpFrameAnimation( centity_t *cent, clientInfo_t *ci, lerpFra
 	int oldAnim = -1;
 	int blendTime = 100;
 	float oldSpeed = lf->animationSpeed;
-
 	
-
 	if (cent->localAnimIndex > 0)
 	{ //rockettroopers can't have broken arms, nor can anything else but humanoids
 		ci->brokenLimbs = cent->currentState.brokenLimbs;
@@ -5624,6 +5622,133 @@ static void CG_ForcePushBodyBlur( centity_t *cent )
 		//standard effect, don't be refractive (for now)
 		CG_ForcePushBlur(fxOrg, NULL);
 	}
+}
+
+static int cg_forceAnimFxNextTime[MAX_GENTITIES];
+static void CG_RunTimedForceAnimFX( centity_t *cent, clientInfo_t *ci )
+{
+	int entNum;
+	int fxType = 0;
+	float speed;
+	vec3_t pos, dir;
+
+	entNum = cent->currentState.number;
+
+	if (cent->playerState)
+	{
+		speed = VectorLength(cent->playerState->velocity);
+	}
+	else
+	{
+		speed = VectorLength(cent->currentState.pos.trDelta);
+	}
+
+	if (speed >= 250.0f)
+	{
+		cg_forceAnimFxNextTime[entNum] = 0;
+		return;
+	}
+
+	if (cent->currentState.torsoAnim == BOTH_FORCE_RAGE)
+	{
+		fxType = 1;
+	}
+	else if (cent->currentState.torsoAnim == BOTH_FORCEHEAL_START)
+	{
+		fxType = 2;
+	}
+	else if (cent->currentState.torsoAnim == BOTH_FORCEHEAL_QUICK)
+	{
+		fxType = 3;
+	}
+	else
+	{
+		cg_forceAnimFxNextTime[entNum] = 0;
+		return;
+	}
+
+	if (cg_forceAnimFxNextTime[entNum] > cg.time)
+	{
+		return;
+	}
+
+	if (fxType == 3)
+	{
+		mdxaBone_t lHandMatrix;
+		int lHandBolt = -1;
+
+		if (ci && ci->bolt_lhand != -1)
+		{
+			lHandBolt = ci->bolt_lhand;
+		}
+		if (lHandBolt == -1 && cent->npcClient)
+		{
+			lHandBolt = cent->npcClient->bolt_lhand;
+		}
+		if (lHandBolt == -1)
+		{
+			lHandBolt = trap->G2API_AddBolt(cent->ghoul2, 0, "*l_hand");
+		}
+
+		if (lHandBolt != -1 &&
+			trap->G2API_GetBoltMatrix(cent->ghoul2, 0, lHandBolt, &lHandMatrix,
+				cent->turAngles, cent->lerpOrigin, cg.time, cgs.gameModels, cent->modelScale))
+		{
+			pos[0] = lHandMatrix.matrix[0][3];
+			pos[1] = lHandMatrix.matrix[1][3];
+			pos[2] = lHandMatrix.matrix[2][3];
+		}
+
+		CG_ForcePushBlur(pos, NULL);
+		cg_forceAnimFxNextTime[entNum] = cg.time;
+		return;
+	}
+	
+	mdxaBone_t chestMatrix;
+	int chestBolt = -1;
+
+	VectorCopy(cent->lerpOrigin, pos);
+	if (cent->playerState)
+	{
+		AngleVectors(cent->playerState->viewangles, dir, NULL, NULL);
+	}
+	else
+	{
+		AngleVectors(cent->currentState.angles, dir, NULL, NULL);
+	}
+
+	if (cent->ghoul2)
+	{
+		chestBolt = trap->G2API_AddBolt(cent->ghoul2, 0, "*chestg");
+		if (chestBolt == -1)
+		{
+			chestBolt = trap->G2API_AddBolt(cent->ghoul2, 0, "thoracic");
+		}
+		if (chestBolt == -1)
+		{
+			chestBolt = trap->G2API_AddBolt(cent->ghoul2, 0, "lower_lumbar");
+		}
+
+
+		if (chestBolt != -1 &&
+			trap->G2API_GetBoltMatrix(cent->ghoul2, 0, chestBolt, &chestMatrix,
+				cent->turAngles, cent->lerpOrigin, cg.time, cgs.gameModels, cent->modelScale))
+		{
+			BG_GiveMeVectorFromMatrix(&chestMatrix, ORIGIN, pos);
+			BG_GiveMeVectorFromMatrix(&chestMatrix, NEGATIVE_Y, dir);
+		}
+	}
+
+	if (fxType == 1)
+	{
+		trap->FX_PlayEffectID(cgs.effects.rageFX, pos, dir, -1, -1, qfalse);
+	}
+	else
+	{
+		trap->FX_PlayEffectID(cgs.effects.heal2FX, pos, dir, -1, -1, qfalse);
+	}
+
+	cg_forceAnimFxNextTime[entNum] = cg.time + 120;
 }
 
 static void CG_ForceGripEffect( vec3_t org )
@@ -11710,8 +11835,11 @@ skipTrail:
 	{ //keep track of death anim frame for when we copy off the bodyqueue
 		ci->frame = cent->pe.torso.frame;
 	}
+
+	CG_RunTimedForceAnimFX(cent, ci);
+
 				
-				qboolean stopFlameThrowerSnd = qtrue;
+	qboolean stopFlameThrowerSnd = qtrue;
 				
 	if (cent->currentState.activeForcePass > FORCE_LEVEL_3
 		&& cent->currentState.NPC_class != CLASS_VEHICLE)

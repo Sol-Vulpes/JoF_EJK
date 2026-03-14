@@ -2052,6 +2052,7 @@ typedef struct cgEffects_s {
 	fxHandle_t	breath;
 	fxHandle_t	waterBreath;
 	
+	fxHandle_t	rageFX;
 	fxHandle_t	flameThrowerVfx;
 	fxHandle_t	flameThrowerHit;
 } cgEffects_t;
