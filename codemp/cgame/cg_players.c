@@ -2169,7 +2169,6 @@ void CG_NewClientInfo( int clientNum, qboolean entitiesInitialized ) {
 		memcpy(&newInfo.saber[0], &ci->saber[0], sizeof(newInfo.saber[0]));
 		newInfo.ghoul2Weapons[0] = ci->ghoul2Weapons[0];
 	}
-
 	v = Info_ValueForKey( configstring, "st2" );
 
 	if (clientNum == cg.clientNum && parsed == 2)
@@ -9092,8 +9091,7 @@ void CG_ForceFPLSPlayerModel(centity_t *cent, clientInfo_t *ci)
 {
 	animation_t *anim;
 
-	if (cg_fpls.integer && !cg.renderingThirdPerson)
-	{ //set the fpls model
+if (cg_fpls.integer && !cg.renderingThirdPerson && cent->currentState.number == cg.snap->ps.clientNum)	{ //set the fpls model
 		/*int				skinHandle;
 
 		//skinHandle = trap->R_RegisterSkin("models/players/kyle/model_fpls2.skin");
@@ -9221,7 +9219,7 @@ void CG_ForceFPLSPlayerModel(centity_t *cent, clientInfo_t *ci)
 	trap->G2API_CleanGhoul2Models(&(cent->ghoul2));
 	trap->G2API_DuplicateGhoul2Instance(ci->ghoul2Model, &cent->ghoul2);
 
-	if (cg_fpls.integer && !cg.renderingThirdPerson) { //there's definitely a better place to do this
+	if (cg_fpls.integer && !cg.renderingThirdPerson && cg.snap->ps.clientNum == cent->currentState.number) { //there's definitely a better place to do this
 		trap->G2API_SetSurfaceOnOff(cent->ghoul2, "head_eyes_mouth", TURN_OFF);
 		trap->G2API_SetSurfaceOnOff(cent->ghoul2, "heada_eyes_mouth", TURN_OFF);
 		trap->G2API_SetSurfaceOnOff(cent->ghoul2, "head", TURN_OFF);
@@ -9967,6 +9965,141 @@ void CG_CheckThirdPersonAlpha( centity_t *cent, refEntity_t *legs )
 	{
 		legs->renderfx |= setFlags;
 		legs->shaderRGBA[3] = (unsigned char)(alpha * 255.0f);
+	}
+}
+
+void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, clientInfo_t *ci, refEntity_t parent )
+{
+    int newBolt, newBolt2;
+    mdxaBone_t matrix;
+    vec3_t boltOrg, boltOrg2, bAngles;
+    refEntity_t re, re2;
+    vec3_t holsterPos;
+	vec3_t holsterAng1, holsterAng2;
+
+	if (!(cp_pluginDisable.integer & JAPRO_PLUGIN_HOLSTEREDSABER))
+		return;
+
+	if (cgs.serverMod != SVMOD_JAPLUS)
+		return;
+
+	if (cent->currentState.eFlags & EF_NOT_USED_3)
+		return;
+
+    if ( !cent->ghoul2 )
+        return;
+
+	if (cent->currentState.weapon == WP_SABER)
+		return;
+
+    if ( cent->currentState.eFlags & EF_DEAD )
+        return;
+
+    if (!cg.renderingThirdPerson && cent->currentState.clientNum == cg.clientNum)
+        return;
+
+    if (!cg.renderingThirdPerson && cg.snap->ps.clientNum == cent->currentState.clientNum && cgs.clientinfo[cg.clientNum].team == TEAM_SPECTATOR && (cg.snap->ps.pm_flags & PMF_FOLLOW))
+        return;
+
+    if ( CG_IsMindTricked( cent->currentState.trickedentindex, cent->currentState.trickedentindex2, cent->currentState.trickedentindex3, cent->currentState.trickedentindex4, cg.snap->ps.clientNum ) )
+        return;
+
+	//if ( cent->currentState.m_iVehicleNum )
+	//	return;
+
+	// Parse cvar values
+	sscanf(cg_holsteredSaberPos.string, "%f %f %f", &holsterPos[0], &holsterPos[1], &holsterPos[2]);
+	sscanf(cg_holsteredSaberAng1.string, "%f %f %f", &holsterAng1[0], &holsterAng1[1], &holsterAng1[2]);
+	sscanf(cg_holsteredSaberAng2.string, "%f %f %f", &holsterAng2[0], &holsterAng2[1], &holsterAng2[2]);
+
+	newBolt = trap->G2API_AddBolt( cent->ghoul2, 0, cg_holsteredSaberBolt.string );
+	newBolt2 = trap->G2API_AddBolt( cent->ghoul2, 0, cg_holsteredSaberBolt2.string );
+
+	if ( newBolt != -1 )
+	{
+		VectorScale(holsterPos, cent->modelScale[0], holsterPos);
+		vec3_t boltAxis0, boltAxis1, boltAxis2;
+		matrix3_t angAxis, tempAxis;
+
+		memset( &re, 0, sizeof( refEntity_t ) );
+		AxisClear(re.axis);
+		memset( &re2, 0, sizeof( refEntity_t ) );
+		AxisClear(re2.axis);
+
+		VectorCopy( cent->lerpAngles, bAngles );
+		bAngles[PITCH] = 0;
+		bAngles[YAW] = cent->turAngles[YAW];
+
+		trap->G2API_GetBoltMatrix( cent->ghoul2, 0, newBolt, &matrix, bAngles, cent->lerpOrigin, time, gameModels, cent->modelScale );
+		
+		BG_GiveMeVectorFromMatrix( &matrix, ORIGIN, boltOrg );
+		BG_GiveMeVectorFromMatrix( &matrix, POSITIVE_X, re.axis[0] );
+		BG_GiveMeVectorFromMatrix( &matrix, POSITIVE_Y, re.axis[1] );
+		BG_GiveMeVectorFromMatrix( &matrix, POSITIVE_Z, re.axis[2] );
+		VectorMA(boltOrg, holsterPos[0], re.axis[1], boltOrg);
+		VectorMA(boltOrg, holsterPos[1], re.axis[0], boltOrg);
+		VectorMA(boltOrg, holsterPos[2], re.axis[2], boltOrg);
+		VectorCopy(re.axis[0], boltAxis0);
+		VectorCopy(re.axis[1], boltAxis1);
+		VectorCopy(re.axis[2], boltAxis2);
+		VectorScale(boltAxis2, -1.0f, re.axis[2]); // holster1 blade axis points down relative to bolt
+		VectorCopy(boltAxis1, re.axis[1]);
+		CrossProduct(re.axis[1], re.axis[2], re.axis[0]);
+		AnglesToAxis(holsterAng1, angAxis);
+		MatrixMultiply(angAxis, re.axis, tempAxis);
+		AxisCopy(tempAxis, re.axis);
+
+		trap->G2API_GetBoltMatrix( cent->ghoul2, 0, newBolt2, &matrix, bAngles, cent->lerpOrigin, time, gameModels, cent->modelScale );
+
+		BG_GiveMeVectorFromMatrix( &matrix, ORIGIN, boltOrg2 );
+		BG_GiveMeVectorFromMatrix( &matrix, POSITIVE_X, re2.axis[0] );
+		BG_GiveMeVectorFromMatrix( &matrix, POSITIVE_Y, re2.axis[1] );
+		BG_GiveMeVectorFromMatrix( &matrix, POSITIVE_Z, re2.axis[2] );
+		VectorMA(boltOrg2, -holsterPos[0], re2.axis[1], boltOrg2);
+		VectorMA(boltOrg2, -holsterPos[1], re2.axis[0], boltOrg2);
+		VectorMA(boltOrg2, holsterPos[2], re2.axis[2], boltOrg2);
+		VectorCopy(re2.axis[0], boltAxis0);
+		VectorCopy(re2.axis[1], boltAxis1);
+		VectorCopy(re2.axis[2], boltAxis2);
+		VectorScale(boltAxis2, -1.0f, re2.axis[0]);
+		VectorCopy(boltAxis1, re2.axis[1]);
+		VectorCopy(boltAxis0, re2.axis[2]);
+		AnglesToAxis(holsterAng2, angAxis);
+		MatrixMultiply(angAxis, re2.axis, tempAxis);
+		AxisCopy(tempAxis, re2.axis);
+
+    	
+		if (!ci->holsterGhoul2 && ci->saber[0].model[0]) {
+			trap->G2API_InitGhoul2Model(&ci->holsterGhoul2, ci->saber[0].model, 0, 0, 0, 0, 0);
+		}
+
+    	if (!ci->holsterGhoul2_2 && ci->saber[0].model[1] && newBolt2 != -1) {
+    		trap->G2API_InitGhoul2Model(&ci->holsterGhoul2_2, ci->saber[1].model, 0, 0, 0, 0, 0);
+    	}
+
+    	if (ci->holsterGhoul2) {
+    		re.ghoul2 = ci->holsterGhoul2;
+    		re.hModel = 0;
+
+    		VectorCopy(boltOrg, re.origin);
+    		VectorCopy(boltOrg, re.lightingOrigin);
+    		re.renderfx = parent.renderfx | RF_NOSHADOW;
+    		re.customShader = parent.customShader;
+    		VectorCopy(cent->modelScale, re.modelScale);
+    		trap->R_AddRefEntityToScene(&re);
+    	}
+
+    	if (ci->holsterGhoul2_2 && newBolt2 != -1) {
+    		re2.ghoul2 = ci->holsterGhoul2_2;
+    		re2.hModel = 0;
+
+    		VectorCopy(boltOrg2, re2.origin);
+    		VectorCopy(boltOrg2, re2.lightingOrigin);
+    		re2.renderfx = parent.renderfx | RF_NOSHADOW;
+    		re2.customShader = parent.customShader;
+    		VectorCopy(cent->modelScale, re2.modelScale);
+    		trap->R_AddRefEntityToScene(&re2);
+    	}
 	}
 }
 
@@ -11214,8 +11347,6 @@ void CG_Player( centity_t *cent ) {
 		{ //don't allow this when spectating
 			if (cgFPLSState != 0)
 			{
-				cg_fpls.integer = 0;
-
 				CG_ForceFPLSPlayerModel(cent, ci);
 				cgFPLSState = 0;
 				return;
@@ -11567,9 +11698,9 @@ skipTrail:
 		{//arc
 			//trap->FX_PlayEffectID( cgs.effects.forceLightningWide, efOrg, fxDir );
 			//trap->FX_PlayEntityEffectID(cgs.effects.forceDrainWide, efOrg, axis, cent->boltInfo, cent->currentState.number, -1, -1);
-			if (cg_drainFX.integer)
+			if (cg_drainFX.integer == 2)
 				trap->FX_PlayEntityEffectID(cgs.effects.forceDrainWideJaPRO, efOrg, axis, -1, -1, -1, -1);
-			else if (cg_drainFX.integer == 2)
+			else if (cg_drainFX.integer == 1)
 				trap->FX_PlayEntityEffectID(cgs.effects.forceDrainWide, efOrg, axis, -1, -1, -1, -1);
 		}
 		else
@@ -13012,6 +13143,8 @@ stillDoSaber:
 		}
 	}
 
+				CG_DrawHolsteredSaber(cent, cg.time, cgs.gameModels, ci, legs);
+
 	//[Kameleon] - Nerevar's Santa Hat.
 	if (!(cg_stylePlayer.integer & JAPRO_STYLE_HIDECOSMETICS) && ((cg_stylePlayer.integer & JAPRO_STYLE_SEASONALCOSMETICS) || (cgs.serverMod != SVMOD_JAPLUS && cgs.serverMod != SVMOD_BASEJKA)))
 	{
@@ -13120,7 +13253,6 @@ stillDoSaber:
 	if ((cent->currentState.forcePowersActive & (1 << FP_RAGE)) &&
 		(cg.renderingThirdPerson || cent->currentState.number != cg.snap->ps.clientNum))
 	{
-		//legs.customShader = cgs.media.rageShader;
 		legs.renderfx &= ~RF_FORCE_ENT_ALPHA;
 		legs.renderfx &= ~RF_MINLIGHT;
 
