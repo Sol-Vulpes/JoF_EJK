@@ -11987,6 +11987,36 @@ skipTrail:
 	if (cent->currentState.torsoAnim == BOTH_CHOKE3 && cent->currentState.legsAnim == BOTH_CHOKE3)
 	{
 		vec3_t efOrg;
+		vec3_t chokeFwd;
+		qboolean usedNeckBolt = qfalse;
+
+		if (cent->ghoul2 && ci)
+		{
+			int chokeBolt = trap->G2API_AddBolt(cent->ghoul2, 0, "cervical");
+			mdxaBone_t chokeMatrix;
+
+			if (chokeBolt != -1)
+			{
+				trap->G2API_GetBoltMatrix(
+					cent->ghoul2,
+					0,
+					chokeBolt,
+					&chokeMatrix,
+					cent->turAngles,
+					cent->lerpOrigin,
+					cg.time,
+					cgs.gameModels,
+					cent->modelScale
+				);
+
+				efOrg[0] = chokeMatrix.matrix[0][3];
+				efOrg[1] = chokeMatrix.matrix[1][3];
+				efOrg[2] = chokeMatrix.matrix[2][3];
+
+				usedNeckBolt = qtrue;
+			}
+		}
+
 		if (cent->ghoul2 && ci && ci->bolt_head != -1)
 		{
 			trap->G2API_GetBoltMatrix(
@@ -12001,11 +12031,16 @@ skipTrail:
 				cent->modelScale
 			);
 
-			efOrg[0] = headMatrix.matrix[0][3];
-			efOrg[1] = headMatrix.matrix[1][3];
-			efOrg[2] = headMatrix.matrix[2][3];
+			if (!usedNeckBolt)
+			{
+				efOrg[0] = headMatrix.matrix[0][3];
+				efOrg[1] = headMatrix.matrix[1][3];
+				efOrg[2] = headMatrix.matrix[2][3];
+				efOrg[2] -= 8;
+			}
 
-			efOrg[2] -= 8;
+			AngleVectors(cent->turAngles, chokeFwd, NULL, NULL);
+			VectorMA(efOrg, 2, chokeFwd, efOrg);
 			CG_ForceGripped(efOrg, qtrue);
 		}
 	}
