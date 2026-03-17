@@ -248,9 +248,52 @@ void CL_WriteDemoMessage ( msg_t *msg, int headerBytes ) {
 
 	// skip the packet sequencing information
 	len = msg->cursize - headerBytes;
-	swlen = LittleLong(len);
-	FS_Write (&swlen, 4, clc.demofile);
-	FS_Write ( msg->data + headerBytes, len, clc.demofile );
+
+
+	// Fix for if the anti-spoof token is present in this message, strip it from the
+	// demo file. The token bit range was saved by CL_ParseServerMessage.
+	if (clc.demoTokenBitEnd > clc.demoTokenBitStart && clc.demoTokenBitStart > 0)
+	{
+		int payloadBitStart = headerBytes * 8;
+		int tokenStart = clc.demoTokenBitStart - payloadBitStart;
+		int tokenEnd = clc.demoTokenBitEnd - payloadBitStart;
+		int payloadBits = len * 8;
+		int tokenBits = tokenEnd - tokenStart;
+		int cleanBits = payloadBits - tokenBits;
+		int cleanLen = (cleanBits + 7) / 8;
+		byte cleanData[MAX_MSGLEN];
+
+		Com_Memset(cleanData, 0, cleanLen);
+
+		// Copy bits before the token (reliableAck encoding)
+		const byte *src = msg->data + headerBytes;
+		int i;
+		for (i = 0; i < tokenStart; i++)
+		{
+			if (src[i >> 3] & (1 << (i & 7)))
+				cleanData[i >> 3] |= (1 << (i & 7));
+		}
+		// Copy bits after the token (svc_* commands encoding)
+		for (i = tokenEnd; i < payloadBits; i++)
+		{
+			int dst = i - tokenBits;
+			if (src[i >> 3] & (1 << (i & 7)))
+				cleanData[dst >> 3] |= (1 << (dst & 7));
+		}
+
+		swlen = LittleLong(cleanLen);
+		FS_Write (&swlen, 4, clc.demofile);
+		FS_Write (cleanData, cleanLen, clc.demofile);
+
+		clc.demoTokenBitStart = 0;
+		clc.demoTokenBitEnd = 0;
+	}
+	else
+	{
+		swlen = LittleLong(len);
+		FS_Write (&swlen, 4, clc.demofile);
+		FS_Write ( msg->data + headerBytes, len, clc.demofile );
+	}
 }
 
 
