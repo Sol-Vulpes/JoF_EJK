@@ -2500,7 +2500,7 @@ static void CG_TeleToPlayer_f(void) {
 		newPos[0], newPos[1], newPos[2], cent->lerpAngles[YAW] + 180 + yawoffset));
 }
 
-extern lastWhispererId;
+extern int lastWhispererId;
 void CG_Say_f( void ) {
 	char msg[MAX_SAY_TEXT] = {0};
 	char word[MAX_SAY_TEXT] = {0};
