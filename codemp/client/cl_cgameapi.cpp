@@ -830,6 +830,18 @@ static void CL_Key_SetCatcher( int catcher ) {
 	Key_SetCatcher( catcher | ( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) );
 }
 
+static void CL_GetRadialMenuState( qboolean *active, float *x, float *y ) {
+	if ( active ) {
+		*active = cl.radialMenuActive;
+	}
+	if ( x ) {
+		*x = cl.radialMenuX;
+	}
+	if ( y ) {
+		*y = cl.radialMenuY;
+	}
+}
+
 static void CGVM_Cvar_Set( const char *var_name, const char *value ) {
 	Cvar_VM_Set( var_name, value, VM_CGAME );
 }
@@ -1826,6 +1838,7 @@ void CL_BindCGame( void ) {
 		cgi.OpenUIMenu							= CL_OpenUIMenu;
 		cgi.SetClientForceAngle					= CL_SetClientForceAngle;
 		cgi.SetUserCmdValue						= _CL_SetUserCmdValue;
+		cgi.GetRadialMenuState					= CL_GetRadialMenuState;
 		cgi.Key_GetCatcher						= Key_GetCatcher;
 		cgi.Key_GetKey							= Key_GetKey;
 		cgi.Key_IsDown							= Key_IsDown;

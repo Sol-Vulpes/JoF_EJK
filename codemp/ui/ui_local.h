@@ -52,7 +52,7 @@ void UI_LoadForceConfig_List( void );
 void UI_UpdateCurrentServerInfo( void );
 void UI_BuildPlayerModel_List( qboolean inGameLoad );
 void UI_UpdateSaberHiltInfo( void );
-#define PROFILE_SKIN_SIZE 8192 //2048
+#define PROFILE_SKIN_SIZE 65536 //8192 //2048
 typedef struct uiQ3ModelBuild_s {
 	qboolean inProgress;
 	int dirJob;
@@ -163,7 +163,7 @@ typedef struct playerInfo_s {
 #define MAX_MODS				64
 #define MAX_DEMOS				2048 // 256
 #define MAX_MOVIES				2048 // 256
-#define MAX_Q3PLAYERMODELS		1024 //256
+#define MAX_Q3PLAYERMODELS		4096 //1024 //256
 
 #define DEMO_DIRECTORY "demos"
 #define DEMO_EXTENSION "dm_"
@@ -446,3 +446,4 @@ qboolean UI_SaberTypeForSaber( const char *saberName, char *saberType );
 // new ui
 
 extern uiImport_t *trap;
+

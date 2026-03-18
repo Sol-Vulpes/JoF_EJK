@@ -187,7 +187,7 @@ XCVAR_DEF( cg_drawHud,							"1",		NULL,				CVAR_ARCHIVE )
 
 XCVAR_DEF( cg_predictKnockback,					"0",		NULL,				0 )
 
-XCVAR_DEF( cp_pluginDisable,					"1536",		NULL,				CVAR_ARCHIVE|CVAR_USERINFO ) //'enable' holstered saber (512) and ledge grab (1536) by default, to avoid missing JA+ animations
+XCVAR_DEF( cp_pluginDisable,					"536872448",		NULL,				CVAR_ARCHIVE|CVAR_USERINFO ) //'enable' holstered saber (512), ledge grab (1536) and holstered sabers by default, to avoid missing JA+ animations
 XCVAR_DEF( com_maxFPS,							"125",		NULL,				CVAR_ARCHIVE )
 XCVAR_DEF( cg_displayCameraPosition,		"1 80 16",		NULL,				CVAR_ROM|CVAR_USERINFO )
 XCVAR_DEF( cg_displayNetSettings,			"125 0 125",	NULL,				CVAR_ROM|CVAR_USERINFO )
@@ -313,7 +313,7 @@ XCVAR_DEF( cg_ghoul2Marks,						"16",					NULL,					CVAR_NONE )
 XCVAR_DEF( cg_gunX,								"0",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_gunY,								"0",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_gunZ,								"0",					NULL,					CVAR_ARCHIVE )
-XCVAR_DEF( cg_hudFiles,							"0",					CG_UpdateHUD,			CVAR_ARCHIVE )
+XCVAR_DEF( cg_hudFiles,							"3",					CG_UpdateHUD,			CVAR_ARCHIVE )
 XCVAR_DEF( cg_lagometer,						"0",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_lagometerX,						"48",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_lagometerY,						"144",					NULL,					CVAR_ARCHIVE )
@@ -328,6 +328,20 @@ XCVAR_DEF( cg_renderToTextureFX,				"1",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_repeaterOrb,						"0",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_runPitch,							"0",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_runRoll,							"0",					NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialDeadzone,					"48",					NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialRadius,						"140",					NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBoxWidth,					"92",					NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBoxHeight,					"18",					NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialTextScale,					"0.4",					NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialOffset,						"0 0",					NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBind1,						"amHello",				NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBind2,						"amTaunt",				NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBind3,						"say ^2Hello there",		NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBind4,						"amSit",				NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBind5,						"amPoint",				NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBind6,						"amVictory",			NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBind7,						"say_team Need help",		NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_radialBind8,						"amWave",				NULL,					CVAR_ARCHIVE )
 //allows us to trace between server frames on the client to see if we're visually
 //hitting the last entity we detected a hit on from the server.
 XCVAR_DEF( cg_saberClientVisualCompensation,	"1",					NULL,					CVAR_NONE )
@@ -418,3 +432,4 @@ XCVAR_DEF( ui_tm2_cnt,							"0",					NULL,					CVAR_ROM|CVAR_INTERNAL )
 XCVAR_DEF( ui_tm3_cnt,							"0",					NULL,					CVAR_ROM|CVAR_INTERNAL )
 
 #undef XCVAR_DEF
+

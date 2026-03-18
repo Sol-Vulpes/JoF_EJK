@@ -67,6 +67,7 @@ static void CG_UpdateHUD(void) {
 				return;
 			case '0':
 			case '3':
+			case '4':
 				cgs.newHud = qtrue;
 				break;
 		}

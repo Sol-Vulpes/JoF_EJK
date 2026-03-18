@@ -824,6 +824,7 @@ void CG_EventHandling(int type) {
 	} else if (type == CGAME_EVENT_TEAMMENU) {
 		//CG_ShowTeamMenu();
 	} else if (type == CGAME_EVENT_SCOREBOARD) {
+	} else if (type == CGAME_EVENT_RADIALMENU) {
 	}
 
 }
@@ -831,7 +832,7 @@ void CG_EventHandling(int type) {
 
 
 void CG_KeyEvent(int key, qboolean down) {
-
+	
 	if (!down) {
 		return;
 	}

@@ -3846,9 +3846,9 @@ Ghoul2 Insert Start
 		matrix3_t axis;
 		AnglesToAxis(cent->lerpAngles, axis);
 
-		if (cent->flameThrowerHitTime < cg.snap->serverTime)
+		if (cent->flameThrowerHitTime < cg.time)
 		{
-			cent->flameThrowerHitTime = cg.snap->serverTime + 100;
+			cent->flameThrowerHitTime = cg.time + 100;
 			trap->FX_PlayEntityEffectID(cgs.effects.flameThrowerHit,
 				cent->lerpOrigin,
 				axis,

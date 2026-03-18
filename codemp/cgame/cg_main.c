@@ -2560,6 +2560,10 @@ void CG_LoadHudMenu(void)
 	if ( cgs.newHud && cg_hudFiles.integer == 3 ) {
 		hudSet = "ui/elegance_hud.txt";
 	}
+	else if ( cgs.newHud && cg_hudFiles.integer == 4 )
+	{
+		hudSet = "ui/jof_hud.txt";
+	}
 	else {
 		hudSet = cg_hudFiles.string;
 		if ( !VALIDSTRING(hudSet) )

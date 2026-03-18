@@ -1129,14 +1129,14 @@ qboolean CG_DrawOldScoreboard( void ) {
 			n1 = CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qtrue, maxClientsScoreboard );
 			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
 			CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+			y += (n1 * lineHeight) + maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT;
 
 			//maxClients -= n1;
 
 			n2 = CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qtrue, maxClientsScoreboard );
 			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
 			CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
+			y += (n2 * lineHeight) + maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT;
 
 			//maxClients -= n2;
 
@@ -1232,4 +1232,5 @@ qboolean CG_DrawOldScoreboard( void ) {
 }
 
 //================================================================================
+
 

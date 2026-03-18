@@ -513,6 +513,9 @@ void CG_LoadHud_f( void ) {
 	if ( cgs.newHud && cg_hudFiles.integer == 3 ) {
 		hudSet = "ui/elegance_hud.txt";
 	}
+	else if ( cgs.newHud && cg_hudFiles.integer == 4 ) {
+		hudSet = "ui/jof_hud.txt";
+	}
 	else {
 		hudSet = cg_hudFiles.string;
 		if ( !VALIDSTRING(hudSet) )
@@ -1491,6 +1494,7 @@ static qboolean japroPluginDisables[] = {
 	qtrue,//{"Disable damage numbers"},//26
 	qtrue,//{"Centermuzzle"},//27
 	qtrue,//{"Show checkpoints in console only"}//28
+	qfalse,
 };
 
 static qboolean japlusPluginDisables[] = {
@@ -1525,6 +1529,7 @@ static qboolean japlusPluginDisables[] = {
 	qfalse,//{"Disable damage numbers"},//26
 	qfalse,//{"Centermuzzle"},//27
 	qfalse,//{"Show checkpoints in console only"}//28
+	qtrue
 };
 
 static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
@@ -1537,7 +1542,7 @@ static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{"No new deathmsg"},//7
 	{"New sight effect"},//8
 	{"No alt dim effect"},//9
-	{"Holstered saber"},//10
+	{"Remove JA+ Staff holster animation"},//10
 	{"Ledge grab"},//11
 	{"Disable New DFA Primary"},//12
 	{"Disable New DFA Alt"},//13
@@ -1558,7 +1563,8 @@ static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{"Show chatbox checkpoints"},//25
 	{"Disable damage numbers"},//26
 	{"Centermuzzle"},//27
-	{"Show checkpoints in console only"}//28
+	{"Show checkpoints in console only"},//28
+	{"Show holstered sabers"}//29
 };
 static const int MAX_PLUGINDISABLES = ARRAY_LEN( pluginDisables );
 
