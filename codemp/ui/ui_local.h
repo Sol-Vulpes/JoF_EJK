@@ -446,4 +446,3 @@ qboolean UI_SaberTypeForSaber( const char *saberName, char *saberType );
 // new ui
 
 extern uiImport_t *trap;
-

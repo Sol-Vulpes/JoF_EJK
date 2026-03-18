@@ -186,6 +186,7 @@ static void CG_ScoresDown_f( void ) {
 		// is within two seconds
 		cg.showScores = qtrue;
 	}
+	cg.pressingScoreBoard = qtrue;
 }
 
 /*
@@ -199,6 +200,7 @@ static void CG_ScoresUp_f( void ) {
 		cg.showScores = qfalse;
 		cg.scoreFadeTime = cg.time;
 	}
+	cg.pressingScoreBoard = qfalse;
 }
 
 void CG_ClientList_f( void )

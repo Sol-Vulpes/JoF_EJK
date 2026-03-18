@@ -2272,6 +2272,3 @@ CL_ShutdownInput
 void CL_ShutdownInput( void ) {
 	Cmd_RemoveCommandList( inputCmds );
 }
-
-
-

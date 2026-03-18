@@ -1113,6 +1113,7 @@ typedef struct cg_s {
 	score_t			scores[MAX_CLIENTS];
 	qboolean		showScores;
 	qboolean		scoreBoardShowing;
+	qboolean		pressingScoreBoard;
 	int				scoreFadeTime;
 	char			killerName[MAX_NETNAME];
 	char			spectatorList[MAX_STRING_CHARS];		// list of names
