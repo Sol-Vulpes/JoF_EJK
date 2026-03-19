@@ -548,35 +548,13 @@ static int CG_TeamScoreboard( int y, team_t team, float fade, int maxClients, in
 	int		count;
 	clientInfo_t	*ci;
 	qboolean listed[MAX_CLIENTS];
-	qboolean listedOurselves = qfalse;
 	memset(listed, qfalse, sizeof(listed));
-	qboolean intermissionOrDead =
-	cg.predictedPlayerState.pm_type == PM_DEAD ||
-	cg.predictedPlayerState.pm_type == PM_INTERMISSION ||
-	cg.predictedPlayerState.pm_type == PM_SPINTERMISSION;
-	
 	color[0] = color[1] = color[2] = 1.0;
 	color[3] = fade;
 
 	count = 0;
 	for ( i = 0 ; i < cg.numScores && count < maxClients ; i++ )
 	{
-		if (maxClientScoreboard && cgs.numClients > 26 && count > 23 && intermissionOrDead && !cg.pressingScoreBoard)
-		{
-			if (count == 24 && !listedOurselves && &cg.scores[cg.snap->ps.clientNum])
-			{
-				i = cg.snap->ps.clientNum;
-			}
-			
-			if (count == 25)
-			{
-				vec4_t color = { 1.0f, 0.5f, 0.0f, 1.0f };
-				sscanf(cg_extendScoreboardMessageColor.string, "%f %f %f %f", &color[0], &color[1], &color[2], &color[3]);
-				CG_Text_Paint(SB_NAME_X, y + lineHeight * count, .585f, color, "Hold TAB for full scoreboard", 0, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM);
-				return count;
-			}
-		}
-		
 		score = &cg.scores[i];
 		ci = &cgs.clientinfo[ score->client ];
 
@@ -585,9 +563,6 @@ static int CG_TeamScoreboard( int y, team_t team, float fade, int maxClients, in
 		}
 		
 		listed[score->client] = qtrue;
-		
-		if (score->client == cg.snap->ps.clientNum)
-			listedOurselves = qtrue;
 
 		if ( !countOnly )
 		{
@@ -597,40 +572,18 @@ static int CG_TeamScoreboard( int y, team_t team, float fade, int maxClients, in
 		count++;
 	}
 	
-
-	
-	for ( i = 0; cg.numScores > 0 && i < cgs.maxclients; i++ )
+	for ( i = 0; cg.numScores > 0 && i < cgs.maxclients && count < maxClients; i++ )
 	{
-		if (maxClientScoreboard && cgs.numClients > 26 && count > 23 && intermissionOrDead && !cg.pressingScoreBoard)
-		{
-			
-			if (count == 24 && !listedOurselves)
-			{
-				i = cg.snap->ps.clientNum;
-			}
-			
-			if (count == 25)
-			{
-				vec4_t color = { 1.0f, 0.5f, 0.0f, 1.0f };
-				sscanf(cg_extendScoreboardMessageColor.string, "%f %f %f %f", &color[0], &color[1], &color[2], &color[3]);
-				CG_Text_Paint(SB_NAME_X, y + lineHeight * count, .585f, color, "Hold TAB for full scoreboard", 0, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM);
-				return count;
-			}
-		}
-		
 		ci = &cgs.clientinfo[i];
 		if ( !ci->infoValid ) {
 			continue;
 		}
-		if ( team != ci->team ) {               
+		if ( team != ci->team ) {
 			continue;
 		}
 		if ( listed[i] ) {
-			continue;                           
+			continue;
 		}
-		
-		if (i == cg.snap->ps.clientNum)
-			listedOurselves = qtrue;
 
 		if ( !countOnly ) {
 			score_t fake;
@@ -638,7 +591,6 @@ static int CG_TeamScoreboard( int y, team_t team, float fade, int maxClients, in
 			fake.client = i;
 			fake.fake = qtrue;
 
-			// CG_DrawClientScore will still render the model icon & name from cgs.clientinfo[i]
 			CG_DrawClientScore( y + lineHeight * count, &fake, color, fade, lineHeight == SB_NORMAL_HEIGHT, maxClientScoreboard );
 		}
 		count++;
@@ -804,7 +756,10 @@ qboolean CG_DrawOldScoreboard( void ) {
 	float	fade;
 	float	*fadeColor;
 	char	*s;
-	int maxClients, realMaxClients;
+	int maxClients, realMaxClients, compactReservedRows, compactRemainingRows;
+	qboolean compactScoreboard = qfalse;
+	score_t *localScore = NULL;
+	clientInfo_t *localClientInfo = NULL;
 	int lineHeight;
 	int topBorderSize, bottomBorderSize;
 	qboolean maxClientsScoreboard = cgs.numClients > 20;
@@ -1111,6 +1066,20 @@ qboolean CG_DrawOldScoreboard( void ) {
 	
 	realMaxClients = maxClients;
 
+	if (maxClientsScoreboard && cgs.numClients > 25 && intermissionOrDead && !cg.pressingScoreBoard) {
+		compactScoreboard = qtrue;
+		maxClients = 24;
+		realMaxClients = maxClients;
+
+		for ( i = 0 ; i < cg.numScores ; i++ ) {
+			if ( cg.scores[i].client == cg.snap->ps.clientNum ) {
+				localScore = &cg.scores[i];
+				localClientInfo = &cgs.clientinfo[localScore->client];
+				break;
+			}
+		}
+	}
+
 	localClient = qfalse;
 
 
@@ -1181,31 +1150,40 @@ qboolean CG_DrawOldScoreboard( void ) {
 			n1 = CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qtrue, maxClientsScoreboard );
 			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
 			CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n1 * lineHeight) + maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT;
+			y += (n1 * lineHeight) + (maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT);
 
 			//maxClients -= n1;
 
 			n2 = CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qtrue, maxClientsScoreboard );
 			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
 			CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n2 * lineHeight) + maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT;
+			y += (n2 * lineHeight) + (maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT);
 
 			//maxClients -= n2;
 
 			maxClients -= (team1MaxCl+team2MaxCl);
 		}
+		compactRemainingRows = maxClients;
 		maxClients = realMaxClients;
 
 		if (cgs.serverMod == SVMOD_JAPRO && (cgs.gametype == GT_TEAM || cgs.gametype == GT_CTF)) { 	//how do we tell if server has racemode set. meme..
 			//Check if someone is in team free?
 			//Loop through each player, if they are in team free, break and set a flag
 			//if flag is set, do this stuff VVV
-			n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+			n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, compactScoreboard ? compactRemainingRows : (maxClientsScoreboard ? MAX_CLIENTS : maxClients), lineHeight, qfalse, maxClientsScoreboard );
+			if (!compactScoreboard || n1 > 0) {
+				y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+			}
+			if (compactScoreboard) {
+				compactRemainingRows -= n1;
+			}
 		}
 
-		n1 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients, lineHeight, qfalse, maxClientsScoreboard );
-		y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+		compactReservedRows = 1 + ((!localClient && localScore && localClientInfo && localClientInfo->team != TEAM_SPECTATOR) ? 1 : 0);
+		n1 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, compactScoreboard ? (compactRemainingRows > compactReservedRows ? compactRemainingRows - compactReservedRows : 0) : (maxClientsScoreboard ? MAX_CLIENTS : maxClients), lineHeight, qfalse, maxClientsScoreboard );
+		if (!compactScoreboard || n1 > 0) {
+			y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+		}
 #if NEW_SCOREBOARD
 	} else {
 		//
@@ -1258,17 +1236,45 @@ qboolean CG_DrawOldScoreboard( void ) {
 		//
 		// free for all scoreboard
 		//
-		n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients, lineHeight, qfalse, maxClientsScoreboard );
-		y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
-		n2 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients - n1, lineHeight, qfalse, maxClientsScoreboard );
-		y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
+		n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, compactScoreboard ? maxClients : (maxClientsScoreboard ? MAX_CLIENTS : maxClients), lineHeight, qfalse, maxClientsScoreboard );
+		compactReservedRows = 1 + ((!localClient && localScore && localClientInfo && localClientInfo->team != TEAM_SPECTATOR) ? 1 : 0);
+		if (compactScoreboard) {
+			n2 = ((maxClients - n1) > compactReservedRows ? (maxClients - n1) - compactReservedRows : 0);
+			y += (n1 * lineHeight);
+			if (n2 > 0) {
+				y += BIGCHAR_HEIGHT;
+				n2 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, n2, lineHeight, qfalse, maxClientsScoreboard );
+				y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
+			}
+		}
+		else {
+			y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+			n2 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients - n1, lineHeight, qfalse, maxClientsScoreboard );
+			y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
+		}
 	}
 
-	if (!localClient && !maxClientsScoreboard && !intermissionOrDead) {
+	if (compactScoreboard)
+	{
+		if (!localClient && localScore && localClientInfo && localClientInfo->team != TEAM_SPECTATOR)
+		{
+			CG_DrawClientScore(y, localScore, fadeColor, fade, lineHeight == SB_NORMAL_HEIGHT, maxClientsScoreboard);
+			y += lineHeight;
+		}
+		CG_DrawPic(SB_SCORELINE_X - 40, y, SB_SCORELINE_WIDTH + 80, 20,
+		           trap->R_RegisterShaderNoMip("gfx/menus/menu_buttonback.tga"));
+		CG_Text_Paint(SB_NAME_X, y - 1.0f, 0.75f, colorWhite, "HOLD TAB TO VIEW FULL SCOREBOARD", 0, 0,
+		              ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM);
+	}
+	else if (!localClient && !maxClientsScoreboard && !intermissionOrDead)
+	{
 		// draw local client at the bottom
-		for ( i = 0 ; i < cg.numScores ; i++ ) {
-			if ( cg.scores[i].client == cg.snap->ps.clientNum ) {
-				CG_DrawClientScore( y, &cg.scores[i], fadeColor, fade, lineHeight == SB_NORMAL_HEIGHT, maxClientsScoreboard );
+		for (i = 0; i < cg.numScores; i++)
+		{
+			if (cg.scores[i].client == cg.snap->ps.clientNum)
+			{
+				CG_DrawClientScore(y, &cg.scores[i], fadeColor, fade, lineHeight == SB_NORMAL_HEIGHT,
+				                   maxClientsScoreboard);
 				break;
 			}
 		}

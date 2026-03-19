@@ -1566,7 +1566,7 @@ static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{"Disable damage numbers"},//26
 	{"Centermuzzle"},//27
 	{"Show checkpoints in console only"},//28
-	{"Show holstered sabers"}//29
+	{"Disable holstered sabers"}//29
 };
 static const int MAX_PLUGINDISABLES = ARRAY_LEN( pluginDisables );
 

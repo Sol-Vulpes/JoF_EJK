@@ -10161,7 +10161,7 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     vec3_t holsterPos;
 	vec3_t holsterAng1, holsterAng2;
 
-	if (!(cp_pluginDisable.integer & JAPRO_PLUGIN_HOLSTEREDSABERS))
+	if (cp_pluginDisable.integer & JAPRO_PLUGIN_HOLSTEREDSABERS)
 		return;
 
 	if (cgs.serverMod != SVMOD_JAPLUS)
