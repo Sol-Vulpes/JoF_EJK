@@ -62,6 +62,7 @@ XCVAR_DEF( cg_drawPartnerViewSize,	"240",	NULL,					CVAR_ARCHIVE_ND ) //viewport
 XCVAR_DEF( cg_smallScoreboard,				"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawScoreboardIcons,			"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawScoreboardPlayerCount,	"1",	NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_extendScoreboardMessageColor,	"0, 1, 1, 1",	NULL,			CVAR_ARCHIVE )
 
 XCVAR_DEF( cg_scoreDeaths,			"1",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_killMessage,			"1",	NULL,					CVAR_ARCHIVE )

@@ -10123,7 +10123,7 @@ static QINLINE void CG_ChatBox_DrawStrings(void)
 	float y = cg_chatBoxHeight.value;
 	if (cg.scoreBoardShowing)
 	{
-		if (cg.pressingScoreBoard && cgs.numClients > 20)
+		if (cg.pressingScoreBoard && cgs.numClients > 25)
 			y = 10000;
 		else
 			y = 475;

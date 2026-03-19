@@ -572,7 +572,21 @@ static int CG_TeamScoreboard( int y, team_t team, float fade, int maxClients, in
 		count++;
 	}
 	
+	qboolean intermissionOrDead =
+		cg.predictedPlayerState.pm_type == PM_DEAD ||
+		cg.predictedPlayerState.pm_type == PM_INTERMISSION ||
+		cg.predictedPlayerState.pm_type == PM_SPINTERMISSION;
+	
 	for ( i = 0; cg.numScores > 0 && i < cgs.maxclients; i++ ) {
+		
+		if (maxClientScoreboard && cgs.numClients > 25 && count == 25 && intermissionOrDead && !cg.pressingScoreBoard)
+		{
+            vec4_t color = { 1.0f, 0.5f, 0.0f, 1.0f };
+            sscanf(cg_extendScoreboardMessageColor.string, "%f %f %f %f", &color[0], &color[1], &color[2], &color[3]);
+			CG_Text_Paint(SB_NAME_X, y + lineHeight * count, .585f, color, "Hold TAB for full scoreboard", 0, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM);
+			return count;
+		}
+		
 		ci = &cgs.clientinfo[i];
 		if ( !ci->infoValid ) {
 			continue;
@@ -759,7 +773,9 @@ qboolean CG_DrawOldScoreboard( void ) {
 	int maxClients, realMaxClients;
 	int lineHeight;
 	int topBorderSize, bottomBorderSize;
-	qboolean maxClientsScoreboard = cgs.numClients >= 20 && cg.numScores > 0;
+	qboolean maxClientsScoreboard = cgs.numClients > 20; /*&&
+		(cg.pressingScoreBoard ||
+		(!intermissionOrDead && (cg.showScores || cg.scoreFadeTime + FADE_TIME > cg.time))*/
 
 	// don't draw amuthing if the menu or console is up
 	if ( cl_paused.integer ) {
