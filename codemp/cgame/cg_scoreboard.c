@@ -548,13 +548,35 @@ static int CG_TeamScoreboard( int y, team_t team, float fade, int maxClients, in
 	int		count;
 	clientInfo_t	*ci;
 	qboolean listed[MAX_CLIENTS];
+	qboolean listedOurselves = qfalse;
 	memset(listed, qfalse, sizeof(listed));
+	qboolean intermissionOrDead =
+	cg.predictedPlayerState.pm_type == PM_DEAD ||
+	cg.predictedPlayerState.pm_type == PM_INTERMISSION ||
+	cg.predictedPlayerState.pm_type == PM_SPINTERMISSION;
 	
 	color[0] = color[1] = color[2] = 1.0;
 	color[3] = fade;
 
 	count = 0;
-	for ( i = 0 ; i < cg.numScores && count < maxClients ; i++ ) {
+	for ( i = 0 ; i < cg.numScores && count < maxClients ; i++ )
+	{
+		if (maxClientScoreboard && cgs.numClients > 26 && count > 23 && intermissionOrDead && !cg.pressingScoreBoard)
+		{
+			if (count == 24 && !listedOurselves && &cg.scores[cg.snap->ps.clientNum])
+			{
+				i = cg.snap->ps.clientNum;
+			}
+			
+			if (count == 25)
+			{
+				vec4_t color = { 1.0f, 0.5f, 0.0f, 1.0f };
+				sscanf(cg_extendScoreboardMessageColor.string, "%f %f %f %f", &color[0], &color[1], &color[2], &color[3]);
+				CG_Text_Paint(SB_NAME_X, y + lineHeight * count, .585f, color, "Hold TAB for full scoreboard", 0, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM);
+				return count;
+			}
+		}
+		
 		score = &cg.scores[i];
 		ci = &cgs.clientinfo[ score->client ];
 
@@ -563,6 +585,9 @@ static int CG_TeamScoreboard( int y, team_t team, float fade, int maxClients, in
 		}
 		
 		listed[score->client] = qtrue;
+		
+		if (score->client == cg.snap->ps.clientNum)
+			listedOurselves = qtrue;
 
 		if ( !countOnly )
 		{
@@ -572,19 +597,25 @@ static int CG_TeamScoreboard( int y, team_t team, float fade, int maxClients, in
 		count++;
 	}
 	
-	qboolean intermissionOrDead =
-		cg.predictedPlayerState.pm_type == PM_DEAD ||
-		cg.predictedPlayerState.pm_type == PM_INTERMISSION ||
-		cg.predictedPlayerState.pm_type == PM_SPINTERMISSION;
+
 	
-	for ( i = 0; cg.numScores > 0 && i < cgs.maxclients; i++ ) {
-		
-		if (maxClientScoreboard && cgs.numClients > 25 && count == 25 && intermissionOrDead && !cg.pressingScoreBoard)
+	for ( i = 0; cg.numScores > 0 && i < cgs.maxclients; i++ )
+	{
+		if (maxClientScoreboard && cgs.numClients > 26 && count > 23 && intermissionOrDead && !cg.pressingScoreBoard)
 		{
-            vec4_t color = { 1.0f, 0.5f, 0.0f, 1.0f };
-            sscanf(cg_extendScoreboardMessageColor.string, "%f %f %f %f", &color[0], &color[1], &color[2], &color[3]);
-			CG_Text_Paint(SB_NAME_X, y + lineHeight * count, .585f, color, "Hold TAB for full scoreboard", 0, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM);
-			return count;
+			
+			if (count == 24 && !listedOurselves)
+			{
+				i = cg.snap->ps.clientNum;
+			}
+			
+			if (count == 25)
+			{
+				vec4_t color = { 1.0f, 0.5f, 0.0f, 1.0f };
+				sscanf(cg_extendScoreboardMessageColor.string, "%f %f %f %f", &color[0], &color[1], &color[2], &color[3]);
+				CG_Text_Paint(SB_NAME_X, y + lineHeight * count, .585f, color, "Hold TAB for full scoreboard", 0, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM);
+				return count;
+			}
 		}
 		
 		ci = &cgs.clientinfo[i];
@@ -597,6 +628,9 @@ static int CG_TeamScoreboard( int y, team_t team, float fade, int maxClients, in
 		if ( listed[i] ) {
 			continue;                           
 		}
+		
+		if (i == cg.snap->ps.clientNum)
+			listedOurselves = qtrue;
 
 		if ( !countOnly ) {
 			score_t fake;
@@ -773,9 +807,11 @@ qboolean CG_DrawOldScoreboard( void ) {
 	int maxClients, realMaxClients;
 	int lineHeight;
 	int topBorderSize, bottomBorderSize;
-	qboolean maxClientsScoreboard = cgs.numClients > 20; /*&&
-		(cg.pressingScoreBoard ||
-		(!intermissionOrDead && (cg.showScores || cg.scoreFadeTime + FADE_TIME > cg.time))*/
+	qboolean maxClientsScoreboard = cgs.numClients > 20;
+	qboolean intermissionOrDead =
+	cg.predictedPlayerState.pm_type == PM_DEAD ||
+	cg.predictedPlayerState.pm_type == PM_INTERMISSION ||
+	cg.predictedPlayerState.pm_type == PM_SPINTERMISSION;
 
 	// don't draw amuthing if the menu or console is up
 	if ( cl_paused.integer ) {
@@ -1203,7 +1239,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 		}
 	}
 
-	if (!localClient) {
+	if (!localClient && !maxClientsScoreboard && !intermissionOrDead) {
 		// draw local client at the bottom
 		for ( i = 0 ; i < cg.numScores ; i++ ) {
 			if ( cg.scores[i].client == cg.snap->ps.clientNum ) {
@@ -1228,7 +1264,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 		y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
 	}
 
-	if (!localClient) {
+	if (!localClient && !maxClientsScoreboard && !intermissionOrDead) {
 		// draw local client at the bottom
 		for ( i = 0 ; i < cg.numScores ; i++ ) {
 			if ( cg.scores[i].client == cg.snap->ps.clientNum ) {
