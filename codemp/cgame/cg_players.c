@@ -11944,7 +11944,18 @@ skipTrail:
 				);
 			}
 
-			trap->FX_PlayEntityEffectID(cgs.effects.flameThrowerVfx, efOrg, axis, -1, -1, -1, -1);
+			fxHandle_t flameThrowerToUse = cgs.effects.flameThrowerVfx;
+			matrix3_t flameAxis;
+
+			memcpy(flameAxis, axis, sizeof(flameAxis));
+			if (!flameThrowerToUse)
+			{
+				flameThrowerToUse = cgs.effects.flameThrowerVfxBase;
+
+				// The legacy boba/fthrw effect emits along +X, so flip only forward.
+				VectorScale(flameAxis[0], -1.0f, flameAxis[0]);
+			}
+			trap->FX_PlayEntityEffectID(flameThrowerToUse, efOrg, flameAxis, -1, -1, -1, -1);
 
 			stopFlameThrowerSnd = qfalse;
 		}

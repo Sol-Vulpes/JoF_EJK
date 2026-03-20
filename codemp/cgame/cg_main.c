@@ -1341,6 +1341,7 @@ static void CG_RegisterGraphics( void )
 	
 	cgs.effects.flameThrowerHit = trap->FX_RegisterEffect("effects/env/fire_wall");
 	cgs.effects.flameThrowerVfx = trap->FX_RegisterEffect("effects/mp/fthrw_bobafire");
+	cgs.effects.flameThrowerVfxBase = trap->FX_RegisterEffect("effects/boba/fthrw");
 
 	for ( i = 0 ; i < NUM_CROSSHAIRS ; i++ ) {
 		cgs.media.crosshairShader[i] = trap->R_RegisterShaderNoMip( va("gfx/2d/crosshair%c", 'a'+i) );
