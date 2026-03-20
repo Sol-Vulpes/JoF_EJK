@@ -756,10 +756,11 @@ qboolean CG_DrawOldScoreboard( void ) {
 	float	fade;
 	float	*fadeColor;
 	char	*s;
-	int maxClients, realMaxClients, compactReservedRows, compactRemainingRows;
+	int maxClients, realMaxClients, compactReservedRows, compactRemainingRows, compactSectionSpacing;
 	qboolean compactScoreboard = qfalse;
 	score_t *localScore = NULL;
 	clientInfo_t *localClientInfo = NULL;
+	qboolean compactHasRows = qfalse;
 	int lineHeight;
 	int topBorderSize, bottomBorderSize;
 	qboolean maxClientsScoreboard = cgs.numClients > 20;
@@ -1065,6 +1066,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 	}
 	
 	realMaxClients = maxClients;
+	compactSectionSpacing = maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT;
 
 	if (maxClientsScoreboard && cgs.numClients > 25 && intermissionOrDead && !cg.pressingScoreBoard) {
 		compactScoreboard = qtrue;
@@ -1091,10 +1093,14 @@ qboolean CG_DrawOldScoreboard( void ) {
 	//I guess this can be accomplished simply by printing the first teams score with a maxClients
 	//value passed in related to how many players are on both teams.
 	if ( cgs.gametype >= GT_TEAM ) {
+		int compactSpectatorMax;
+
 		//
 		// teamplay scoreboard
 		//
 		y += lineHeight/2;
+		compactRemainingRows = maxClients;
+		compactHasRows = qfalse;
 
 		if ( cg.teamScores[0] >= cg.teamScores[1] ) {
 			int team1MaxCl = CG_GetTeamCount(TEAM_RED, maxClients);
@@ -1115,18 +1121,37 @@ qboolean CG_DrawOldScoreboard( void ) {
 			team2MaxCl = (maxClients-team1MaxCl); //team2 can display however many is left over after team1's display
 
 			n1 = CG_TeamScoreboard( y, TEAM_RED, fade, team1MaxCl, lineHeight, qtrue, maxClientsScoreboard );
-			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
-			CG_TeamScoreboard( y, TEAM_RED, fade, team1MaxCl, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
-
-			//maxClients -= n1;
+			if (n1 > 0) {
+				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
+				CG_TeamScoreboard( y, TEAM_RED, fade, team1MaxCl, lineHeight, qfalse, maxClientsScoreboard );
+			}
+			if (compactScoreboard) {
+				y += n1 * lineHeight;
+				compactRemainingRows -= n1;
+				compactHasRows = (n1 > 0);
+			}
+			else {
+				y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+			}
 
 			n2 = CG_TeamScoreboard( y, TEAM_BLUE, fade, team2MaxCl, lineHeight, qtrue, maxClientsScoreboard );
-			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
-			CG_TeamScoreboard( y, TEAM_BLUE, fade, team2MaxCl, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
-
-			//maxClients -= n2;
+			if (compactScoreboard && n2 > 0 && compactHasRows) {
+				y += BIGCHAR_HEIGHT;
+			}
+			if (n2 > 0) {
+				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
+				CG_TeamScoreboard( y, TEAM_BLUE, fade, team2MaxCl, lineHeight, qfalse, maxClientsScoreboard );
+			}
+			if (compactScoreboard) {
+				y += n2 * lineHeight;
+				compactRemainingRows -= n2;
+				if (n2 > 0) {
+					compactHasRows = qtrue;
+				}
+			}
+			else {
+				y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
+			}
 
 			maxClients -= (team1MaxCl+team2MaxCl);
 		} else {
@@ -1148,41 +1173,77 @@ qboolean CG_DrawOldScoreboard( void ) {
 			team2MaxCl = (maxClients-team1MaxCl); //team2 can display however many is left over after team1's display
 
 			n1 = CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qtrue, maxClientsScoreboard );
-			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
-			CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n1 * lineHeight) + (maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT);
-
-			//maxClients -= n1;
+			if (n1 > 0) {
+				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
+				CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qfalse, maxClientsScoreboard );
+			}
+			if (compactScoreboard) {
+				y += n1 * lineHeight;
+				compactRemainingRows -= n1;
+				compactHasRows = (n1 > 0);
+			}
+			else {
+				y += (n1 * lineHeight) + (maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT);
+			}
 
 			n2 = CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qtrue, maxClientsScoreboard );
-			CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
-			CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n2 * lineHeight) + (maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT);
-
-			//maxClients -= n2;
+			if (compactScoreboard && n2 > 0 && compactHasRows) {
+				y += BIGCHAR_HEIGHT;
+			}
+			if (n2 > 0) {
+				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
+				CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qfalse, maxClientsScoreboard );
+			}
+			if (compactScoreboard) {
+				y += n2 * lineHeight;
+				compactRemainingRows -= n2;
+				if (n2 > 0) {
+					compactHasRows = qtrue;
+				}
+			}
+			else {
+				y += (n2 * lineHeight) + (maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT);
+			}
 
 			maxClients -= (team1MaxCl+team2MaxCl);
 		}
-		compactRemainingRows = maxClients;
 		maxClients = realMaxClients;
 
-		if (cgs.serverMod == SVMOD_JAPRO && (cgs.gametype == GT_TEAM || cgs.gametype == GT_CTF)) { 	//how do we tell if server has racemode set. meme..
-			//Check if someone is in team free?
-			//Loop through each player, if they are in team free, break and set a flag
-			//if flag is set, do this stuff VVV
-			n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, compactScoreboard ? compactRemainingRows : (maxClientsScoreboard ? MAX_CLIENTS : maxClients), lineHeight, qfalse, maxClientsScoreboard );
-			if (!compactScoreboard || n1 > 0) {
-				y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
-			}
+		if (cgs.serverMod == SVMOD_JAPRO && (cgs.gametype == GT_TEAM || cgs.gametype == GT_CTF)) {	//how do we tell if server has racemode set. meme..
 			if (compactScoreboard) {
-				compactRemainingRows -= n1;
+				n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, compactRemainingRows, lineHeight, qtrue, maxClientsScoreboard );
+				if (n1 > 0) {
+					if (compactHasRows) {
+						y += compactSectionSpacing;
+					}
+					n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, compactRemainingRows, lineHeight, qfalse, maxClientsScoreboard );
+					y += n1 * lineHeight;
+					compactRemainingRows -= n1;
+					compactHasRows = qtrue;
+				}
+			}
+			else {
+				n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients, lineHeight, qfalse, maxClientsScoreboard );
+				y += (n1 * lineHeight) + (maxClientsScoreboard ? compactSectionSpacing : BIGCHAR_HEIGHT);
 			}
 		}
 
 		compactReservedRows = 1 + ((!localClient && localScore && localClientInfo && localClientInfo->team != TEAM_SPECTATOR) ? 1 : 0);
-		n1 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, compactScoreboard ? (compactRemainingRows > compactReservedRows ? compactRemainingRows - compactReservedRows : 0) : (maxClientsScoreboard ? MAX_CLIENTS : maxClients), lineHeight, qfalse, maxClientsScoreboard );
-		if (!compactScoreboard || n1 > 0) {
-			y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+		if (compactScoreboard) {
+			compactSpectatorMax = (compactRemainingRows > compactReservedRows ? compactRemainingRows - compactReservedRows : 0);
+			n1 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, compactSpectatorMax, lineHeight, qtrue, maxClientsScoreboard );
+			if (n1 > 0) {
+				if (compactHasRows) {
+					y += compactSectionSpacing;
+				}
+				n1 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, compactSpectatorMax, lineHeight, qfalse, maxClientsScoreboard );
+				y += n1 * lineHeight;
+				compactHasRows = qtrue;
+			}
+		}
+		else {
+			n1 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients, lineHeight, qfalse, maxClientsScoreboard );
+			y += (n1 * lineHeight) + (maxClientsScoreboard ? compactSectionSpacing : BIGCHAR_HEIGHT);
 		}
 #if NEW_SCOREBOARD
 	} else {
@@ -1239,18 +1300,28 @@ qboolean CG_DrawOldScoreboard( void ) {
 		n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, compactScoreboard ? maxClients : (maxClientsScoreboard ? MAX_CLIENTS : maxClients), lineHeight, qfalse, maxClientsScoreboard );
 		compactReservedRows = 1 + ((!localClient && localScore && localClientInfo && localClientInfo->team != TEAM_SPECTATOR) ? 1 : 0);
 		if (compactScoreboard) {
-			n2 = ((maxClients - n1) > compactReservedRows ? (maxClients - n1) - compactReservedRows : 0);
 			y += (n1 * lineHeight);
+			compactHasRows = (n1 > 0);
+			n2 = ((maxClients - n1) > compactReservedRows ? (maxClients - n1) - compactReservedRows : 0);
 			if (n2 > 0) {
-				y += BIGCHAR_HEIGHT;
-				n2 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, n2, lineHeight, qfalse, maxClientsScoreboard );
-				y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
+				int compactSpectatorCount = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, n2, lineHeight, qtrue, maxClientsScoreboard );
+				if (compactSpectatorCount > 0) {
+					if (compactHasRows) {
+						y += compactSectionSpacing;
+					}
+					n2 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, n2, lineHeight, qfalse, maxClientsScoreboard );
+					y += n2 * lineHeight;
+					compactHasRows = qtrue;
+				}
+				else {
+					n2 = 0;
+				}
 			}
 		}
 		else {
-			y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+			y += (n1 * lineHeight) + (maxClientsScoreboard ? compactSectionSpacing : BIGCHAR_HEIGHT);
 			n2 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients - n1, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
+			y += (n2 * lineHeight) + (maxClientsScoreboard ? compactSectionSpacing : BIGCHAR_HEIGHT);
 		}
 	}
 
