@@ -154,7 +154,7 @@ static bitInfo_t playerStyles[] = {
 	{ "Hide racers in race mode" },
 	{ "Disable racer VFX" },
 	{ "Disable non-racer VFX in race mode" },
-	{ "VFX duelers 1" },
+	{ "Turn off VFX for Duelers" },
 	{ "VFX am alt dim 1" },
 	{ "Hide non duelers" },
 	{ "Hide ysal shell" },

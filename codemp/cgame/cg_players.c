@@ -13199,7 +13199,7 @@ stillDoSaber:
 		if (cent->currentState.bolt1 == 1
 			&& !(cent->currentState.eFlags & EF_DEAD) && cent->currentState.number != cg.snap->ps.clientNum
 			&& (!cg.snap->ps.duelInProgress || cg.snap->ps.duelIndex != cent->currentState.number)
-			&& !(cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS))
+			&& (cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS))
 		{
 			legs.shaderRGBA[0] = 50;
 			legs.shaderRGBA[1] = 50;
@@ -13368,7 +13368,7 @@ stillDoSaber:
 				}
 			}
 			else { //We are in ffa
-				if (cent->currentState.bolt1 == 1 && (cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS)) { //They are dueling
+				if (cent->currentState.bolt1 == 1 && !(cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS)) { //They are dueling and dueler VFX are enabled
 					stylePlayer1 = qfalse;
 					stylePlayer2 = qtrue;
 					drawPlayer = qfalse;
@@ -13538,7 +13538,7 @@ stillDoSaber:
 			//Uhh.. dont draw anyone differently since they are invis i guess and us/opponent look normal
 		}
 		else { //We are in ffa
-			if (!(cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS) && cent->currentState.bolt1 == 1) { //They are dueling and we want base duel visuals (default)
+			if ((cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS) && cent->currentState.bolt1 == 1) { //They are dueling and dueler VFX are disabled
 					legs.shaderRGBA[0] = 100;
 					legs.shaderRGBA[1] = 100;
 					legs.shaderRGBA[2] = 255;
@@ -14035,4 +14035,3 @@ void CG_ResetPlayerEntity( centity_t *cent )
 		trap->Print("%i ResetPlayerEntity yaw=%i\n", cent->currentState.number, cent->pe.torso.yawAngle );
 	}
 }
-

@@ -1696,7 +1696,7 @@ static bitInfo_T playerStyles[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{ "Hide racers in race mode" },//5
 	{ "Disable racer VFX" },//6
 	{ "Disable non-racer VFX in race mode" },//7
-	{ "VFX duelers 1" },//8
+	{ "Turn off VFX for Duelers" },//8
 	{ "VFX am alt dim 1" },//9
 	{ "Hide non duelers" },//10
 	{ "Hide ysal shell" },//11
