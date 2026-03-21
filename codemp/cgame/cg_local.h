@@ -2323,6 +2323,7 @@ extern	int sortedTeamPlayers[TEAM_MAXOVERLAY];
 extern	int	numSortedTeamPlayers;
 extern  char systemChat[256];
 
+int CG_ClientNumFromName(const char *p);
 void CG_AddLagometerFrameInfo( void );
 void CG_AddSpeedGraphFrameInfo( void );
 void CG_AddLagometerSnapshotInfo( snapshot_t *snap );

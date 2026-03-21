@@ -230,6 +230,8 @@ typedef struct clientConnection_s {
 
 	int			unique;					// from the server to use for connecting
 	bool		uniqueAssigned;					// from the server to use for connecting
+	int			demoTokenBitStart;		// bit position before anti-spoof token (for demo stripping)
+	int			demoTokenBitEnd;		// bit position after anti-spoof token (for demo stripping)
 	int			challenge;					// from the server to use for connecting
 	int			checksumFeed;				// from the server for checksum calculations
 

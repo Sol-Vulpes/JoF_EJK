@@ -47,6 +47,9 @@ USER INTERFACE MAIN
 
 extern void UI_SaberAttachToChar( itemDef_t *item );
 
+static qboolean bIsImageFile(const char* dirptr, const char* skinname);
+static qboolean UI_ParseColorData(char* buf, playerSpeciesInfo_t *species, char* file);
+
 const char *forcepowerDesc[NUM_FORCE_POWERS] =
 {
 	"@MENUS_OF_EFFECT_JEDI_ONLY_NEFFECT",

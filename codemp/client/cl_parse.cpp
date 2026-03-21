@@ -850,7 +850,17 @@ void CL_ParseServerMessage( msg_t *msg ) {
 
 	if (clc.unique && clc.uniqueAssigned && cl_antiSpoof->integer)
 	{
+		// Save bit position before token for demo recording stripping
+		int preTokenBit = msg->bit;
+
 		clc.reliableUnique = MSG_ReadLong(msg);
+
+		// Save token bit range so CL_WriteDemoMessage can strip it
+		if (clc.demorecording)
+		{
+			clc.demoTokenBitStart = preTokenBit;
+			clc.demoTokenBitEnd = msg->bit;
+		}
 
 		if (clc.reliableUnique != clc.unique)
 		{
