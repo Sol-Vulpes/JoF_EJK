@@ -189,6 +189,7 @@ static void CG_ScoresDown_f( void ) {
 		// is within two seconds
 		cg.showScores = qtrue;
 	}
+	cg.pressingScoreBoard = qtrue;
 }
 
 /*
@@ -202,6 +203,7 @@ static void CG_ScoresUp_f( void ) {
 		cg.showScores = qfalse;
 		cg.scoreFadeTime = cg.time;
 	}
+	cg.pressingScoreBoard = qfalse;
 }
 
 void CG_ClientList_f( void )
@@ -515,6 +517,9 @@ void CG_LoadHud_f( void ) {
 
 	if ( cgs.newHud && cg_hudFiles.integer == 3 ) {
 		hudSet = "ui/elegance_hud.txt";
+	}
+	else if ( cgs.newHud && cg_hudFiles.integer == 4 ) {
+		hudSet = "ui/jof_hud.txt";
 	}
 	else {
 		hudSet = cg_hudFiles.string;
@@ -1494,6 +1499,7 @@ static qboolean japroPluginDisables[] = {
 	qtrue,//{"Disable damage numbers"},//26
 	qtrue,//{"Centermuzzle"},//27
 	qtrue,//{"Show checkpoints in console only"}//28
+	qfalse,
 };
 
 static qboolean japlusPluginDisables[] = {
@@ -1528,6 +1534,7 @@ static qboolean japlusPluginDisables[] = {
 	qfalse,//{"Disable damage numbers"},//26
 	qfalse,//{"Centermuzzle"},//27
 	qfalse,//{"Show checkpoints in console only"}//28
+	qtrue
 };
 
 static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
@@ -1540,7 +1547,7 @@ static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{"No new deathmsg"},//7
 	{"New sight effect"},//8
 	{"No alt dim effect"},//9
-	{"Holstered saber"},//10
+	{"Remove JA+ Staff holster animation"},//10
 	{"Ledge grab"},//11
 	{"Disable New DFA Primary"},//12
 	{"Disable New DFA Alt"},//13
@@ -1561,7 +1568,8 @@ static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{"Show chatbox checkpoints"},//25
 	{"Disable damage numbers"},//26
 	{"Centermuzzle"},//27
-	{"Show checkpoints in console only"}//28
+	{"Show checkpoints in console only"},//28
+	{"Disable holstered sabers"}//29
 };
 static const int MAX_PLUGINDISABLES = ARRAY_LEN( pluginDisables );
 
@@ -1691,7 +1699,7 @@ static bitInfo_T playerStyles[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{ "Hide racers in race mode" },//5
 	{ "Disable racer VFX" },//6
 	{ "Disable non-racer VFX in race mode" },//7
-	{ "VFX duelers 1" },//8
+	{ "Turn off VFX for Duelers" },//8
 	{ "VFX am alt dim 1" },//9
 	{ "Hide non duelers" },//10
 	{ "Hide ysal shell" },//11

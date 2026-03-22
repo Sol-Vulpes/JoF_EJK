@@ -68,6 +68,7 @@ kbutton_t	in_left, in_right, in_forward, in_back;
 kbutton_t	in_lookup, in_lookdown, in_moveleft, in_moveright;
 kbutton_t	in_strafe, in_speed;
 kbutton_t	in_up, in_down;
+kbutton_t	in_radialmenu;
 
 #define MAX_KBUTTONS 16
 
@@ -754,6 +755,29 @@ void IN_SpeedUp(void) {IN_KeyUp(&in_speed);}
 
 void IN_StrafeDown(void) {IN_KeyDown(&in_strafe);}
 void IN_StrafeUp(void) {IN_KeyUp(&in_strafe);}
+
+static qboolean CL_RadialMenuInputAllowed( void ) {
+	return (qboolean)( cls.state == CA_ACTIVE && !clc.demoplaying && Key_GetCatcher() == 0 );
+}
+
+void IN_RadialMenuDown( void ) {
+	const qboolean wasActive = in_radialmenu.active;
+	IN_KeyDown( &in_radialmenu );
+
+	if ( !wasActive && in_radialmenu.active && CL_RadialMenuInputAllowed() ) {
+		cl.radialMenuActive = qtrue;
+		cl.radialMenuX = 0.0f;
+		cl.radialMenuY = 0.0f;
+	}
+}
+
+void IN_RadialMenuUp( void ) {
+	IN_KeyUp( &in_radialmenu );
+
+	if ( !in_radialmenu.active ) {
+		cl.radialMenuActive = qfalse;
+	}
+}
 
 #if 0
 void IN_Button0Down(void) {IN_KeyDown(&in_buttons[0]);}
@@ -1565,6 +1589,13 @@ void CL_MouseMove( usercmd_t *cmd ) {
 	mx *= cl.cgameSensitivity;
 	my *= cl.cgameSensitivity;
 
+	if ( cl.radialMenuActive ) {
+		const float radialScale = 5.0f;
+		cl.radialMenuX += mx * radialScale;
+		cl.radialMenuY += my * radialScale;
+		return;
+	}
+
 	// add mouse X/Y movement to cmd
 	if ( in_strafe.active )
 		cmd->rightmove = ClampChar( cmd->rightmove + m_side->value * mx );
@@ -2142,6 +2173,8 @@ static const cmdList_t inputCmds[] =
 	{ "-moveright", NULL, IN_MoverightUp, NULL },
 	{ "+speed", "Walk or run", IN_SpeedDown, NULL },
 	{ "-speed", NULL, IN_SpeedUp, NULL },
+	{ "+radialmenu", "Open radial menu", IN_RadialMenuDown, NULL },
+	{ "-radialmenu", NULL, IN_RadialMenuUp, NULL },
 	{ "+attack", "Primary Attack", IN_Button0Down, NULL },
 	{ "-attack", NULL, IN_Button0Up, NULL },
 	{ "+use", "Use item", IN_Button5Down, NULL },

@@ -61,7 +61,8 @@ typedef enum cgameEvent_e {
 	CGAME_EVENT_NONE=0,
 	CGAME_EVENT_TEAMMENU,
 	CGAME_EVENT_SCOREBOARD,
-	CGAME_EVENT_EDITHUD
+	CGAME_EVENT_EDITHUD,
+	CGAME_EVENT_RADIALMENU
 } cgameEvent_t;
 
 typedef struct autoMapInput_s {
@@ -607,6 +608,7 @@ typedef struct cgameImport_s {
 	void			(*OpenUIMenu)							( int menu );
 	void			(*SetClientForceAngle)					( int time, vec3_t angle );
 	void			(*SetUserCmdValue)						( int stateValue, float sensitivityScale, float mPitchOverride, float mYawOverride, float mSensitivityOverride, int fpSel, int invenSel, qboolean fighterControls );
+	void			(*GetRadialMenuState)					( qboolean *active, float *x, float *y );
 
 	// keys
 	int				(*Key_GetCatcher)						( void );

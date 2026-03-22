@@ -10161,7 +10161,7 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     vec3_t holsterPos;
 	vec3_t holsterAng1, holsterAng2;
 
-	if (!(cp_pluginDisable.integer & JAPRO_PLUGIN_HOLSTEREDSABER))
+	if (cp_pluginDisable.integer & JAPRO_PLUGIN_HOLSTEREDSABERS)
 		return;
 
 	if (cgs.serverMod != SVMOD_JAPLUS)
@@ -10187,6 +10187,19 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 
     if ( CG_IsMindTricked( cent->currentState.trickedentindex, cent->currentState.trickedentindex2, cent->currentState.trickedentindex3, cent->currentState.trickedentindex4, cg.snap->ps.clientNum ) )
         return;
+
+	if (cent->currentState.eType == ET_NPC)
+	{
+		if (cent->currentState.NPC_class != CLASS_DESANN &&
+			cent->currentState.NPC_class != CLASS_JEDI &&
+			cent->currentState.NPC_class != CLASS_KYLE &&
+			cent->currentState.NPC_class != CLASS_LUKE &&
+			cent->currentState.NPC_class != CLASS_REBORN &&
+			cent->currentState.NPC_class != CLASS_TAVION)
+		{
+			return;
+		}
+	}
 
 	//if ( cent->currentState.m_iVehicleNum )
 	//	return;
@@ -10269,7 +10282,17 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     		VectorCopy(boltOrg, re.lightingOrigin);
     		re.renderfx = parent.renderfx | RF_NOSHADOW;
     		re.customShader = parent.customShader;
-    		VectorCopy(cent->modelScale, re.modelScale);
+    		if (cent->currentState.iModelScale)
+    		{ //if the server says we have a custom scale then set it now.
+    			re.modelScale[0] = re.modelScale[1] = re.modelScale[2] = cent->currentState.iModelScale/100.0f;
+    		}
+    		else
+    		{
+    			VectorCopy(cent->modelScale, re.modelScale);
+    		}
+    		VectorScale(re.axis[0], re.modelScale[0], re.axis[0]);
+    		VectorScale(re.axis[1], re.modelScale[1], re.axis[1]);
+    		VectorScale(re.axis[2], re.modelScale[2], re.axis[2]);
     		trap->R_AddRefEntityToScene(&re);
     	}
 
@@ -10281,7 +10304,17 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     		VectorCopy(boltOrg2, re2.lightingOrigin);
     		re2.renderfx = parent.renderfx | RF_NOSHADOW;
     		re2.customShader = parent.customShader;
-    		VectorCopy(cent->modelScale, re2.modelScale);
+    		if (cent->currentState.iModelScale)
+    		{ //if the server says we have a custom scale then set it now.
+    			re2.modelScale[0] = re2.modelScale[1] = re2.modelScale[2] = cent->currentState.iModelScale/100.0f;
+    		}
+    		else
+    		{
+    			VectorCopy(cent->modelScale, re2.modelScale);
+    		}
+    		VectorScale(re2.axis[0], re2.modelScale[0], re2.axis[0]);
+    		VectorScale(re2.axis[1], re2.modelScale[1], re2.axis[1]);
+    		VectorScale(re2.axis[2], re2.modelScale[2], re2.axis[2]);
     		trap->R_AddRefEntityToScene(&re2);
     	}
 	}
@@ -11946,7 +11979,18 @@ skipTrail:
 				);
 			}
 
-			trap->FX_PlayEntityEffectID(cgs.effects.flameThrowerVfx, efOrg, axis, -1, -1, -1, -1);
+			fxHandle_t flameThrowerToUse = cgs.effects.flameThrowerVfx;
+			matrix3_t flameAxis;
+
+			memcpy(flameAxis, axis, sizeof(flameAxis));
+			if (!flameThrowerToUse)
+			{
+				flameThrowerToUse = cgs.effects.flameThrowerVfxBase;
+
+				// The legacy boba/fthrw effect emits along +X, so flip only forward.
+				VectorScale(flameAxis[0], -1.0f, flameAxis[0]);
+			}
+			trap->FX_PlayEntityEffectID(flameThrowerToUse, efOrg, flameAxis, -1, -1, -1, -1);
 
 			stopFlameThrowerSnd = qfalse;
 		}
@@ -11984,7 +12028,7 @@ skipTrail:
 	}
 
 
-	if (cent->currentState.torsoAnim == BOTH_CHOKE3 && cent->currentState.legsAnim == BOTH_CHOKE3)
+	if (cent->grippedTime > cg.time && cent->currentState.legsAnim == BOTH_CHOKE3)
 	{
 		vec3_t efOrg;
 		vec3_t chokeFwd;
@@ -13190,7 +13234,7 @@ stillDoSaber:
 		if (cent->currentState.bolt1 == 1
 			&& !(cent->currentState.eFlags & EF_DEAD) && cent->currentState.number != cg.snap->ps.clientNum
 			&& (!cg.snap->ps.duelInProgress || cg.snap->ps.duelIndex != cent->currentState.number)
-			&& !(cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS))
+			&& (cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS))
 		{
 			legs.shaderRGBA[0] = 50;
 			legs.shaderRGBA[1] = 50;
@@ -13359,7 +13403,7 @@ stillDoSaber:
 				}
 			}
 			else { //We are in ffa
-				if (cent->currentState.bolt1 == 1 && (cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS)) { //They are dueling
+				if (cent->currentState.bolt1 == 1 && !(cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS)) { //They are dueling and dueler VFX are enabled
 					stylePlayer1 = qfalse;
 					stylePlayer2 = qtrue;
 					drawPlayer = qfalse;
@@ -13529,7 +13573,7 @@ stillDoSaber:
 			//Uhh.. dont draw anyone differently since they are invis i guess and us/opponent look normal
 		}
 		else { //We are in ffa
-			if (!(cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS) && cent->currentState.bolt1 == 1) { //They are dueling and we want base duel visuals (default)
+			if ((cg_stylePlayer.integer & JAPRO_STYLE_VFXDUELERS) && cent->currentState.bolt1 == 1) { //They are dueling and dueler VFX are disabled
 					legs.shaderRGBA[0] = 100;
 					legs.shaderRGBA[1] = 100;
 					legs.shaderRGBA[2] = 255;
@@ -14026,4 +14070,3 @@ void CG_ResetPlayerEntity( centity_t *cent )
 		trap->Print("%i ResetPlayerEntity yaw=%i\n", cent->currentState.number, cent->pe.torso.yawAngle );
 	}
 }
-
