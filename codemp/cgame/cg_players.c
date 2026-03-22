@@ -12026,7 +12026,7 @@ skipTrail:
 	}
 
 
-	if (cent->grippedTime > cg.time && cent->currentState.legsAnim == BOTH_CHOKE3)
+	if (cent->currentState.legsAnim == BOTH_CHOKE3)
 	{
 		vec3_t efOrg;
 		vec3_t chokeFwd;
