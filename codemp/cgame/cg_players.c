@@ -10188,6 +10188,19 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     if ( CG_IsMindTricked( cent->currentState.trickedentindex, cent->currentState.trickedentindex2, cent->currentState.trickedentindex3, cent->currentState.trickedentindex4, cg.snap->ps.clientNum ) )
         return;
 
+	if (cent->currentState.eType == ET_NPC)
+	{
+		if (cent->currentState.NPC_class != CLASS_DESANN &&
+			cent->currentState.NPC_class != CLASS_JEDI &&
+			cent->currentState.NPC_class != CLASS_KYLE &&
+			cent->currentState.NPC_class != CLASS_LUKE &&
+			cent->currentState.NPC_class != CLASS_REBORN &&
+			cent->currentState.NPC_class != CLASS_TAVION)
+		{
+			return;
+		}
+	}
+
 	//if ( cent->currentState.m_iVehicleNum )
 	//	return;
 
@@ -10269,7 +10282,17 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     		VectorCopy(boltOrg, re.lightingOrigin);
     		re.renderfx = parent.renderfx | RF_NOSHADOW;
     		re.customShader = parent.customShader;
-    		VectorCopy(cent->modelScale, re.modelScale);
+    		if (cent->currentState.iModelScale)
+    		{ //if the server says we have a custom scale then set it now.
+    			re.modelScale[0] = re.modelScale[1] = re.modelScale[2] = cent->currentState.iModelScale/100.0f;
+    		}
+    		else
+    		{
+    			VectorCopy(cent->modelScale, re.modelScale);
+    		}
+    		VectorScale(re.axis[0], re.modelScale[0], re.axis[0]);
+    		VectorScale(re.axis[1], re.modelScale[1], re.axis[1]);
+    		VectorScale(re.axis[2], re.modelScale[2], re.axis[2]);
     		trap->R_AddRefEntityToScene(&re);
     	}
 
@@ -10281,7 +10304,17 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     		VectorCopy(boltOrg2, re2.lightingOrigin);
     		re2.renderfx = parent.renderfx | RF_NOSHADOW;
     		re2.customShader = parent.customShader;
-    		VectorCopy(cent->modelScale, re2.modelScale);
+    		if (cent->currentState.iModelScale)
+    		{ //if the server says we have a custom scale then set it now.
+    			re2.modelScale[0] = re2.modelScale[1] = re2.modelScale[2] = cent->currentState.iModelScale/100.0f;
+    		}
+    		else
+    		{
+    			VectorCopy(cent->modelScale, re2.modelScale);
+    		}
+    		VectorScale(re2.axis[0], re2.modelScale[0], re2.axis[0]);
+    		VectorScale(re2.axis[1], re2.modelScale[1], re2.axis[1]);
+    		VectorScale(re2.axis[2], re2.modelScale[2], re2.axis[2]);
     		trap->R_AddRefEntityToScene(&re2);
     	}
 	}
@@ -11993,7 +12026,7 @@ skipTrail:
 	}
 
 
-	if (cent->currentState.torsoAnim == BOTH_CHOKE3 && cent->currentState.legsAnim == BOTH_CHOKE3)
+	if (cent->grippedTime > cg.time && cent->currentState.legsAnim == BOTH_CHOKE3)
 	{
 		vec3_t efOrg;
 		vec3_t chokeFwd;

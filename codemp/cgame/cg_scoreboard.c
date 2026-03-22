@@ -1327,7 +1327,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 
 	if (compactScoreboard)
 	{
-		if (!localClient && localScore && localClientInfo && localClientInfo->team != TEAM_SPECTATOR)
+		if (!localClient && localScore && localClientInfo && localClientInfo->team != TEAM_SPECTATOR && localClientInfo->team != TEAM_BLUE)
 		{
 			CG_DrawClientScore(y, localScore, fadeColor, fade, lineHeight == SB_NORMAL_HEIGHT, maxClientsScoreboard);
 			y += lineHeight;
