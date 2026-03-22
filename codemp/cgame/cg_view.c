@@ -2889,6 +2889,16 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 		}
 	}
 
+	// Auto amneo emote during saberlock with NPC
+	if (cg_autoAmneo.integer && cg.snap && cg.snap->ps.saberLockTime > cg.time
+		&& cg_entities[cg.snap->ps.saberLockEnemy].currentState.eType == ET_NPC) {
+		static int lastAmneoTime = 0;
+		if (cg.time - lastAmneoTime > 500) {
+			lastAmneoTime = cg.time;
+			trap->SendConsoleCommand("amneo\n");
+		}
+	}
+
 	// if we are only updating the screen as a loading
 	// pacifier, don't even try to read snapshots
 	if ( cg.infoScreenText[0] != 0 ) {
