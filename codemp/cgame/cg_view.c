@@ -2880,6 +2880,15 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	CG_UpdateCvars();
 	CG_RadialMenuSync();
 
+	// Auto heal check
+	if (cg_autoHeal.integer && cg.snap && cg.snap->ps.stats[STAT_HEALTH] <= 75) {
+		static int lastHealTime = 0;
+		if (cg.time - lastHealTime > 250) {
+			lastHealTime = cg.time;
+			trap->SendConsoleCommand("force_heal\n");
+		}
+	}
+
 	// if we are only updating the screen as a loading
 	// pacifier, don't even try to read snapshots
 	if ( cg.infoScreenText[0] != 0 ) {

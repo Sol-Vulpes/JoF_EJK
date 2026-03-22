@@ -160,6 +160,7 @@ XCVAR_DEF( cg_autoScreenshot,					"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_autoRecordDemo,					"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_autoRecordRaceDemo,				"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_autoKillWhenFalling,				"0",	NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_autoHeal,							"0",	NULL,					CVAR_ARCHIVE )
 #ifdef WIN32
 XCVAR_DEF( cg_engineModifications,				"1",	CG_MemoryPatchChange,	CVAR_ARCHIVE ) //should remove
 #endif

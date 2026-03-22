@@ -32,6 +32,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // Crosshair world position (from cg_draw)
 extern vec3_t cg_crosshairPos;
 
+static int cg_lastHealTime = 0;
+
 /*
 =================
 CG_TargetCommand_f
