@@ -2950,34 +2950,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 				break;
 			case PDSOUND_FORCEGRIP:
 			{
-				centity_t *closestGrippedPerson = NULL;
-				float closestGrippedDistance = FLT_MAX;
-
 				sID = trap->S_RegisterSound("sound/weapons/force/grip.mp3");
-
-				for (int i = 0; i < MAX_GENTITIES; i++)
-				{
-					centity_t *candidate = &cg_entities[i];
-					float distance;
-
-					if (candidate->currentValid &&
-						(candidate->currentState.eType == ET_PLAYER || candidate->currentState.eType == ET_NPC) &&
-						!(candidate->currentState.eFlags & EF_DEAD))
-					{
-						distance = DistanceSquared(candidate->lerpOrigin, es->origin);
-					
-						if (distance < closestGrippedDistance)
-						{
-							closestGrippedDistance = distance;
-							closestGrippedPerson = candidate;
-						}
-					}
-				}
-
-				if (closestGrippedPerson)
-				{
-					closestGrippedPerson->grippedTime = cg.time + 1500;
-				}
 				break;
 			}
 			default:
