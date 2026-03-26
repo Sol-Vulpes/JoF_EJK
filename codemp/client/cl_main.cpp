@@ -3819,7 +3819,7 @@ void CL_Init( void ) {
 
 	cl_maxpackets = Cvar_Get ("cl_maxpackets", "125", CVAR_ARCHIVE );
 	cl_packetdup = Cvar_Get ("cl_packetdup", "1", CVAR_ARCHIVE_ND );
-	cl_maxcmdrate = Cvar_Get ("cl_maxcmdrate", "125", CVAR_ARCHIVE );
+	cl_maxcmdrate = Cvar_Get ("cl_maxcmdrate", "0", CVAR_ARCHIVE );
 
 #ifndef TOURNAMENT_CLIENT
 	cl_timeNudge = Cvar_Get ("cl_timeNudge", "0", CVAR_TEMP );
