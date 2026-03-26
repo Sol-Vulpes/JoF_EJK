@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(awk 'NR==3750 {:*)",
-      "Bash(mv /tmp/cg_event_tmp.c \"S:/Git/Not mine/JoF_EJK/codemp/cgame/cg_event.c\")",
-      "Bash(node:*)"
-    ]
-  }
-}
