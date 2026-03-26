@@ -1485,6 +1485,48 @@ static qboolean CG_ProximityCheck(vec3_t pos1, vec3_t pos2) { //Returns qtrue if
 	return qtrue;
 }
 
+// Per-client debounce for saber on/off sounds - prevents audio spam from rapid toggling.
+static int cg_saberSoundDebounce[MAX_CLIENTS];
+
+// Returns qtrue (suppress the sound) if the sfx is a saber on/off sound that was
+// played too recently for the nearest client. Updates the debounce timer when allowed.
+static qboolean CG_SaberSoundThrottled( sfxHandle_t sfx, vec3_t origin ) {
+	int			i, bestClient;
+	float		bestDistSq, distSq;
+	qboolean	isSaberSound;
+
+	if ( !sfx )
+		return qfalse;
+
+	bestClient = -1;
+	bestDistSq = 999999999.0f;
+	isSaberSound = qfalse;
+
+	for ( i = 0; i < MAX_CLIENTS; i++ ) {
+		clientInfo_t *ci = &cgs.clientinfo[i];
+		if ( !ci->infoValid )
+			continue;
+		if ( sfx != ci->saber[0].soundOn  && sfx != ci->saber[0].soundOff &&
+		     sfx != ci->saber[1].soundOn  && sfx != ci->saber[1].soundOff )
+			continue;
+		isSaberSound = qtrue;
+		distSq = DistanceSquared( cg_entities[i].lerpOrigin, origin );
+		if ( distSq < bestDistSq ) {
+			bestDistSq = distSq;
+			bestClient = i;
+		}
+	}
+
+	if ( !isSaberSound || bestClient < 0 )
+		return qfalse;
+
+	if ( cg.time - cg_saberSoundDebounce[bestClient] < 800 )
+		return qtrue; // suppress
+
+	cg_saberSoundDebounce[bestClient] = cg.time;
+	return qfalse;
+}
+
 /*
 ==============
 CG_EntityEvent
@@ -3716,12 +3758,15 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			}
 			else
 			{
+				sfxHandle_t sfx;
 				if ( cgs.gameSounds[ es->eventParm ] ) {
-					trap->S_StartSound (NULL, es->number, es->saberEntityNum, cgs.gameSounds[ es->eventParm ] );
+					sfx = cgs.gameSounds[ es->eventParm ];
 				} else {
 					s = CG_ConfigString( CS_SOUNDS + es->eventParm );
-					trap->S_StartSound (NULL, es->number, es->saberEntityNum, CG_CustomSound( es->number, s ) );
+					sfx = CG_CustomSound( es->number, s );
 				}
+				if ( !CG_SaberSoundThrottled( sfx, es->pos.trBase ) )
+					trap->S_StartSound (NULL, es->number, es->saberEntityNum, sfx );
 			}
 
 	break;
