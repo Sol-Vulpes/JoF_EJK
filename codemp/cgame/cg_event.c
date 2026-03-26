@@ -2766,13 +2766,18 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 			if (ci)
 			{
-				if (ci->saber[0].soundOn)
+				centity_t *saberCent = &cg_entities[es->number];
+				if (cg.time - saberCent->saberSoundDebounceTime >= 800)
 				{
-					trap->S_StartSound (NULL, es->number, CHAN_AUTO, ci->saber[0].soundOn );
-				}
-				if (ci->saber[1].soundOn)
-				{
-					trap->S_StartSound (NULL, es->number, CHAN_AUTO, ci->saber[1].soundOn );
+					saberCent->saberSoundDebounceTime = cg.time;
+					if (ci->saber[0].soundOn)
+					{
+						trap->S_StartSound (NULL, es->number, CHAN_AUTO, ci->saber[0].soundOn );
+					}
+					if (ci->saber[1].soundOn)
+					{
+						trap->S_StartSound (NULL, es->number, CHAN_AUTO, ci->saber[1].soundOn );
+					}
 				}
 			}
 		}

@@ -11157,17 +11157,21 @@ void CG_Player( centity_t *cent ) {
 					&& !cent->currentState.saberHolstered)
 				{ //switching away from the saber
 					//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberoffquick.wav" ));
-					if (ci->saber[0].soundOff
-						&& !cent->currentState.saberHolstered)
+					if (cg.time - cent->saberSoundDebounceTime >= 800)
 					{
-						trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, ci->saber[0].soundOff);
-					}
+						cent->saberSoundDebounceTime = cg.time;
+						if (ci->saber[0].soundOff
+							&& !cent->currentState.saberHolstered)
+						{
+							trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, ci->saber[0].soundOff);
+						}
 
-					if (ci->saber[1].soundOff &&
-						ci->saber[1].model[0] &&
-						!cent->currentState.saberHolstered)
-					{
-						trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, ci->saber[1].soundOff);
+						if (ci->saber[1].soundOff &&
+							ci->saber[1].model[0] &&
+							!cent->currentState.saberHolstered)
+						{
+							trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, ci->saber[1].soundOff);
+						}
 					}
 
 				}
@@ -11176,14 +11180,18 @@ void CG_Player( centity_t *cent ) {
 					&& !cent->saberWasInFlight)
 				{ //switching to the saber
 					//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberon.wav" ));
-					if (ci->saber[0].soundOn)
+					if (cg.time - cent->saberSoundDebounceTime >= 800)
 					{
-						trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, ci->saber[0].soundOn);
-					}
+						cent->saberSoundDebounceTime = cg.time;
+						if (ci->saber[0].soundOn)
+						{
+							trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, ci->saber[0].soundOn);
+						}
 
-					if (ci->saber[1].soundOn)
-					{
-						trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, ci->saber[1].soundOn);
+						if (ci->saber[1].soundOn)
+						{
+							trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, ci->saber[1].soundOn);
+						}
 					}
 
 					BG_SI_SetDesiredLength(&ci->saber[0], 0, -1);
