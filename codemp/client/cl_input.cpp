@@ -1862,6 +1862,16 @@ void CL_CreateNewCommands( void ) {
 	if ( cls.state < CA_PRIMED )
 		return;
 
+	// If cl_maxcmdrate is set, cap command generation rate independently from
+	// the render frame rate. Returning early without updating old_com_frameTime
+	// lets elapsed time accumulate so the next command gets the correct msec.
+	if ( cl_maxcmdrate->integer > 0 ) {
+		int minCmdMsec = 1000 / cl_maxcmdrate->integer;
+		if ( com_frameTime - old_com_frameTime < minCmdMsec ) {
+			return;
+		}
+	}
+
 	frame_msec = com_frameTime - old_com_frameTime;
 
 	// if running over 1000fps, act as if each frame is 1ms
