@@ -400,6 +400,13 @@ static rserr_t GLimp_CreateOpenGLWindow(
 	stencilBits = r_stencilbits->integer;
 	samples = r_ext_multisample->integer;
 
+	// Reset all SDL GL attributes to defaults before configuring.
+	// This prevents stale settings (e.g. rend2's Core Profile 3.2) from
+	// persisting when a different renderer creates a new context.
+	// Without this, switching from rend2 to vanilla gives vanilla a Core Profile
+	// context, causing glGetString(GL_EXTENSIONS) to return NULL and crash.
+	SDL_GL_ResetAttributes();
+
 	for (int i = 0; i < 16; i++)
 	{
 		int testColorBits, testDepthBits, testStencilBits;
