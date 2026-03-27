@@ -2258,6 +2258,7 @@ void CG_EventHandling(int type);
 void CG_RadialMenuSync(void);
 void CG_RadialMenuDraw(void);
 void CG_CmdMenu_f(void);
+void CG_CmdMenuClose(void);
 qboolean CG_CmdMenuIsOpen(void);
 void CG_CmdMenuKeyEvent(int key);
 void CG_CmdMenuDraw(void);

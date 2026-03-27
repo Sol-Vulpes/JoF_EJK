@@ -275,7 +275,7 @@ static void CG_CmdMenuOpen( void ) {
 	trap->Key_SetCatcher( KEYCATCH_CGAME );
 }
 
-static void CG_CmdMenuClose( void ) {
+void CG_CmdMenuClose( void ) {
 	s_menu.open = qfalse;
 	trap->Key_SetCatcher( 0 );
 }
@@ -430,18 +430,20 @@ void CG_CmdMenuKeyEvent( int key ) {
 // Public: draw
 // ──────────────────────────────────────────────────────────────────────────────
 
-#define MENU_X       80.0f
-#define MENU_Y       40.0f
-#define MENU_W       480.0f
-#define ROW_H        13.0f
-#define HEADER_H     28.0f
-#define FOOTER_H     22.0f
-#define TEXT_SCALE   0.20f
-#define DESC_SCALE   0.18f
+// Match the chat font: FONT_SMALL at 0.65 scale.
+// CHATBOX_FONT_HEIGHT (20) * 0.65 = 13px per line at this scale.
+#define MENU_X        80.0f
+#define MENU_Y        40.0f
+#define MENU_W        480.0f
+#define TEXT_SCALE    0.65f   // chat font scale
+#define HINT_SCALE    0.50f   // smaller for hints
+#define ROW_H         16.0f   // row height: text (~13px) + 3px padding
+#define HEADER_H      38.0f   // title line + filter line
+#define FOOTER_H      30.0f   // description + hint line
 
 void CG_CmdMenuDraw( void ) {
 	int   i, visEnd;
-	float y;
+	float y, textH, textPad;
 	vec4_t bg           = { 0.05f, 0.05f, 0.10f, 0.88f };
 	vec4_t headerBg     = { 0.10f, 0.10f, 0.22f, 0.95f };
 	vec4_t selBg        = { 0.20f, 0.35f, 0.60f, 0.80f };
@@ -458,6 +460,10 @@ void CG_CmdMenuDraw( void ) {
 
 	if ( !s_menu.open ) return;
 
+	// Measure actual text height for this font/scale to center in rows
+	textH   = (float)CG_Text_Height( "A", TEXT_SCALE, FONT_SMALL );
+	textPad = (ROW_H - textH) * 0.5f;
+
 	menuH = HEADER_H + (CMDMENU_VISIBLE * ROW_H) + FOOTER_H;
 
 	// ── background ────────────────────────────────────────────────────────────
@@ -467,9 +473,11 @@ void CG_CmdMenuDraw( void ) {
 	// ── header: title + filter input ──────────────────────────────────────────
 	CG_FillRect( MENU_X, MENU_Y, MENU_W, HEADER_H, headerBg );
 
-	CG_Text_Paint( MENU_X + 6, MENU_Y + 10, 0.24f, cmdColor,
-	               "Command Search", 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
+	// Title at top of header, slightly smaller than chat scale
+	CG_Text_Paint( MENU_X + 6, MENU_Y + 2, HINT_SCALE, cmdColor,
+	               "Command Search  (Esc to close)", 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
 
+	// Filter input line using full chat scale
 	{
 		char filterDisplay[CMDMENU_FILTER_MAX + 4];
 		if ( s_menu.filter[0] ) {
@@ -477,16 +485,17 @@ void CG_CmdMenuDraw( void ) {
 		} else {
 			Q_strncpyz( filterDisplay, "> _", sizeof( filterDisplay ) );
 		}
-		CG_Text_Paint( MENU_X + 6, MENU_Y + 22, TEXT_SCALE, filterColor,
+		CG_Text_Paint( MENU_X + 6, MENU_Y + HEADER_H - ROW_H + textPad, TEXT_SCALE, filterColor,
 		               filterDisplay, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
 	}
 
-	// result count
+	// Result count (right-aligned, hint scale)
 	{
 		char countStr[32];
-		Com_sprintf( countStr, sizeof( countStr ), "%d/%d", s_menu.filteredCount, CMDMENU_ENTRY_COUNT );
-		CG_Text_Paint( MENU_X + MENU_W - 50, MENU_Y + 22, DESC_SCALE, hintColor,
-		               countStr, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
+		Com_sprintf( countStr, sizeof( countStr ), "%d / %d", s_menu.filteredCount, CMDMENU_ENTRY_COUNT );
+		CG_Text_Paint( MENU_X + MENU_W - CG_Text_Width( countStr, HINT_SCALE, FONT_SMALL ) - 6,
+		               MENU_Y + HEADER_H - ROW_H + textPad + (textH - (float)CG_Text_Height( countStr, HINT_SCALE, FONT_SMALL )) * 0.5f,
+		               HINT_SCALE, hintColor, countStr, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
 	}
 
 	// ── list ──────────────────────────────────────────────────────────────────
@@ -503,18 +512,18 @@ void CG_CmdMenuDraw( void ) {
 			selEntry = e;
 		}
 
-		// entry name
-		CG_Text_Paint( MENU_X + 8, y + ROW_H - 3, TEXT_SCALE,
-		               (e->type == CMDMENU_CVAR) ? cvarColor : cmdColor,
+		// Entry name: vertically centered in the row
+		CG_Text_Paint( MENU_X + 8, y + textPad,
+		               TEXT_SCALE, (e->type == CMDMENU_CVAR) ? cvarColor : cmdColor,
 		               e->name, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
 
-		// cvar current value
+		// Cvar: show current value right after the name
 		if ( e->type == CMDMENU_CVAR ) {
 			trap->Cvar_VariableStringBuffer( e->name, valueBuf, sizeof( valueBuf ) );
 			if ( valueBuf[0] ) {
 				float nameW = CG_Text_Width( e->name, TEXT_SCALE, FONT_SMALL );
-				CG_Text_Paint( MENU_X + 8 + nameW + 6, y + ROW_H - 3, TEXT_SCALE,
-				               valueColor, va( "= %s", valueBuf ),
+				CG_Text_Paint( MENU_X + 8 + nameW + 6, y + textPad,
+				               TEXT_SCALE, valueColor, va( "= %s", valueBuf ),
 				               0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
 			}
 		}
@@ -522,47 +531,55 @@ void CG_CmdMenuDraw( void ) {
 		y += ROW_H;
 	}
 
-	// empty list notice
+	// Empty list notice
 	if ( s_menu.filteredCount == 0 ) {
-		CG_Text_Paint( MENU_X + 8, MENU_Y + HEADER_H + ROW_H - 3, TEXT_SCALE,
-		               descColor, "No matches", 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
+		CG_Text_Paint( MENU_X + 8, MENU_Y + HEADER_H + textPad,
+		               TEXT_SCALE, descColor, "No matches",
+		               0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
 	}
 
 	// ── footer ────────────────────────────────────────────────────────────────
 	{
-		float footerY = MENU_Y + HEADER_H + CMDMENU_VISIBLE * ROW_H;
+		float footerY  = MENU_Y + HEADER_H + CMDMENU_VISIBLE * ROW_H;
+		float hintH    = (float)CG_Text_Height( "A", HINT_SCALE, FONT_SMALL );
+		float line1Y   = footerY + (FOOTER_H * 0.5f - hintH) * 0.5f;
+		float line2Y   = footerY + FOOTER_H * 0.5f + (FOOTER_H * 0.5f - hintH) * 0.5f;
+
 		CG_FillRect( MENU_X, footerY, MENU_W, FOOTER_H, headerBg );
 
 		if ( s_menu.valueMode && selEntry ) {
-			// value-edit mode: show current edit buffer
+			// value-edit mode: takes the full footer
 			char valueLine[CMDMENU_VALUE_MAX + 32];
+			float vH = (float)CG_Text_Height( "A", TEXT_SCALE, FONT_SMALL );
 			Com_sprintf( valueLine, sizeof( valueLine ), "Set %s = %s_", selEntry->name, s_menu.valueStr );
-			CG_Text_Paint( MENU_X + 6, footerY + 14, TEXT_SCALE, valueColor,
-			               valueLine, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
-		} else if ( selEntry ) {
-			// description of selected entry
-			if ( selEntry->description ) {
-				CG_Text_Paint( MENU_X + 6, footerY + 10, DESC_SCALE, descColor,
-				               selEntry->description, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
-			}
-			// key hints
-			CG_Text_Paint( MENU_X + 6, footerY + 19, 0.15f, hintColor,
-			               (selEntry->type == CMDMENU_CVAR)
-			                   ? "Enter=edit  Esc=close  Up/Dn=nav  PgUp/PgDn=scroll"
-			                   : "Enter=execute  Esc=close  Up/Dn=nav  PgUp/PgDn=scroll",
+			CG_Text_Paint( MENU_X + 6, footerY + (FOOTER_H - vH) * 0.5f,
+			               TEXT_SCALE, valueColor, valueLine,
 			               0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
 		} else {
-			CG_Text_Paint( MENU_X + 6, footerY + 14, 0.15f, hintColor,
-			               "Type to search  Esc=close", 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
-		}
+			// Line 1: description of selected entry (or a generic hint)
+			if ( selEntry && selEntry->description ) {
+				CG_Text_Paint( MENU_X + 6, line1Y, HINT_SCALE, descColor,
+				               selEntry->description, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
+			}
 
-		// scroll indicator
-		if ( s_menu.filteredCount > CMDMENU_VISIBLE ) {
-			char scrollStr[16];
-			Com_sprintf( scrollStr, sizeof( scrollStr ), "[%d/%d]",
-			             s_menu.selected + 1, s_menu.filteredCount );
-			CG_Text_Paint( MENU_X + MENU_W - 55, footerY + 14, 0.15f, hintColor,
-			               scrollStr, 0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
+			// Line 2: key hints
+			if ( selEntry ) {
+				CG_Text_Paint( MENU_X + 6, line2Y, HINT_SCALE, hintColor,
+				               (selEntry->type == CMDMENU_CVAR)
+				                   ? "Enter=edit value  Up/Down=navigate  PgUp/PgDn=scroll"
+				                   : "Enter=execute  Up/Down=navigate  PgUp/PgDn=scroll",
+				               0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
+			}
+
+			// Scroll indicator (right side, line 2)
+			if ( s_menu.filteredCount > CMDMENU_VISIBLE ) {
+				char scrollStr[16];
+				Com_sprintf( scrollStr, sizeof( scrollStr ), "[%d / %d]",
+				             s_menu.selected + 1, s_menu.filteredCount );
+				CG_Text_Paint( MENU_X + MENU_W - CG_Text_Width( scrollStr, HINT_SCALE, FONT_SMALL ) - 6,
+				               line2Y, HINT_SCALE, hintColor, scrollStr,
+				               0.0f, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_SMALL );
+			}
 		}
 	}
 }

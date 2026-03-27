@@ -23,6 +23,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "cg_local.h"
 #include "ui/ui_shared.h"
+#include "ui/keycodes.h"
 
 extern displayContextDef_t cgDC;
 
@@ -821,6 +822,15 @@ void CG_EventHandling(int type) {
 	cgs.eventHandling = type;
 	if (type == CGAME_EVENT_NONE) {
 		CG_HideTeamMenu();
+		// ESC is intercepted by the engine and routes here rather than CG_KeyEvent.
+		// Forward it so the menu can decide whether to exit value-edit mode or close.
+		if ( CG_CmdMenuIsOpen() ) {
+			CG_CmdMenuKeyEvent( A_ESCAPE );
+			// Re-grab the key catcher if the menu is still open after handling ESC
+			if ( CG_CmdMenuIsOpen() ) {
+				trap->Key_SetCatcher( KEYCATCH_CGAME );
+			}
+		}
 	} else if (type == CGAME_EVENT_TEAMMENU) {
 		//CG_ShowTeamMenu();
 	} else if (type == CGAME_EVENT_SCOREBOARD) {
