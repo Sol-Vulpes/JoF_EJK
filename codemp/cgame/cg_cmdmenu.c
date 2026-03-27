@@ -22,6 +22,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "cg_local.h"
 #include "ui/keycodes.h"
+#include "ui/menudef.h"
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Entry table
