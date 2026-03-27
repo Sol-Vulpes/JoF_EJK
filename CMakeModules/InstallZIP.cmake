@@ -91,6 +91,10 @@ if(NOT ZIP_EXECUTABLE)
   endif()
 endif()
 
+if(NOT ZIP_EXECUTABLE)
+  set(ZIP_COMMAND "${CMAKE_COMMAND}" -E tar "cf" "<ARCHIVE>" --format=zip <FILES>)
+endif()
+
 function(add_zip_command output)
   set(MultiValueArgs FILES DEPENDS)
   cmake_parse_arguments(ARGS "" "" "${MultiValueArgs}" ${ARGN})

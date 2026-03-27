@@ -515,6 +515,13 @@ void CL_SystemInfoChanged( void ) {
 		Cvar_Set( "fs_game", "" );
 	}
 	cl_connectedToPureServer = Cvar_VariableValue( "sv_pure" );
+
+	// If the server specifies a command rate cap, apply it to the client.
+	// Servers set sv_maxcmdrate to sync all clients to a common rate (e.g. 125).
+	s = Info_ValueForKey( systemInfo, "sv_maxcmdrate" );
+	if ( s[0] && atoi( s ) > 0 ) {
+		Cvar_Set( "cl_maxcmdrate", s );
+	}
 }
 
 /*

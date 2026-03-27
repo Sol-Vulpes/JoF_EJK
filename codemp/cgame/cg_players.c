@@ -10164,14 +10164,14 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 	if (cp_pluginDisable.integer & JAPRO_PLUGIN_HOLSTEREDSABERS)
 		return;
 
+    if ( !cent->ghoul2 )
+        return;
+
 	if (cgs.serverMod != SVMOD_JAPLUS)
 		return;
 
-	if (cent->currentState.eFlags & EF_BOBAFIRE)
+	if (cent->currentState.eFlags & 0x1000)
 		return;
-
-    if ( !cent->ghoul2 )
-        return;
 
 	if (cent->currentState.weapon == WP_SABER)
 		return;
@@ -10270,7 +10270,7 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
 			trap->G2API_InitGhoul2Model(&ci->holsterGhoul2, ci->saber[0].model, 0, 0, 0, 0, 0);
 		}
 
-    	if (!ci->holsterGhoul2_2 && ci->saber[0].model[1] && newBolt2 != -1) {
+    	if (!ci->holsterGhoul2_2 && ci->saber[1].model[0] && newBolt2 != -1) {
     		trap->G2API_InitGhoul2Model(&ci->holsterGhoul2_2, ci->saber[1].model, 0, 0, 0, 0, 0);
     	}
 
@@ -12725,6 +12725,7 @@ stillDoSaber:
 					int m = 0;
 					int tagBolt;
 					char *tagName;
+					qboolean reloaded = qfalse;
 
 					while (m < ci->saber[0].numBlades)
 					{
@@ -12733,22 +12734,18 @@ stillDoSaber:
 
 						if (tagBolt == -1)
 						{
-							if (m == 0)
-							{ //guess this is an 0ldsk3wl saber
-								tagBolt = trap->G2API_AddBolt(saberEnt->ghoul2, 0, "*flash");
-
-								if (tagBolt == -1)
+							if (m == 0 && !reloaded)
+							{ //model lacks blade bolts, reload as default saber and retry
+								trap->G2API_CleanGhoul2Models(&(saberEnt->ghoul2));
+								saberEnt->ghoul2 = 0;
+								trap->G2API_InitGhoul2Model(&saberEnt->ghoul2, "models/weapons2/saber_reborn/saber_w.glm", 0, 0, 0, 0, 0);
+								reloaded = qtrue;
+								if (saberEnt->ghoul2)
 								{
-									assert(0);
+									continue; //retry bolt adding with the default model
 								}
-								break;
 							}
-
-							if (tagBolt == -1)
-							{
-								assert(0);
-								break;
-							}
+							break;
 						}
 
 						m++;

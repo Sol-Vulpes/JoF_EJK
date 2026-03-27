@@ -396,7 +396,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define UI_VGS_UPGRADE		321
 #define UI_VGS_WARNING		322
 #define UI_VGS_TEAM			323
-#define UI_VGS_MEME			324
 
 // It would be handy
 #define UI_SHOW_ALL_FORCES  325

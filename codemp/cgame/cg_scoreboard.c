@@ -997,12 +997,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 
 #if NEW_SCOREBOARD
 	if (cg_newScoreBoard.integer) {
-		qhandle_t header = (cg_newScoreBoard.integer == 1 ? trap->R_RegisterShaderNoMip("gfx/Unbenannt-2.png") : trap->R_RegisterShaderNoMip("gfx/menus/menu_buttonback.tga"));
-
-		if (!header && cg_newScoreBoard.integer == 1) {
-			header = trap->R_RegisterShaderNoMip("gfx/menus/menu_buttonback.tga");
-			//trap->Cvar_Set("cg_newScoreBoard", "2");
-		}
+		qhandle_t header = trap->R_RegisterShaderNoMip("gfx/menus/menu_buttonback.tga");
 
 		trap->R_DrawStretchPic( SB_SCORELINE_X - 40, y - 5, SB_SCORELINE_WIDTH + 80, 40, 0, 0, 1, 1, header);
 		//CG_Text_Paint( (cg_smallScoreboard.integer ? SB_NAME_X+24 : SB_NAME_X), y, 1.0f, colorWhite, CG_GetStringEdString("MP_INGAME", "NAME"),0, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM );

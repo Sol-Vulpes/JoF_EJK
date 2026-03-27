@@ -967,6 +967,7 @@ void SV_Init (void) {
 	sv_newfloodProtect = Cvar_Get("sv_newfloodProtect", "1", CVAR_ARCHIVE, "Use new method of delaying commands with flood protection");
 	// systeminfo
 	Cvar_Get ("sv_cheats", "1", CVAR_SYSTEMINFO | CVAR_ROM, "Allow cheats on server if set to 1" );
+	Cvar_Get ("sv_maxcmdrate", "0", CVAR_SYSTEMINFO | CVAR_ARCHIVE_ND, "Cap client command generation rate (0 = no override)" );
 
 	sv_serverid = Cvar_Get ("sv_serverid", "0", CVAR_SYSTEMINFO | CVAR_ROM );
 	sv_pure = Cvar_Get ("sv_pure", "0", CVAR_SYSTEMINFO, "Pure server" );

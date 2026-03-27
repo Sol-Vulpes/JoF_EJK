@@ -1420,13 +1420,6 @@ const char *cg_stringEdVGSTable[MAX_CUSTOM_VGS_SOUNDS] = {
 	"VGS_TEAM_THANKS",
 	"VGS_TEAM_WAIT",
 	"VGS_TEAM_YES",
-	"VGS_MEME_FIXITNOW",
-	"VGS_MEME_TFISTHAT",
-	"VGS_MEME_BANHIM",
-	"VGS_MEME_OHSORRY",
-	"VGS_MEME_HUH",
-	"VGS_MEME_SURPRISE",
-	"VGS_MEME_YABLEWIT",
 	NULL
 };
 
@@ -1468,8 +1461,6 @@ static qboolean isGlobalVGS(const char *s) {
 	if (!Q_stricmpn(s, "*respond_", 9))
 		return qtrue;
 	if (!Q_stricmpn(s, "*taunt_", 7))
-		return qtrue;
-	if (!Q_stricmpn(s, "*meme_", 6))
 		return qtrue;
 	return qfalse;
 }
@@ -3691,10 +3682,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			{
 				int ourTeam;
 				s = CG_ConfigString(CS_SOUNDS + es->eventParm); //eh?
-
-				if (!cg_allowMemeVGS.integer && !Q_stricmpn(s, "*meme_", 6)) {
-					break;
-				}
 
 				ourTeam = cg.predictedPlayerState.persistant[PERS_TEAM];
 				if (cg.predictedPlayerState.pm_flags & PMF_FOLLOW)

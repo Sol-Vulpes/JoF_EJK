@@ -2935,7 +2935,7 @@ static void CL_ShutdownRef( qboolean restarting ) {
 	{
 		if ( re->Shutdown )
 		{
-			re->Shutdown( qtrue, restarting );
+			re->Shutdown(restarting ? qfalse : qtrue, restarting);
 		}
 	}
 
@@ -3033,7 +3033,7 @@ static void *CM_GetCachedMapDiskImage( void ) { return gpvCachedMapDiskImage; }
 static void CM_SetCachedMapDiskImage( void *ptr ) { gpvCachedMapDiskImage = ptr; }
 static void CM_SetUsingCache( qboolean usingCache ) { gbUsingCachedMapDataRightNow = usingCache; }
 
-#define G2_VERT_SPACE_SERVER_SIZE 1024//256
+#define G2_VERT_SPACE_SERVER_SIZE 2048 //256 originally
 IHeapAllocator *G2VertSpaceServer = NULL;
 CMiniHeap IHeapAllocator_singleton(G2_VERT_SPACE_SERVER_SIZE * 1024);
 
@@ -3707,7 +3707,7 @@ static void CL_MaxFPS_f(void) {
 	Cbuf_ExecuteText(EXEC_NOW, va("set com_maxFPS %s\n", Cmd_ArgsFrom(1)));
 }
 
-#define G2_VERT_SPACE_CLIENT_SIZE 256
+#define G2_VERT_SPACE_CLIENT_SIZE 2048 //256 originally
 
 /*
 ===============
