@@ -2185,6 +2185,7 @@ typedef struct cgs_s {
 	qhandle_t activeCursor;
 	qboolean radialMenuActive;
 	qboolean radialMenuExecuteOnClose;
+	int radialMenuOpenTime;
 	int radialMenuSelection;
 	float radialMenuX;
 	float radialMenuY;

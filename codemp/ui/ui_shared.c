@@ -5024,6 +5024,7 @@ static const char *g_bindCommands[] = {
 	"amTeleMark", //teleport marker
 	"amTele", //teleport to marker
 	"noclip",
+	"+radialmenu",
 	"lowjump",
 	"flipkick",
 	"kill",
