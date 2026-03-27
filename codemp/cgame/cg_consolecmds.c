@@ -3237,7 +3237,9 @@ static consoleCommand_t	commands[] = {
 	{ "do",							CG_Do_f },
 	{ "doStop",						CG_DoCancel_f },
 	{ "doCancel",					CG_DoCancel_f },
-	{ "reply",						CG_Say_f}
+	{ "reply",						CG_Say_f },
+
+	{ "cmdmenu",					CG_CmdMenu_f },
 };
 
 static const size_t numCommands = ARRAY_LEN( commands );

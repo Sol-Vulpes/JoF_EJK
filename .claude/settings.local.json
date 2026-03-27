@@ -3,7 +3,9 @@
     "allow": [
       "Bash(awk 'NR==3750 {:*)",
       "Bash(mv /tmp/cg_event_tmp.c \"S:/Git/Not mine/JoF_EJK/codemp/cgame/cg_event.c\")",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(grep -n \"extern vmCvar_t cg_radial\\\\|extern vmCvar_t.*\" \"S:/Git/Not mine/JoF_EJK/codemp/cgame\"/*.c)",
+      "Bash(grep -r \"Key_SetCatcher\\\\|Key_GetCatcher\" 'S:/Git/Not mine/JoF_EJK/codemp/cgame/' --include=*.c --include=*.h --include=*.cpp)"
     ]
   }
 }

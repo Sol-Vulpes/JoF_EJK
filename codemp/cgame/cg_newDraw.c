@@ -832,8 +832,14 @@ void CG_EventHandling(int type) {
 
 
 void CG_KeyEvent(int key, qboolean down) {
-	
+
 	if (!down) {
+		return;
+	}
+
+	// Command menu intercepts all key-down events before state-based early returns
+	if ( CG_CmdMenuIsOpen() ) {
+		CG_CmdMenuKeyEvent( key );
 		return;
 	}
 

@@ -11193,6 +11193,8 @@ static void CG_Draw2D( void ) {
 
 	if (cg_drawPlayerNames.integer)//JAPRO
 		CG_PlayerLabels();
+
+	CG_CmdMenuDraw();
 }
 
 qboolean CG_CullPointAndRadius( const vec3_t pt, float radius);
