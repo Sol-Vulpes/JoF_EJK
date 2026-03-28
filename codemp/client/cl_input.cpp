@@ -31,6 +31,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #endif
 unsigned	frame_msec;
 int			old_com_frameTime;
+static int	lastCmdRateTime;
 
 float cl_mPitchOverride = 0.0f;
 float cl_mYawOverride = 0.0f;
@@ -1863,10 +1864,11 @@ void CL_CreateNewCommands( void ) {
 	// This prevents the server from dropping commands that arrive too close
 	// together (e.g. server rejects cmds with < 5ms delta).
 	// Button presses survive skipped frames via the wasPressed mechanism.
-	int minCmdMsec = 0;
+	// Uses a separate timer (lastCmdRateTime) so frame_msec stays accurate
+	// for movement calculations.
 	if ( cl_maxcmdrate->integer > 0 ) {
-		minCmdMsec = 1000 / cl_maxcmdrate->integer;
-		if ( com_frameTime - old_com_frameTime < minCmdMsec ) {
+		int minCmdMsec = 1000 / cl_maxcmdrate->integer;
+		if ( com_frameTime - lastCmdRateTime < minCmdMsec ) {
 			return;
 		}
 	}
@@ -1883,18 +1885,19 @@ void CL_CreateNewCommands( void ) {
 	if ( frame_msec > 200 )
 		frame_msec = 200;
 
-	if ( minCmdMsec > 0 ) {
-		// Advance by the minimum interval instead of resetting to now,
-		// so overshoot from frame boundaries carries into the next interval
-		// and the average command rate stays close to cl_maxcmdrate.
-		old_com_frameTime += minCmdMsec;
+	old_com_frameTime = com_frameTime;
+
+	// Update rate limit tracking with overshoot preservation
+	if ( cl_maxcmdrate->integer > 0 ) {
+		int minCmdMsec = 1000 / cl_maxcmdrate->integer;
+		lastCmdRateTime += minCmdMsec;
 		// If we've fallen far behind (hitch, alt-tab), reset to prevent
 		// a burst of rapid commands that the server would just drop.
-		if ( com_frameTime - old_com_frameTime >= minCmdMsec ) {
-			old_com_frameTime = com_frameTime;
+		if ( com_frameTime - lastCmdRateTime >= minCmdMsec ) {
+			lastCmdRateTime = com_frameTime;
 		}
 	} else {
-		old_com_frameTime = com_frameTime;
+		lastCmdRateTime = com_frameTime;
 	}
 	// generate a command for this frame
 	cl.cmdNumber++;
