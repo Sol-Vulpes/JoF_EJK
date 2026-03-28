@@ -1859,11 +1859,13 @@ void CL_CreateNewCommands( void ) {
 	if ( cls.state < CA_PRIMED )
 		return;
 
-	// If cl_maxcmdrate is set, cap command generation rate independently from
-	// the render frame rate. Returning early without updating old_com_frameTime
-	// lets elapsed time accumulate so the next command gets the correct msec.
+	// Cap command generation rate independently from the render frame rate.
+	// This prevents the server from dropping commands that arrive too close
+	// together (e.g. server rejects cmds with < 5ms delta).
+	// Button presses survive skipped frames via the wasPressed mechanism.
+	int minCmdMsec = 0;
 	if ( cl_maxcmdrate->integer > 0 ) {
-		int minCmdMsec = 1000 / cl_maxcmdrate->integer;
+		minCmdMsec = 1000 / cl_maxcmdrate->integer;
 		if ( com_frameTime - old_com_frameTime < minCmdMsec ) {
 			return;
 		}
@@ -1881,7 +1883,19 @@ void CL_CreateNewCommands( void ) {
 	if ( frame_msec > 200 )
 		frame_msec = 200;
 
-	old_com_frameTime = com_frameTime;
+	if ( minCmdMsec > 0 ) {
+		// Advance by the minimum interval instead of resetting to now,
+		// so overshoot from frame boundaries carries into the next interval
+		// and the average command rate stays close to cl_maxcmdrate.
+		old_com_frameTime += minCmdMsec;
+		// If we've fallen far behind (hitch, alt-tab), reset to prevent
+		// a burst of rapid commands that the server would just drop.
+		if ( com_frameTime - old_com_frameTime >= minCmdMsec ) {
+			old_com_frameTime = com_frameTime;
+		}
+	} else {
+		old_com_frameTime = com_frameTime;
+	}
 	// generate a command for this frame
 	cl.cmdNumber++;
 	cmdNum = cl.cmdNumber & REAL_CMD_MASK;//Loda - FPS UNLOCK ENGINE
