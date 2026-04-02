@@ -8571,17 +8571,17 @@ static void CG_ScanForCrosshairEntity( void ) {
 		}
 	}
 
-	if ( cg_drawCrosshairNames.value > 0 && trace.entityNum >= MAX_CLIENTS ) {
-		return;
-	}
-
-	// if the player is in fog, don't show it
+	// If the player is in fog, don't show it. Also make sure we don't "latch" the last
+	// valid crosshair target (e.g. Force Sight just ended and the trace now hits world).
 	content = CG_PointContents( trace.endpos, 0 );
 	if ( content & CONTENTS_FOG ) {
+		cg.crosshairClientNum = ENTITYNUM_WORLD;
+		cg.crosshairClientTime = cg.time;
 		return;
 	}
 
-	// update the fade timer
+	// Always update the fade timer/target, even when crosshair names are enabled and
+	// we hit a non-client entity. (Otherwise the last target can stick around.)
 	cg.crosshairClientNum = trace.entityNum;
 	cg.crosshairClientTime = cg.time;
 }
