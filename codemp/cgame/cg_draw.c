@@ -10246,6 +10246,10 @@ static QINLINE void CG_ChatBox_DrawStrings(void)
 	float fontScale = 0.65 * cg_chatBoxFontSize.value;//JAPRO - Clientside - Chatbox Font Size Scaler
 	const qboolean drawAnyway = (qboolean)(cg_chatBoxShowHistory.integer && (trap->Key_GetCatcher() & KEYCATCH_CONSOLE));
 
+	if (cg_wowChat.integer) {
+		return; // new chat window handles rendering
+	}
+
 	if (!cg_chatBox.integer) {
 		return;
 	}
@@ -10815,6 +10819,7 @@ static void CG_Draw2D( void ) {
 	if ( cg.snap->ps.pm_type == PM_INTERMISSION ) {
 		CG_DrawIntermission();
 		CG_ChatBox_DrawStrings();
+		CG_WowChat_Draw();
 		return;
 	}
 
@@ -11182,6 +11187,7 @@ static void CG_Draw2D( void ) {
 
 	// always draw chat
 	CG_ChatBox_DrawStrings();
+	CG_WowChat_Draw();
 
 	if ( cgs.radialMenuActive ) {
 		CG_RadialMenuDraw();

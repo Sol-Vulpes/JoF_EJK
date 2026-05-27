@@ -2858,6 +2858,7 @@ Ghoul2 Insert Start
 // this is a No-No now we have stl vector classes in here.
 //	memset( &cg, 0, sizeof( cg ) );
 	CG_Init_CG();
+	CG_WowChat_Init();
 	CG_InitItems();
 
 	//create the global jetpack instance

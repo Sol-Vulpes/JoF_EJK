@@ -991,6 +991,40 @@ typedef struct chatBoxItem_s
 	chatBoxEmoji_t emoji[MAX_CHATBOX_ITEM_EMOJIS];
 } chatBoxItem_t;
 
+/* ---- WoW-style tabbed chat window ---------------------------------------- */
+#define WOW_CHAT_HISTORY  200   /* lines of scrollback per tab               */
+#define WOW_CHAT_MAX_DM    16   /* max concurrent DM conversation tabs       */
+#define WOW_CHAT_TABS     (2 + WOW_CHAT_MAX_DM)
+#define WOW_TAB_GENERAL    0
+#define WOW_TAB_CONSOLE    1
+#define WOW_FIRST_DM_TAB   2
+
+typedef struct {
+    char    text[MAX_STRING_CHARS];
+} wowChatLine_t;
+
+typedef struct {
+    wowChatLine_t   lines[WOW_CHAT_HISTORY];
+    int             head;       /* next write position (circular)            */
+    int             count;      /* total lines stored (clamped to HISTORY)   */
+    int             scroll;     /* 0=show newest; N=scrolled up by N lines   */
+    char            name[MAX_NETNAME];
+    qboolean        inUse;
+    int             unread;     /* count while tab is not active             */
+} wowTab_t;
+
+typedef struct {
+    wowTab_t        tabs[WOW_CHAT_TABS];
+    int             dmCount;        /* number of active DM tabs              */
+    int             activeTab;
+    float           x, y, w, h;    /* window position/size (640x480 virtual) */
+    qboolean        dragging;
+    float           dragOffX, dragOffY;
+    int             tabOffset;      /* first visible tab index (tab scroll)  */
+    qboolean        focused;        /* mouse interaction mode active         */
+} wowChatWindow_t;
+/* -------------------------------------------------------------------------- */
+
 #define	MAX_CLIENT_SPEEDPOINTS		32
 typedef struct clientSpeedpoint_s
 {
@@ -1287,6 +1321,8 @@ Ghoul2 Insert End
 
 	chatBoxItem_t		chatItems[MAX_CHATBOX_ITEMS];
 	int					chatItemActive;
+
+	wowChatWindow_t		wowChat;
 
 #if 0
 	int					snapshotTimeoutTime;
@@ -2666,5 +2702,14 @@ void	CG_SetLightstyle (int i);
 /*
 Ghoul2 Insert End
 */
+
+// cg_wowchat.c
+void CG_WowChat_Init( void );
+void CG_WowChat_AddChat( const char *text );
+void CG_WowChat_AddConsole( const char *text );
+void CG_WowChat_FocusToggle_f( void );
+void CG_WowChat_KeyEvent( int key, qboolean down );
+void CG_WowChat_MouseMove( float cx, float cy );
+void CG_WowChat_Draw( void );
 
 extern cgameImport_t *trap;

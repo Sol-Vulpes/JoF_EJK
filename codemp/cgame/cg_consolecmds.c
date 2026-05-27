@@ -2770,7 +2770,8 @@ static consoleCommand_t	commands[] = {
 	{ "do",							CG_Do_f },
 	{ "doStop",						CG_DoCancel_f },
 	{ "doCancel",					CG_DoCancel_f },
-	{ "reply",						CG_Say_f}
+	{ "reply",						CG_Say_f},
+	{ "wowchat_toggle",				CG_WowChat_FocusToggle_f }
 };
 
 static const size_t numCommands = ARRAY_LEN( commands );

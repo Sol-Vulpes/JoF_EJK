@@ -1674,6 +1674,7 @@ static void CG_Print_f( void ) {
 	}
 
 	CG_CheckSVStringEdRef( strEd, arg );
+	if (cg_wowChat.integer) CG_WowChat_AddConsole(strEd);
 	trap->Print( "%s", strEd );
 
 	if ((cg_logChat.integer & JAPRO_CHATLOG_ENABLE) && (cg_logChat.integer & JAPRO_CHATLOG_PRINT))
@@ -1724,6 +1725,7 @@ static void CG_Chat_f( void ) {
 				trap->S_StartLocalSound(cgs.media.talkSound, CHAN_LOCAL_SOUND);
 			}
 
+			if (cg_wowChat.integer) CG_WowChat_AddChat(text);
 			CG_ChatBox_AddString(text);
 			Q_strncpyz(cg.lastChatMsg, text, sizeof(cg.lastChatMsg));
 		}
@@ -1739,6 +1741,7 @@ static void CG_Chat_f( void ) {
 				trap->S_StartLocalSound(cgs.media.teamChatSound, CHAN_LOCAL_SOUND);
 			else if (cg_chatSounds.integer)
 				trap->S_StartLocalSound(cgs.media.talkSound, CHAN_LOCAL_SOUND);
+			if (cg_wowChat.integer) CG_WowChat_AddChat(text);
 			CG_ChatBox_AddString(text);
 		}
 	}
@@ -1765,11 +1768,13 @@ static void CG_Chat_f( void ) {
 		if ( !Q_stricmp( cmd, "lchat" ) && !cg_teamChatsOnly.integer ) {
 			Com_sprintf( text, sizeof( text ), "%s" S_COLOR_WHITE "<%s> ^%s%s", name, loc, color, message );
 			CG_RemoveChatEscapeChar( text );
+			if (cg_wowChat.integer) CG_WowChat_AddChat(text);
 			CG_ChatBox_AddString( text );
 		}
 		else if ( !Q_stricmp( cmd, "ltchat" ) ) {
 			Com_sprintf( text, sizeof( text ), "%s" S_COLOR_WHITE "<%s> ^%s%s", name, loc, color, message );
 			CG_RemoveChatEscapeChar( text );
+			if (cg_wowChat.integer) CG_WowChat_AddChat(text);
 			CG_ChatBox_AddString( text );
 		}
 	}

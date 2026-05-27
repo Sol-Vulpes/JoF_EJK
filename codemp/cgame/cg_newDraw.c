@@ -768,6 +768,11 @@ void CG_MouseEvent(int x, int y) {
 	else if (cgs.cursorY > 480)
 		cgs.cursorY = 480;
 
+	if ( cg.wowChat.focused && cg_wowChat.integer ) {
+		CG_WowChat_MouseMove( cgs.cursorX, cgs.cursorY );
+		return;
+	}
+
 	n = Display_CursorType(cgs.cursorX, cgs.cursorY);
 	cgs.activeCursor = 0;
 	if (n == CURSOR_ARROW) {
@@ -832,7 +837,14 @@ void CG_EventHandling(int type) {
 
 
 void CG_KeyEvent(int key, qboolean down) {
-	
+
+	/* wowchat focus overrides all other key handling (also intercepts key-up
+	   so we can detect mouse button release for drag termination) */
+	if ( cg.wowChat.focused && cg_wowChat.integer ) {
+		CG_WowChat_KeyEvent(key, down);
+		return;
+	}
+
 	if (!down) {
 		return;
 	}
