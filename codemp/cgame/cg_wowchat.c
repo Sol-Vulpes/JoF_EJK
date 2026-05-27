@@ -313,7 +313,7 @@ void CG_WowChat_Draw( void ) {
                                       cy >= wy && cy < wy + WC_TAB_H );
         qboolean active = (qboolean)( w->tabOffset > 0 );
         if ( hover && active ) CG_FillRect( tx, wy, WC_ARROW_W, WC_TAB_H, wc_tabHover );
-        CG_Text_Paint( tx + 3.0f, wy + WC_TAB_H - 4.0f, WC_FONT_SCALE,
+        CG_Text_Paint( tx + 3.0f, wy + 4.0f, WC_FONT_SCALE,
                        active ? wc_text : wc_dimText, "<", 0, 0, ITEM_TEXTSTYLE_NORMAL, WC_FONT );
     }
     tx += WC_ARROW_W;
@@ -338,7 +338,7 @@ void CG_WowChat_Draw( void ) {
         labelW = CG_Text_Width( tab->name, WC_FONT_SCALE, WC_FONT );
         lx     = tx + (WC_TAB_W - labelW) * 0.5f;
         if ( lx < tx + 2.0f ) lx = tx + 2.0f;
-        CG_Text_Paint( lx, wy + WC_TAB_H - 4.0f, WC_FONT_SCALE,
+        CG_Text_Paint( lx, wy + 4.0f, WC_FONT_SCALE,
                        isActive ? wc_text : wc_dimText,
                        tab->name, 0, 0, ITEM_TEXTSTYLE_NORMAL, WC_FONT );
 
@@ -353,7 +353,7 @@ void CG_WowChat_Draw( void ) {
             bx = tx + WC_TAB_W - bw - 2.0f;
             by = wy + 2.0f;
             CG_FillRect( bx, by, bw, WC_TAB_H - 5.0f, wc_unreadBg );
-            CG_Text_Paint( bx + 2.0f, by + WC_TAB_H - 8.0f, bScale,
+            CG_Text_Paint( bx + 2.0f, by + 3.0f, bScale,
                            wc_text, badge, 0, 0, ITEM_TEXTSTYLE_NORMAL, WC_FONT );
         }
 
@@ -369,7 +369,7 @@ void CG_WowChat_Draw( void ) {
         qboolean hover   = (qboolean)( w->focused && cx >= tx && cx < tx + WC_ARROW_W &&
                                        cy >= wy && cy < wy + WC_TAB_H );
         if ( hover && hasMore ) CG_FillRect( tx, wy, WC_ARROW_W, WC_TAB_H, wc_tabHover );
-        CG_Text_Paint( tx + 3.0f, wy + WC_TAB_H - 4.0f, WC_FONT_SCALE,
+        CG_Text_Paint( tx + 3.0f, wy + 4.0f, WC_FONT_SCALE,
                        hasMore ? wc_text : wc_dimText, ">", 0, 0, ITEM_TEXTSTYLE_NORMAL, WC_FONT );
     }
 

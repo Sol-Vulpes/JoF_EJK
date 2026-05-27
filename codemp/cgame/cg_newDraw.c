@@ -826,6 +826,11 @@ void CG_EventHandling(int type) {
 	cgs.eventHandling = type;
 	if (type == CGAME_EVENT_NONE) {
 		CG_HideTeamMenu();
+		/* engine may clear KEYCATCH_CGAME before calling here (e.g. Escape); keep focused in sync */
+		if ( cg.wowChat.focused ) {
+			cg.wowChat.focused  = qfalse;
+			cg.wowChat.dragging = qfalse;
+		}
 	} else if (type == CGAME_EVENT_TEAMMENU) {
 		//CG_ShowTeamMenu();
 	} else if (type == CGAME_EVENT_SCOREBOARD) {
