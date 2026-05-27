@@ -28,7 +28,7 @@ server format: ^6^7[SenderName^7]: ^6<text>)
 #define WC_TAB_W        62.0f
 #define WC_ARROW_W      14.0f
 #define WC_DRAG_W       18.0f
-#define WC_CURSOR_SIZE  16.0f
+#define WC_CURSOR_SIZE  24.0f
 
 /* ---------- colours -------------------------------------------------------- */
 static vec4_t wc_bg          = { 0.04f, 0.04f, 0.07f, 0.68f };
@@ -291,6 +291,7 @@ void CG_WowChat_Draw( void ) {
     float    bodyTop, bodyBottom, bodyH;
     int      visLines, maxScroll, i;
     float    drawY;
+    float    tabTextH, tabTextY;   /* measured once for proper vertical centering */
 
     if ( !cg_wowChat.integer ) return;
 
@@ -301,6 +302,10 @@ void CG_WowChat_Draw( void ) {
     if ( maxVisible < 1 ) maxVisible = 1;
     cx = cgs.cursorX;
     cy = cgs.cursorY;
+
+    /* compute tab-bar text y so the glyph sits centred in WC_TAB_H */
+    tabTextH = (float)CG_Text_Height( "Ag", WC_FONT_SCALE, WC_FONT );
+    tabTextY = wy + floorf( (WC_TAB_H - tabTextH) * 0.5f );
 
     /* ---- backgrounds ---------------------------------------------------- */
     CG_FillRect( wx, wy + WC_TAB_H, ww, wh - WC_TAB_H, wc_bg );
@@ -313,7 +318,7 @@ void CG_WowChat_Draw( void ) {
                                       cy >= wy && cy < wy + WC_TAB_H );
         qboolean active = (qboolean)( w->tabOffset > 0 );
         if ( hover && active ) CG_FillRect( tx, wy, WC_ARROW_W, WC_TAB_H, wc_tabHover );
-        CG_Text_Paint( tx + 3.0f, wy + 4.0f, WC_FONT_SCALE,
+        CG_Text_Paint( tx + 3.0f, tabTextY, WC_FONT_SCALE,
                        active ? wc_text : wc_dimText, "<", 0, 0, ITEM_TEXTSTYLE_NORMAL, WC_FONT );
     }
     tx += WC_ARROW_W;
@@ -334,26 +339,29 @@ void CG_WowChat_Draw( void ) {
         if ( isActive )
             CG_FillRect( tx, wy + WC_TAB_H - 2.0f, WC_TAB_W, 2.0f, wc_highlight );
 
-        /* label – centered, truncated to tab width */
+        /* label – horizontally centred */
         labelW = CG_Text_Width( tab->name, WC_FONT_SCALE, WC_FONT );
         lx     = tx + (WC_TAB_W - labelW) * 0.5f;
         if ( lx < tx + 2.0f ) lx = tx + 2.0f;
-        CG_Text_Paint( lx, wy + 4.0f, WC_FONT_SCALE,
+        CG_Text_Paint( lx, tabTextY, WC_FONT_SCALE,
                        isActive ? wc_text : wc_dimText,
                        tab->name, 0, 0, ITEM_TEXTSTYLE_NORMAL, WC_FONT );
 
         /* unread badge */
         if ( !isActive && tab->unread > 0 ) {
             char   badge[8];
-            float  bScale = WC_FONT_SCALE * 0.75f;
-            float  bw, bx, by;
+            float  bScale   = WC_FONT_SCALE * 0.75f;
+            float  bBoxH    = WC_TAB_H - 5.0f;
+            float  bTextH   = (float)CG_Text_Height( "9", bScale, WC_FONT );
+            float  bw, bx, by, bTextY;
             Com_sprintf( badge, sizeof(badge), tab->unread > 99 ? "99+" : "%d",
                          tab->unread > 99 ? 99 : tab->unread );
-            bw = CG_Text_Width( badge, bScale, WC_FONT ) + 4.0f;
-            bx = tx + WC_TAB_W - bw - 2.0f;
-            by = wy + 2.0f;
-            CG_FillRect( bx, by, bw, WC_TAB_H - 5.0f, wc_unreadBg );
-            CG_Text_Paint( bx + 2.0f, by + 3.0f, bScale,
+            bw     = CG_Text_Width( badge, bScale, WC_FONT ) + 4.0f;
+            bx     = tx + WC_TAB_W - bw - 2.0f;
+            by     = wy + 2.0f;
+            bTextY = by + floorf( (bBoxH - bTextH) * 0.5f );
+            CG_FillRect( bx, by, bw, bBoxH, wc_unreadBg );
+            CG_Text_Paint( bx + 2.0f, bTextY, bScale,
                            wc_text, badge, 0, 0, ITEM_TEXTSTYLE_NORMAL, WC_FONT );
         }
 
@@ -369,7 +377,7 @@ void CG_WowChat_Draw( void ) {
         qboolean hover   = (qboolean)( w->focused && cx >= tx && cx < tx + WC_ARROW_W &&
                                        cy >= wy && cy < wy + WC_TAB_H );
         if ( hover && hasMore ) CG_FillRect( tx, wy, WC_ARROW_W, WC_TAB_H, wc_tabHover );
-        CG_Text_Paint( tx + 3.0f, wy + 4.0f, WC_FONT_SCALE,
+        CG_Text_Paint( tx + 3.0f, tabTextY, WC_FONT_SCALE,
                        hasMore ? wc_text : wc_dimText, ">", 0, 0, ITEM_TEXTSTYLE_NORMAL, WC_FONT );
     }
 
@@ -429,8 +437,8 @@ void CG_WowChat_Draw( void ) {
     }
 
     /* ---- software cursor (when focused) --------------------------------- */
-    if ( w->focused && cgs.media.cursor ) {
+    if ( w->focused ) {
         trap->R_SetColor( NULL );
-        CG_DrawPic( cx, cy, WC_CURSOR_SIZE, WC_CURSOR_SIZE, cgs.media.cursor );
+        CG_DrawPic( cx, cy, WC_CURSOR_SIZE, WC_CURSOR_SIZE, cgs.media.selectCursor );
     }
 }
