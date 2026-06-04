@@ -2664,6 +2664,36 @@ void CG_Say_f( void ) {
 	}
 }
 
+// Client-side "fake" noclip. Lets us fly around the map locally to look around
+// while the server keeps our body frozen at its current spot. Nothing about the
+// movement is sent to the server (see CL_WritePacket), and disabling it snaps us
+// back to our real position automatically on the next prediction frame.
+static void CG_FakeNoclip_f( void ) {
+	const qboolean active = (cg_fakeNoclip.integer != 0);
+
+	if ( !active ) {
+		// Only allow enabling when we're a live, on-foot player. Spectators,
+		// followers, dead players and vehicle pilots are excluded.
+		if ( !cg.snap
+			|| (cg.snap->ps.pm_flags & PMF_FOLLOW)
+			|| cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR
+			|| cg.snap->ps.pm_type == PM_SPECTATOR
+			|| cg.snap->ps.pm_type == PM_DEAD
+			|| cg.snap->ps.pm_type == PM_INTERMISSION
+			|| cg.snap->ps.m_iVehicleNum )
+		{
+			trap->Print( "^3fakenoclip:^7 only available while alive and on foot.\n" );
+			return;
+		}
+		trap->Cvar_Set( "cg_fakeNoclip", "1" );
+		trap->Print( "^2fakenoclip ON^7 - flying locally; the server sees you frozen in place. Type ^5/fakenoclip^7 again to snap back.\n" );
+	}
+	else {
+		trap->Cvar_Set( "cg_fakeNoclip", "0" );
+		trap->Print( "^1fakenoclip OFF^7 - snapping back to your real position.\n" );
+	}
+}
+
 typedef struct consoleCommand_s {
 	const char	*cmd;
 	void		(*func)(void);
@@ -2771,7 +2801,8 @@ static consoleCommand_t	commands[] = {
 	{ "doStop",						CG_DoCancel_f },
 	{ "doCancel",					CG_DoCancel_f },
 	{ "reply",						CG_Say_f},
-	{ "wowchat_toggle",				CG_WowChat_FocusToggle_f }
+	{ "wowchat_toggle",				CG_WowChat_FocusToggle_f },
+	{ "fakenoclip",					CG_FakeNoclip_f }
 };
 
 static const size_t numCommands = ARRAY_LEN( commands );

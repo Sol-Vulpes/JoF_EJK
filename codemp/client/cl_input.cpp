@@ -2091,10 +2091,42 @@ void CL_WritePacket( void ) {
 		// also use the last acknowledged server command in the key
 		key ^= Com_HashKey(clc.serverCommands[ clc.serverCommandSequence & (MAX_RELIABLE_COMMANDS-1) ], 32);
 
+		// Fake noclip (client-side): the cgame is flying us around the map locally,
+		// but the server must keep thinking we're standing still. Transmit zeroed
+		// movement/buttons and frozen view angles, without disturbing cl.cmds[] (the
+		// cgame still predicts from the real input stored there). serverTime is left
+		// intact so command timing stays in sync. We write into separate scratch
+		// slots so the delta-compression "oldcmd" pointer stays valid each iteration.
+		static qboolean	fakeNoclipWasActive = qfalse;
+		static int		fakeNoclipAngles[3] = { 0, 0, 0 };
+		const qboolean	fakeNoclip = ( Cvar_VariableIntegerValue( "cg_fakeNoclip" ) != 0 ) ? qtrue : qfalse;
+		usercmd_t		fakeCmds[MAX_PACKET_USERCMDS];
+
+		if ( fakeNoclip && !fakeNoclipWasActive ) {
+			// rising edge: freeze the view angles we're holding right now
+			const usercmd_t *latest = &cl.cmds[cl.cmdNumber & REAL_CMD_MASK];
+			fakeNoclipAngles[0] = latest->angles[0];
+			fakeNoclipAngles[1] = latest->angles[1];
+			fakeNoclipAngles[2] = latest->angles[2];
+		}
+		fakeNoclipWasActive = fakeNoclip;
+
 		// write all the commands, including the predicted command
 		for ( i = 0 ; i < count ; i++ ) {
 			j = (cl.cmdNumber - count + i + 1) & REAL_CMD_MASK;//Loda - FPS UNLOCK ENGINE
 			cmd = &cl.cmds[j];
+
+			if ( fakeNoclip ) {
+				fakeCmds[i] = *cmd;
+				fakeCmds[i].forwardmove = 0;
+				fakeCmds[i].rightmove = 0;
+				fakeCmds[i].upmove = 0;
+				fakeCmds[i].buttons = 0;
+				fakeCmds[i].angles[0] = fakeNoclipAngles[0];
+				fakeCmds[i].angles[1] = fakeNoclipAngles[1];
+				fakeCmds[i].angles[2] = fakeNoclipAngles[2];
+				cmd = &fakeCmds[i];
+			}
 
 			MSG_WriteDeltaUsercmdKey (&buf, key, oldcmd, cmd);
 			oldcmd = cmd;

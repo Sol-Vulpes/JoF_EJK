@@ -1086,6 +1086,24 @@ void CG_PredictPlayerState( void ) {
 		return;
 	}
 
+	// Client-side fake noclip: while active we decouple local prediction from the
+	// server snapshot and fly around in noclip locally, while CL_WritePacket keeps
+	// the server thinking we're standing still. Force it off if our state no longer
+	// supports it (died, started spectating/following, entered a vehicle) so we
+	// cleanly snap back to where the server has us.
+	qboolean fakeNoclip = (cg_fakeNoclip.integer != 0);
+	if ( fakeNoclip &&
+		( (cg.snap->ps.pm_flags & PMF_FOLLOW)
+		|| cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR
+		|| cg.snap->ps.pm_type == PM_SPECTATOR
+		|| cg.snap->ps.pm_type == PM_DEAD
+		|| cg.snap->ps.pm_type == PM_INTERMISSION
+		|| cg.snap->ps.m_iVehicleNum ) )
+	{
+		trap->Cvar_Set( "cg_fakeNoclip", "0" );
+		fakeNoclip = qfalse;
+	}
+
 	// prepare for pmove
 	cg_pmove.ps = &cg.predictedPlayerState;
 	cg_pmove.trace = CG_Trace;
@@ -1165,10 +1183,12 @@ void CG_PredictPlayerState( void ) {
 		int savedWeapon = cg.predictedPlayerState.weapon;
 		int savedWeaponTime = cg.predictedPlayerState.weaponTime;
 
-		cg.predictedPlayerState = cg.nextSnap->ps;
-		if (CG_Piloting(cg.nextSnap->ps.m_iVehicleNum))
-		{
-			cg.predictedVehicleState = cg.nextSnap->vps;
+		if ( !fakeNoclip ) {
+			cg.predictedPlayerState = cg.nextSnap->ps;
+			if (CG_Piloting(cg.nextSnap->ps.m_iVehicleNum))
+			{
+				cg.predictedVehicleState = cg.nextSnap->vps;
+			}
 		}
 		cg.physicsTime = cg.nextSnap->serverTime;
 
@@ -1183,10 +1203,12 @@ void CG_PredictPlayerState( void ) {
 		int savedWeapon = cg.predictedPlayerState.weapon;
 		int savedWeaponTime = cg.predictedPlayerState.weaponTime;
 
-		cg.predictedPlayerState = cg.snap->ps;
-		if (CG_Piloting(cg.snap->ps.m_iVehicleNum))
-		{
-			cg.predictedVehicleState = cg.snap->vps;
+		if ( !fakeNoclip ) {
+			cg.predictedPlayerState = cg.snap->ps;
+			if (CG_Piloting(cg.snap->ps.m_iVehicleNum))
+			{
+				cg.predictedVehicleState = cg.snap->vps;
+			}
 		}
 		cg.physicsTime = cg.snap->serverTime;
 
@@ -1267,7 +1289,7 @@ void CG_PredictPlayerState( void ) {
 		// from the snapshot, but on a wan we will have
 		// to predict several commands to get to the point
 		// we want to compare
-		if ( CG_Piloting(oldPlayerState.m_iVehicleNum) &&
+		if ( !fakeNoclip && CG_Piloting(oldPlayerState.m_iVehicleNum) &&
 			cg.predictedVehicleState.commandTime == oldVehicleState.commandTime )
 		{
 			vec3_t	delta;
@@ -1326,7 +1348,7 @@ void CG_PredictPlayerState( void ) {
 				}
 			}
 		}
-		else if ( !oldPlayerState.m_iVehicleNum && //don't do pred err on ps while riding veh
+		else if ( !fakeNoclip && !oldPlayerState.m_iVehicleNum && //don't do pred err on ps while riding veh
 			cg.predictedPlayerState.commandTime == oldPlayerState.commandTime )
 		{
 			vec3_t	delta;
@@ -1514,6 +1536,13 @@ void CG_PredictPlayerState( void ) {
 			}
 		}
 #endif
+
+		// Fake noclip flies locally without telling the server. Force the noclip
+		// move type for this predicted step so we pass through geometry; the server
+		// keeps running us as a normal (but motionless) player.
+		if ( fakeNoclip ) {
+			cg_pmove.ps->pm_type = PM_NOCLIP;
+		}
 
 		Pmove (&cg_pmove);
 
