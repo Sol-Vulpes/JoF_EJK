@@ -4604,6 +4604,25 @@ static void PM_NoclipMove( void ) {
 
 	// accelerate
 	scale = PM_CmdScale( &pm->cmd );
+	if ( pm->fakeNoclip ) {
+		// Client-side fake noclip: PM_CmdScale ignores upmove, which makes pure
+		// jump/crouch (no forward/right) produce a zero scale and thus no vertical
+		// movement. Recompute the scale here including upmove so jump flies us up
+		// and crouch flies us down even when standing still.
+		int		max = abs( pm->cmd.forwardmove );
+		if ( abs( pm->cmd.rightmove ) > max )
+			max = abs( pm->cmd.rightmove );
+		if ( abs( pm->cmd.upmove ) > max )
+			max = abs( pm->cmd.upmove );
+		if ( !max ) {
+			scale = 0;
+		} else {
+			float total = sqrt( (float)( pm->cmd.forwardmove * pm->cmd.forwardmove
+				+ pm->cmd.rightmove * pm->cmd.rightmove
+				+ pm->cmd.upmove * pm->cmd.upmove ) );
+			scale = (float)pm->ps->speed * max / ( 127.0f * total );
+		}
+	}
 	if (pm->cmd.buttons & BUTTON_ATTACK) {	//turbo boost
 		scale *= 10;
 	}

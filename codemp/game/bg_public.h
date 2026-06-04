@@ -609,6 +609,11 @@ typedef struct pmove_s {
 	//hacky bool so we know if we're dealing with a nonhumanoid (which is probably a rockettrooper)
 	qboolean	nonHumanoid;
 
+	// set only by the cgame for the client-side /fakenoclip feature; makes
+	// PM_NoclipMove factor upmove into the speed scale so jump/crouch fly us
+	// straight up/down even with no horizontal input. Never set server-side.
+	qboolean	fakeNoclip;
+
 	// command (in)
 	usercmd_t	cmd;
 	int			tracemask;			// collide against these types of surfaces

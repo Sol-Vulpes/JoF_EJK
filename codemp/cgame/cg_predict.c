@@ -1539,7 +1539,9 @@ void CG_PredictPlayerState( void ) {
 
 		// Fake noclip flies locally without telling the server. Force the noclip
 		// move type for this predicted step so we pass through geometry; the server
-		// keeps running us as a normal (but motionless) player.
+		// keeps running us as a normal (but motionless) player. The fakeNoclip flag
+		// makes PM_NoclipMove honor pure up/down (jump/crouch) input.
+		cg_pmove.fakeNoclip = fakeNoclip;
 		if ( fakeNoclip ) {
 			cg_pmove.ps->pm_type = PM_NOCLIP;
 		}

@@ -2121,7 +2121,11 @@ void CL_WritePacket( void ) {
 				fakeCmds[i].forwardmove = 0;
 				fakeCmds[i].rightmove = 0;
 				fakeCmds[i].upmove = 0;
-				fakeCmds[i].buttons = 0;
+				// Show the chat/typing balloon above our frozen body so other
+				// players see us as idle (as if console/chat is open). The server's
+				// BUTTON_TALK handling also force-zeroes our movement, which is
+				// exactly the frozen-in-place look we want.
+				fakeCmds[i].buttons = BUTTON_TALK;
 				fakeCmds[i].angles[0] = fakeNoclipAngles[0];
 				fakeCmds[i].angles[1] = fakeNoclipAngles[1];
 				fakeCmds[i].angles[2] = fakeNoclipAngles[2];
