@@ -4641,7 +4641,20 @@ static void PM_NoclipMove( void ) {
 	wishspeed = VectorNormalize(wishdir);
 	wishspeed *= scale;
 
-	PM_Accelerate( wishdir, wishspeed, pm_accelerate );//dont care about CPM movement when in noclip so whatever
+	// Client-side fake noclip: when turbo-boosting (attack held), redirect velocity
+	// toward the aim direction almost immediately. The default low acceleration
+	// takes ~0.1s to swing the velocity around, which at turbo speed overshoots a
+	// long way horizontally before curving up/down - making it feel like the turbo
+	// isn't applied to the look angle. A high accel makes us fly straight where we
+	// look. (PM_Accelerate clamps to wishspeed, so this never exceeds the intended
+	// speed.) Normal (non-turbo) noclip keeps its smooth default acceleration.
+	{
+		float noclipAccel = pm_accelerate;
+		if ( pm->fakeNoclip && (pm->cmd.buttons & (BUTTON_ATTACK | BUTTON_ALT_ATTACK)) ) {
+			noclipAccel = 100.0f;
+		}
+		PM_Accelerate( wishdir, wishspeed, noclipAccel );//dont care about CPM movement when in noclip so whatever
+	}
 
 	// move
 	VectorMA (pm->ps->origin, pml.frametime, pm->ps->velocity, pm->ps->origin);
