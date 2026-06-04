@@ -41,6 +41,11 @@ XCVAR_DEF( cl_currentServerAddress,	"0",	NULL,					CVAR_ROM )
 // in place. Toggled by the /fakenoclip command. Not archived (always starts off).
 XCVAR_DEF( cg_fakeNoclip,			"0",	NULL,					CVAR_TEMP )
 
+// Subtract our own snapshot-hold latency from the ping the server reports for us, so
+// our scoreboard row shows closer to true network round-trip time instead of RTT plus
+// the time our client sat on each snapshot before acking it. Only affects our own row.
+XCVAR_DEF( cg_truePing,				"1",	NULL,					CVAR_ARCHIVE )
+
 //JAPRO HUD / DISPLAY
 // Render numeric HUD fields (health/armor/force/ammo) and the FPS/timer text with the
 // scalable font instead of the legacy low-res bitmap glyphs, so they stay sharp at high res.

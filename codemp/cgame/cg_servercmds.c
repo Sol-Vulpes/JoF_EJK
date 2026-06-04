@@ -33,6 +33,43 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 /*
 =================
+CG_LocalPingBias
+
+The server measures our ping as the round trip of a snapshot: the time from when
+it sends a snapshot to when it receives the client packet that acks it. That
+interval is the true network RTT plus the time our client holds each snapshot
+before its next outgoing command packet acks it. The hold is bounded by our
+outgoing packet interval (governed by com_maxfps / cl_maxpackets), so on average
+it is half of that interval. Returning that estimate lets CG_ParseScores subtract
+it and show our row closer to pure network ping.
+
+This is only valid for our own client: every other player's hold time depends on
+*their* framerate, which we cannot know, so we never apply it to their rows.
+=================
+*/
+static int CG_LocalPingBias( void ) {
+	char	buf[32];
+	int		maxfps, maxpackets, rate;
+	float	interval;
+
+	trap->Cvar_VariableStringBuffer( "com_maxfps", buf, sizeof( buf ) );
+	maxfps = atoi( buf );
+	trap->Cvar_VariableStringBuffer( "cl_maxpackets", buf, sizeof( buf ) );
+	maxpackets = atoi( buf );
+
+	if ( maxfps <= 0 )		maxfps = 125;		// 0 means uncapped; assume the engine frame cap
+	if ( maxpackets <= 0 )	maxpackets = 30;	// engine default
+
+	rate = ( maxfps < maxpackets ) ? maxfps : maxpackets;	// outgoing packets per second
+	if ( rate < 1 )
+		rate = 1;
+
+	interval = 1000.0f / (float)rate;			// ms between our outgoing packets
+	return (int)( interval * 0.5f + 0.5f );		// average snapshot-hold time, rounded
+}
+
+/*
+=================
 CG_ParseScores
 
 =================
@@ -94,6 +131,15 @@ static void CG_ParseScores( void ) {
 
 		if ( cg.scores[i].client < 0 || cg.scores[i].client >= MAX_CLIENTS )
 			cg.scores[i].client = 0;
+
+		// cg_truePing: strip our own snapshot-hold latency so our row reflects true
+		// network RTT. Only our slot; leave timed-out (999) and bot (<=0) rows alone.
+		if ( cg_truePing.integer && cg.scores[i].client == cg.clientNum
+			&& cg.scores[i].ping > 0 && cg.scores[i].ping < 999 ) {
+			cg.scores[i].ping -= CG_LocalPingBias();
+			if ( cg.scores[i].ping < 0 )
+				cg.scores[i].ping = 0;
+		}
 
 		cgs.clientinfo[ cg.scores[i].client ].score = cg.scores[i].score;
 		cgs.clientinfo[ cg.scores[i].client ].powerups = powerups;
