@@ -18,30 +18,42 @@ REM Use unique build directory to avoid conflicts
 set BUILD_DIR=build64temp
 echo Using build directory: %BUILD_DIR%
 
-mkdir "%BUILD_DIR%"
-if errorlevel 1 (
-    echo Failed to create directory %BUILD_DIR%
-    exit /b 1
-)
-cd "%BUILD_DIR%"
-if errorlevel 1 (
-    echo Failed to change to directory %BUILD_DIR%
-    exit /b 1
-)
-echo Now in directory: %CD%
+REM Only run CMake configuration when the build dir isn't set up yet.
+REM If it already exists, skip straight to an incremental build (like VS's Build button).
+if exist "%BUILD_DIR%\CMakeCache.txt" (
+    echo Build directory already configured, skipping CMake configuration.
+    cd "%BUILD_DIR%"
+    if errorlevel 1 (
+        echo Failed to change to directory %BUILD_DIR%
+        exit /b 1
+    )
+    echo Now in directory: %CD%
+) else (
+    if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
+    if errorlevel 1 (
+        echo Failed to create directory %BUILD_DIR%
+        exit /b 1
+    )
+    cd "%BUILD_DIR%"
+    if errorlevel 1 (
+        echo Failed to change to directory %BUILD_DIR%
+        exit /b 1
+    )
+    echo Now in directory: %CD%
 
-"%CMAKE_CMD%" -G "%VS_GENERATOR%" -A x64 -DCMAKE_BUILD_TYPE=Release ..
-if %errorlevel% neq 0 (
-    echo CMake configuration failed!
-    echo.
-    echo Troubleshooting:
-    echo 1. Ensure Visual Studio is properly installed
-    echo 2. Try running as Administrator
-    echo 3. Check that you have the C++ build tools installed
-    echo 4. Try using a different generator manually
-    echo.
-    cd ..
-    exit /b 1
+    "%CMAKE_CMD%" -G "%VS_GENERATOR%" -A x64 -DCMAKE_BUILD_TYPE=Release ..
+    if errorlevel 1 (
+        echo CMake configuration failed!
+        echo.
+        echo Troubleshooting:
+        echo 1. Ensure Visual Studio is properly installed
+        echo 2. Try running as Administrator
+        echo 3. Check that you have the C++ build tools installed
+        echo 4. Try using a different generator manually
+        echo.
+        cd ..
+        exit /b 1
+    )
 )
 
 "%CMAKE_CMD%" --build . --config Release
