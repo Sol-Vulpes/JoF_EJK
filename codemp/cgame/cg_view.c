@@ -1778,6 +1778,52 @@ static int CG_CalcViewValues( void ) {
 		return CG_CalcFov();
 	}
 
+	// snapcam: briefly snap the camera onto another player for monitoring
+	if ( cg.monitorCamEndTime > cg.time
+		&& cg.monitorCamClient >= 0 && cg.monitorCamClient < MAX_CLIENTS )
+	{
+		centity_t *target = &cg_entities[cg.monitorCamClient];
+
+		// only override when we actually have fresh data for the target
+		// (i.e. they're in our PVS); otherwise fall through to the normal view
+		if ( target->currentValid
+			&& (cg.time - target->currentState.pos.trTime) < 1000 )
+		{
+			vec3_t	focus, camOrg, camAngles, forward, dir;
+			vec3_t	mins = { -CAMERA_SIZE, -CAMERA_SIZE, -CAMERA_SIZE };
+			vec3_t	maxs = {  CAMERA_SIZE,  CAMERA_SIZE,  CAMERA_SIZE };
+			trace_t	trace;
+			const float	dist = 80.0f, height = 32.0f;
+
+			// aim point at the target's eye height
+			VectorCopy( target->lerpOrigin, focus );
+			focus[2] += DEFAULT_VIEWHEIGHT;
+
+			// place the camera behind and above, based on where the target faces
+			VectorCopy( target->lerpAngles, camAngles );
+			camAngles[PITCH] = camAngles[ROLL] = 0;
+			AngleVectors( camAngles, forward, NULL, NULL );
+			VectorMA( focus, -dist, forward, camOrg );
+			camOrg[2] += height;
+
+			// pull the camera in if it would clip a wall
+			CG_Trace( &trace, focus, mins, maxs, camOrg, target->currentState.number, MASK_CAMERACLIP );
+			if ( trace.fraction < 1.0f ) {
+				VectorCopy( trace.endpos, camOrg );
+			}
+
+			// look from the camera toward the target
+			VectorSubtract( focus, camOrg, dir );
+			vectoangles( dir, cg.refdef.viewangles );
+			VectorCopy( camOrg, cg.refdef.vieworg );
+			AnglesToAxis( cg.refdef.viewangles, cg.refdef.viewaxis );
+
+			// suppress our own view weapon while peeking
+			cg.renderingThirdPerson = qtrue;
+			return CG_CalcFov();
+		}
+	}
+
 	cg.bobcycle = ( ps->bobCycle & 128 ) >> 7;
 	cg.bobfracsin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
 

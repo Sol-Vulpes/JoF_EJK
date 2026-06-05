@@ -2516,6 +2516,41 @@ static void CG_TeleToPlayer_f(void) {
 		newPos[0], newPos[1], newPos[2], cent->lerpAngles[YAW] + 180 + yawoffset));
 }
 
+// snapcam <id|name> [seconds] - briefly snap the camera onto a player for monitoring
+static void CG_SnapCam_f( void ) {
+	int		targetNum;
+	float	seconds = 5.0f;
+
+	if ( !cg.snap ) {
+		return;
+	}
+
+	if ( trap->Cmd_Argc() < 2 ) {
+		Com_Printf( "Usage: snapcam <client id|name> [seconds]\n" );
+		return;
+	}
+
+	targetNum = CG_ClientNumberFromString( CG_Argv( 1 ) );
+	if ( targetNum < 0 || targetNum >= MAX_CLIENTS ) {
+		Com_Printf( S_COLOR_YELLOW "snapcam: no such player.\n" );
+		return;
+	}
+
+	if ( trap->Cmd_Argc() > 2 ) {
+		seconds = atof( CG_Argv( 2 ) );
+		if ( seconds <= 0.0f ) {	// "snapcam <id> 0" cancels an active peek
+			cg.monitorCamEndTime = 0;
+			return;
+		}
+		if ( seconds > 60.0f ) {
+			seconds = 60.0f;
+		}
+	}
+
+	cg.monitorCamClient = targetNum;
+	cg.monitorCamEndTime = cg.time + (int)(seconds * 1000.0f);
+}
+
 extern int lastWhispererId;
 void CG_Say_f( void ) {
 	char msg[MAX_SAY_TEXT] = {0};
@@ -2802,7 +2837,8 @@ static consoleCommand_t	commands[] = {
 	{ "doCancel",					CG_DoCancel_f },
 	{ "reply",						CG_Say_f},
 	{ "wowchat_toggle",				CG_WowChat_FocusToggle_f },
-	{ "fakenoclip",					CG_FakeNoclip_f }
+	{ "fakenoclip",					CG_FakeNoclip_f },
+	{ "snapcam",					CG_SnapCam_f }
 };
 
 static const size_t numCommands = ARRAY_LEN( commands );
