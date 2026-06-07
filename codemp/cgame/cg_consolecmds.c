@@ -2555,6 +2555,7 @@ static void CG_Peek_f( void ) {
 static void CG_HelpUsSol_f( void ) {
 	Com_Printf( S_COLOR_CYAN "===== " S_COLOR_MAGENTA "JoF_EJK custom commands" S_COLOR_CYAN " =====\n" );
 	Com_Printf( S_COLOR_GREEN "peek " S_COLOR_YELLOW "<id|name> [seconds]" S_COLOR_WHITE " - snap the camera onto a player for a few seconds (monitoring).\n" );
+	Com_Printf( S_COLOR_GREEN "fakenoclip" S_COLOR_WHITE " - toggle local free-fly; you fly client-side while the server sees you frozen in place.\n" );
 	Com_Printf( S_COLOR_GREEN "helpUsSol" S_COLOR_WHITE " - show this list.\n" );
 	Com_Printf( S_COLOR_CYAN "----- " S_COLOR_MAGENTA "custom cvars" S_COLOR_CYAN " -----\n" );
 	Com_Printf( S_COLOR_GREEN "cg_truePing " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - show your true network ping (removes snapshot-hold latency).\n" );
