@@ -2516,8 +2516,8 @@ static void CG_TeleToPlayer_f(void) {
 		newPos[0], newPos[1], newPos[2], cent->lerpAngles[YAW] + 180 + yawoffset));
 }
 
-// snapcam <id|name> [seconds] - briefly snap the camera onto a player for monitoring
-static void CG_SnapCam_f( void ) {
+// peek <id|name> [seconds] - briefly snap the camera onto a player for monitoring
+static void CG_Peek_f( void ) {
 	int		targetNum;
 	float	seconds = 5.0f;
 
@@ -2526,19 +2526,19 @@ static void CG_SnapCam_f( void ) {
 	}
 
 	if ( trap->Cmd_Argc() < 2 ) {
-		Com_Printf( "Usage: snapcam <client id|name> [seconds]\n" );
+		Com_Printf( "Usage: peek <client id|name> [seconds]\n" );
 		return;
 	}
 
 	targetNum = CG_ClientNumberFromString( CG_Argv( 1 ) );
 	if ( targetNum < 0 || targetNum >= MAX_CLIENTS ) {
-		Com_Printf( S_COLOR_YELLOW "snapcam: no such player.\n" );
+		Com_Printf( S_COLOR_YELLOW "peek: no such player.\n" );
 		return;
 	}
 
 	if ( trap->Cmd_Argc() > 2 ) {
 		seconds = atof( CG_Argv( 2 ) );
-		if ( seconds <= 0.0f ) {	// "snapcam <id> 0" cancels an active peek
+		if ( seconds <= 0.0f ) {	// "peek <id> 0" cancels an active peek
 			cg.monitorCamEndTime = 0;
 			return;
 		}
@@ -2549,6 +2549,19 @@ static void CG_SnapCam_f( void ) {
 
 	cg.monitorCamClient = targetNum;
 	cg.monitorCamEndTime = cg.time + (int)(seconds * 1000.0f);
+}
+
+// helpUsSol - list the custom client features/commands added in this fork
+static void CG_HelpUsSol_f( void ) {
+	Com_Printf( S_COLOR_CYAN "===== " S_COLOR_MAGENTA "JoF_EJK custom commands" S_COLOR_CYAN " =====\n" );
+	Com_Printf( S_COLOR_GREEN "peek " S_COLOR_YELLOW "<id|name> [seconds]" S_COLOR_WHITE " - snap the camera onto a player for a few seconds (monitoring).\n" );
+	Com_Printf( S_COLOR_GREEN "helpUsSol" S_COLOR_WHITE " - show this list.\n" );
+	Com_Printf( S_COLOR_CYAN "----- " S_COLOR_MAGENTA "custom cvars" S_COLOR_CYAN " -----\n" );
+	Com_Printf( S_COLOR_GREEN "cg_truePing " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - show your true network ping (removes snapshot-hold latency).\n" );
+	Com_Printf( S_COLOR_GREEN "cg_sharpHud " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - render HUD numbers/FPS/timer with a crisp scalable font.\n" );
+	Com_Printf( S_COLOR_GREEN "cg_wowChat " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - WoW-style tabbed chat window (toggle focus with " S_COLOR_GREEN "wowchat_toggle" S_COLOR_WHITE ").\n" );
+	Com_Printf( S_COLOR_GREEN "in_noAltF4 " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - block Alt+F4 from closing the game.\n" );
+	Com_Printf( S_COLOR_CYAN "================================\n" );
 }
 
 extern int lastWhispererId;
@@ -2838,7 +2851,8 @@ static consoleCommand_t	commands[] = {
 	{ "reply",						CG_Say_f},
 	{ "wowchat_toggle",				CG_WowChat_FocusToggle_f },
 	{ "fakenoclip",					CG_FakeNoclip_f },
-	{ "snapcam",					CG_SnapCam_f }
+	{ "peek",						CG_Peek_f },
+	{ "helpUsSol",					CG_HelpUsSol_f }
 };
 
 static const size_t numCommands = ARRAY_LEN( commands );

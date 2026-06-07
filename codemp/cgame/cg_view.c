@@ -1778,7 +1778,7 @@ static int CG_CalcViewValues( void ) {
 		return CG_CalcFov();
 	}
 
-	// snapcam: briefly snap the camera onto another player for monitoring
+	// peek: briefly snap the camera onto another player for monitoring
 	if ( cg.monitorCamEndTime > cg.time
 		&& cg.monitorCamClient >= 0 && cg.monitorCamClient < MAX_CLIENTS )
 	{

@@ -1395,7 +1395,7 @@ Ghoul2 Insert End
 	fileHandle_t		strafeTrailFileHandle;
 	float				predictedTimeFrac;	// frameInterpolation * (next->commandTime - prev->commandTime)
 
-	// snapcam: temporarily snap the camera onto another player for monitoring
+	// peek: temporarily snap the camera onto another player for monitoring
 	int					monitorCamClient;	// client we're peeking at
 	int					monitorCamEndTime;	// cg.time at which the peek ends (0 = inactive)
 
