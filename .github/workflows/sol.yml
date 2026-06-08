@@ -1,11 +1,11 @@
 name: build-sol
 
-# Builds the 🦊Sol branch on every push and uploads zipped artifacts.
-# No tags / releases are created - just downloadable build artifacts you can
-# grab from the run's "Summary" page under "Artifacts".
+# Builds the 🦊Sol branch on every push, uploads zipped artifacts, and
+# publishes them to a single rolling "sol-latest" prerelease so they can be
+# shared with a public download link (no GitHub account needed to download).
 
 permissions:
-  contents: read
+  contents: write
 
 on:
   push:
@@ -235,3 +235,44 @@ jobs:
           name: JoF-Sol-macos-${{ matrix.arch }}
           path: ${{ github.workspace }}/JoF-Sol-macos-${{ matrix.arch }}.tar.gz
           if-no-files-found: error
+
+  # =========================
+  # Publish rolling "sol-latest" prerelease
+  # =========================
+  publish:
+    name: Publish sol-latest release
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Package downloads
+        run: |
+          # Windows artifacts are folders -> zip them up.
+          zip -r JoF-Sol-windows-x86.zip    JoF-Sol-windows-x86
+          zip -r JoF-Sol-windows-x86_64.zip JoF-Sol-windows-x86_64
+          # Linux/macOS are already tar.gz inside their artifact folders.
+          mv JoF-Sol-linux-x86/JoF-Sol-linux-x86.tar.gz       JoF-Sol-linux-x86.tar.gz
+          mv JoF-Sol-linux-x86_64/JoF-Sol-linux-x86_64.tar.gz JoF-Sol-linux-x86_64.tar.gz
+          mv JoF-Sol-macos-x86_64/JoF-Sol-macos-x86_64.tar.gz JoF-Sol-macos-x86_64.tar.gz
+          mv JoF-Sol-macos-arm64/JoF-Sol-macos-arm64.tar.gz   JoF-Sol-macos-arm64.tar.gz
+
+      - name: Update sol-latest prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: sol-latest
+          name: "🦊Sol (latest dev build)"
+          prerelease: true
+          body: |
+            Automated build of the `🦊Sol` branch.
+            Updated on every push - always the newest commit.
+
+            Commit: ${{ github.sha }}
+          files: |
+            JoF-Sol-windows-x86.zip
+            JoF-Sol-windows-x86_64.zip
+            JoF-Sol-linux-x86.tar.gz
+            JoF-Sol-linux-x86_64.tar.gz
+            JoF-Sol-macos-x86_64.tar.gz
+            JoF-Sol-macos-arm64.tar.gz
