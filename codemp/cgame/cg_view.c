@@ -3181,7 +3181,18 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 		CG_AddTestModel();
 	}
 	cg.refdef.time = cg.time;
-	memcpy( cg.refdef.areamask, cg.snap->areamask, sizeof( cg.refdef.areamask ) );
+	if ( cg_fakeNoclip.integer ) {
+		// Client-side fake noclip: the snapshot's areamask culls any map area
+		// separated from our frozen body by a closed areaportal (doors/dividers),
+		// so sealed rooms won't render even as we fly right up to them. A set bit
+		// means "area not visible" (see R_MarkLeaves), so zeroing the mask makes the
+		// renderer draw every area - letting us explore the whole map. (PVS cluster
+		// culling from the flying camera still applies; this only lifts the dynamic
+		// areaportal cull keyed to where the server thinks we're standing.)
+		memset( cg.refdef.areamask, 0, sizeof( cg.refdef.areamask ) );
+	} else {
+		memcpy( cg.refdef.areamask, cg.snap->areamask, sizeof( cg.refdef.areamask ) );
+	}
 
 	// warning sounds when powerup is wearing off
 	CG_PowerupTimerSounds();
