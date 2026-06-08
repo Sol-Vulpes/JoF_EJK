@@ -5649,15 +5649,18 @@ static void CG_RunTimedForceAnimFX( centity_t *cent, clientInfo_t *ci )
 		return;
 	}
 
-	if (cent->currentState.torsoAnim == BOTH_FORCE_RAGE)
+	if (cent->currentState.torsoAnim == BOTH_FORCE_RAGE &&
+		cent->currentState.legsAnim == BOTH_FORCE_RAGE)
 	{
 		fxType = 1;
 	}
-	else if (cent->currentState.torsoAnim == BOTH_FORCEHEAL_START)
+	else if (cent->currentState.torsoAnim == BOTH_FORCEHEAL_START &&
+		cent->currentState.legsAnim == BOTH_FORCEHEAL_START)
 	{
 		fxType = 2;
 	}
-	else if (cent->currentState.torsoAnim == BOTH_FORCEHEAL_QUICK)
+	else if (cent->currentState.torsoAnim == BOTH_FORCEHEAL_QUICK &&
+		cent->currentState.legsAnim == BOTH_FORCEHEAL_QUICK)
 	{
 		fxType = 3;
 	}
