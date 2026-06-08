@@ -1,0 +1,237 @@
+name: build-sol
+
+# Builds the 🦊Sol branch on every push and uploads zipped artifacts.
+# No tags / releases are created - just downloadable build artifacts you can
+# grab from the run's "Summary" page under "Artifacts".
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - "🦊Sol"
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+      - "docs/**"
+  # Allow running it by hand from the Actions tab (on any branch you pick).
+  workflow_dispatch:
+
+jobs:
+  # =========================
+  # Windows (x86 + x86_64)
+  # =========================
+  windows:
+    name: Windows ${{ matrix.arch }}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86
+            platform: Win32
+          - arch: x86_64
+            platform: x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Download Sunny's Vulkan DLL (optional)
+        id: vulkan
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p external
+          if [ "${{ matrix.arch }}" = "x86" ]; then
+            ZIP_NAME=EternalJK-windows-x86.zip
+            DLL_NAME=rd-vulkan_x86.dll
+          else
+            ZIP_NAME=EternalJK-windows-x86_64.zip
+            DLL_NAME=rd-vulkan_x86_64.dll
+          fi
+          curl -fL -o external/$ZIP_NAME \
+            https://github.com/JKSunny/EternalJK/releases/download/latest/$ZIP_NAME
+          unzip -j external/$ZIP_NAME "$DLL_NAME" -d external
+          echo "RD_VULKAN_DLL=${{ github.workspace }}/external/$DLL_NAME" >> $GITHUB_ENV
+
+      - name: Create build directory
+        run: cmake -E make_directory build
+
+      - name: Configure CMake
+        working-directory: ${{ github.workspace }}/build
+        shell: bash
+        run: |
+          OPTIONS=(
+            -A ${{ matrix.platform }}
+            -DCMAKE_INSTALL_PREFIX=bin
+            -DCMAKE_BUILD_TYPE=Release
+            -DJOF_VERSION_SUFFIX=" Sol"
+            -DGIT_SHA=${{ github.sha }}
+            -DGIT_BRANCH=${{ github.ref_name }}
+          )
+          # Only pass the Vulkan DLL if the optional download above succeeded.
+          if [ -n "${RD_VULKAN_DLL:-}" ] && [ -f "${RD_VULKAN_DLL}" ]; then
+            OPTIONS+=(-DEXTERNAL_RD_VULKAN_DLL="$RD_VULKAN_DLL")
+          fi
+          cmake .. "${OPTIONS[@]}"
+
+      - name: Build
+        working-directory: ${{ github.workspace }}/build
+        shell: bash
+        run: cmake --build . --config Release -j $NUMBER_OF_PROCESSORS
+
+      - name: Install
+        working-directory: ${{ github.workspace }}/build
+        shell: bash
+        run: cmake --install . --config Release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JoF-Sol-windows-${{ matrix.arch }}
+          path: build/bin
+          if-no-files-found: error
+
+  # =========================
+  # Linux (x86 + x86_64)
+  # =========================
+  linux:
+    name: Linux ${{ matrix.arch }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86, x86_64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.arch }}" = "x86" ]; then
+            sudo dpkg --add-architecture i386
+            sudo apt-get -qq update
+            sudo apt-get -y install gcc-multilib g++-multilib libjpeg-dev:i386 libpng-dev:i386 zlib1g-dev:i386 libsdl2-dev:i386
+          else
+            sudo apt-get -qq update
+            sudo apt-get -y install libjpeg-dev libpng-dev zlib1g-dev libsdl2-dev
+          fi
+
+      - name: Create build directory
+        run: cmake -E make_directory build
+
+      - name: Configure CMake
+        working-directory: ${{ github.workspace }}/build
+        shell: bash
+        run: |
+          OPTIONS=(
+            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install
+            -DUseInternalLibs=OFF
+            -DBuildPortableVersion=OFF
+            -DJOF_VERSION_SUFFIX=" Sol"
+            -DGIT_SHA=${{ github.sha }}
+            -DGIT_BRANCH=${{ github.ref_name }}
+          )
+          if [ "${{ matrix.arch }}" = "x86" ]; then
+            OPTIONS+=(-DCMAKE_TOOLCHAIN_FILE=cmake/Toolchains/linux-i686.cmake)
+          fi
+          cmake $GITHUB_WORKSPACE "${OPTIONS[@]}"
+
+      - name: Build
+        working-directory: ${{ github.workspace }}/build
+        shell: bash
+        run: cmake --build . -j $(nproc)
+
+      - name: Install
+        working-directory: ${{ github.workspace }}/build
+        shell: bash
+        run: cmake --install .
+
+      # tar.gz preserves the executable bit (GitHub artifact zips do not).
+      - name: Create binary archive
+        working-directory: ${{ github.workspace }}/install/JediAcademy
+        shell: bash
+        run: tar -czvf ${{ github.workspace }}/JoF-Sol-linux-${{ matrix.arch }}.tar.gz *
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JoF-Sol-linux-${{ matrix.arch }}
+          path: ${{ github.workspace }}/JoF-Sol-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  # =========================
+  # macOS (x86_64 + arm64)
+  # =========================
+  macos:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: macos-15-intel
+            cmake_extra: ""
+          - arch: arm64
+            runner: macos-15
+            cmake_extra: "-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_SYSTEM_PROCESSOR=arm64"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install dependencies
+        run: |
+          brew install sdl2
+          cmake -E make_directory build
+
+      - name: Configure CMake
+        working-directory: ${{ github.workspace }}/build
+        shell: bash
+        run: |
+          cmake $GITHUB_WORKSPACE ${{ matrix.cmake_extra }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install \
+            -DUseInternalLibs=OFF \
+            -DBuildPortableVersion=OFF \
+            -DJOF_VERSION_SUFFIX=" Sol" \
+            -DGIT_SHA=${{ github.sha }} \
+            -DGIT_BRANCH=${{ github.ref_name }}
+
+      - name: Build
+        working-directory: ${{ github.workspace }}/build
+        shell: bash
+        run: cmake --build . -j $(sysctl -n hw.ncpu)
+
+      - name: Install
+        working-directory: ${{ github.workspace }}/build
+        shell: bash
+        run: cmake --install .
+
+      - name: Create binary archive
+        working-directory: ${{ github.workspace }}/install/JediAcademy
+        shell: bash
+        run: |
+          chmod +x eternaljk.${{ matrix.arch }}.app/Contents/MacOS/eternaljk.${{ matrix.arch }}
+          tar -czvf ${{ github.workspace }}/JoF-Sol-macos-${{ matrix.arch }}.tar.gz *
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JoF-Sol-macos-${{ matrix.arch }}
+          path: ${{ github.workspace }}/JoF-Sol-macos-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
