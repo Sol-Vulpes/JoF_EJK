@@ -8892,6 +8892,11 @@ void CG_G2AnimEntModelLoad(centity_t *cent)
 
 					cent->localAnimIndex = BG_ParseAnimationFile(GLAName, NULL, qfalse);
 				}
+				//custom skeleton - register hand bolts if they exist so
+				//weapons can attach to the correct position (e.g. hazardtrooper)
+				trap->G2API_AddBolt(cent->ghoul2, 0, "*r_hand");
+				trap->G2API_AddBolt(cent->ghoul2, 0, "*l_hand");
+				trap->G2API_AddBolt(cent->ghoul2, 0, "*chestg");
 			}
 			else
 			{ //humanoid index.
@@ -11138,7 +11143,16 @@ void CG_Player( centity_t *cent ) {
 	}
 
 	if (cent->ghoul2 &&
-		(cent->currentState.eType != ET_NPC || (cent->currentState.NPC_class != CLASS_VEHICLE&&cent->currentState.NPC_class != CLASS_REMOTE&&cent->currentState.NPC_class != CLASS_SEEKER)) && //don't add weapon models to NPCs that have no bolt for them!
+		(cent->currentState.eType != ET_NPC || (cent->currentState.NPC_class != CLASS_VEHICLE && 
+			cent->currentState.NPC_class != CLASS_REMOTE && 
+			cent->currentState.NPC_class != CLASS_SEEKER &&
+			!strstr(CG_ConfigString(CS_MODELS + cent->currentState.modelindex), "assassin_droid") &&
+			!strstr(CG_ConfigString(CS_MODELS + cent->currentState.modelindex), "atst") &&
+			!strstr(CG_ConfigString(CS_MODELS + cent->currentState.modelindex), "atdp") &&
+			!strstr(CG_ConfigString(CS_MODELS + cent->currentState.modelindex), "atpt") &&
+			!strstr(CG_ConfigString(CS_MODELS + cent->currentState.modelindex), "atxt") &&
+			!strstr(CG_ConfigString(CS_MODELS + cent->currentState.modelindex), "droideka") &&
+			!strstr(CG_ConfigString(CS_MODELS + cent->currentState.modelindex), "galak_mech"))) && //don't add weapon models to NPCs that have no bolt for them!		
 		cent->ghoul2weapon != CG_G2WeaponInstance(cent, cent->currentState.weapon) &&
 		!(cent->currentState.eFlags & EF_DEAD) && !cent->torsoBolt &&
 		cg.snap && (cent->currentState.number != cg.snap->ps.clientNum || (cg.snap->ps.pm_flags & PMF_FOLLOW)))
