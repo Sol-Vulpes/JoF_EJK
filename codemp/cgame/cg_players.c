@@ -12043,15 +12043,11 @@ skipTrail:
 					cent->flameThrowerSndActive = qfalse;
 					trap->S_MuteSound(cent->currentState.number, CHAN_WEAPON);
 				}
-<<<<<<< Updated upstream
-	//fullbody push effect
-	if (cent->currentState.eFlags & EF_BODYPUSH)
-=======
+
 	//fullbody push effect - don't render it for anyone while the local player is zoomed (keeps the scope view clean)
 	if ((cent->currentState.eFlags & EF_BODYPUSH) &&
 		forceFXVisible &&
 		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.predictedPlayerState.clientNum))
->>>>>>> Stashed changes
 	{
 		CG_ForcePushBodyBlur(cent);
 	}
