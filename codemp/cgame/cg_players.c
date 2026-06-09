@@ -12023,14 +12023,14 @@ skipTrail:
 				}
 	//fullbody push effect - don't render it for anyone while the local player is zoomed (keeps the scope view clean)
 	if ((cent->currentState.eFlags & EF_BODYPUSH) &&
-		!(cg.predictedPlayerState.zoomMode && cent->currentState.number == cg.predictedPlayerState.clientNum))
+		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.predictedPlayerState.clientNum))
 	{
 		CG_ForcePushBodyBlur(cent);
 	}
 
 
 	if (cent->currentState.legsAnim == BOTH_CHOKE3 &&
-		!(cg.predictedPlayerState.zoomMode && cent->currentState.number == cg.predictedPlayerState.clientNum))
+		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.predictedPlayerState.clientNum))
 	{
 		vec3_t efOrg;
 		vec3_t chokeFwd;
