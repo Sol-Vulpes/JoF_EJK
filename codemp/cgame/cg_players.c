@@ -12070,7 +12070,8 @@ skipTrail:
 	}
 
 
-	if (cent->currentState.legsAnim == BOTH_CHOKE3)
+	if (cent->currentState.legsAnim == BOTH_CHOKE3 &&
+		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.predictedPlayerState.clientNum))
 	{
 		vec3_t efOrg;
 		vec3_t chokeFwd;
