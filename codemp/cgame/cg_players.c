@@ -10720,7 +10720,13 @@ void CG_Player( centity_t *cent ) {
 
 	if ((cent->currentState.eFlags & EF_JETPACK) && !(cent->currentState.eFlags & EF_DEAD) &&
 		cg_g2JetpackInstance)
-	{ //should have a jetpack attached
+	{
+		qboolean jetpackVisible = !CG_IsMindTricked(cent->currentState.trickedentindex,
+			cent->currentState.trickedentindex2,
+			cent->currentState.trickedentindex3,
+			cent->currentState.trickedentindex4,
+			cg.snap->ps.clientNum);
+
 		//1 is rhand weap, 2 is lhand weap (akimbo sabs), 3 is jetpack
 		if (!trap->G2API_HasGhoul2ModelOnIndex(&(cent->ghoul2), 3))
 		{
@@ -10754,39 +10760,46 @@ void CG_Player( centity_t *cent ) {
 					VectorMA(flamePos, -13.5f, flameDir, flamePos);
 				}
 
-				if (cent->currentState.eFlags & EF_JETPACK_FLAMING)
-				{ //create effects
-					//FIXME: Just one big effect
-					//Play the effect
-					trap->FX_PlayEffectID(cgs.effects.mBobaJet, flamePos, flameDir, -1, -1, qfalse);
-					trap->FX_PlayEffectID(cgs.effects.mBobaJet, flamePos, flameDir, -1, -1, qfalse);
+				if (jetpackVisible)
+				{
+					if (cent->currentState.eFlags & EF_JETPACK_FLAMING)
+					{ //create effects
+						//FIXME: Just one big effect
+						//Play the effect
+						trap->FX_PlayEffectID(cgs.effects.mBobaJet, flamePos, flameDir, -1, -1, qfalse);
+						trap->FX_PlayEffectID(cgs.effects.mBobaJet, flamePos, flameDir, -1, -1, qfalse);
 
-					//Keep the jet fire sound looping
-					trap->S_AddLoopingSound( cent->currentState.number, cent->lerpOrigin, vec3_origin,
-						trap->S_RegisterSound( "sound/effects/fire_lp" ) );
-				}
-				else
-				{ //just idling
-					//FIXME: Different smaller effect for idle
-					//Play the effect
-					trap->FX_PlayEffectID(cgs.effects.mBobaJet, flamePos, flameDir, -1, -1, qfalse);
+						//Keep the jet fire sound looping
+						trap->S_AddLoopingSound( cent->currentState.number, cent->lerpOrigin, vec3_origin,
+							trap->S_RegisterSound( "sound/effects/fire_lp" ) );
+					}
+					else
+					{ //just idling
+						//FIXME: Different smaller effect for idle
+						//Play the effect
+						trap->FX_PlayEffectID(cgs.effects.mBobaJet, flamePos, flameDir, -1, -1, qfalse);
+					}
 				}
 
 				n++;
 			}
 
-			if (!cent->hasPlayedJetpackSounds)
+			if (jetpackVisible)
 			{
-				trap->S_StartSound (cent->lerpOrigin, 0, CHAN_LOCAL, cg_jetpackOnSound.integer <= 1 ? cgs.media.jetpackOnSound : cgs.media.jetpackOn2Sound );
-				cent->hasPlayedJetpackSounds = qtrue;
-			}
+				if (!cent->hasPlayedJetpackSounds)
+				{
+					trap->S_StartSound (cent->lerpOrigin, 0, CHAN_LOCAL, cg_jetpackOnSound.integer <= 1 ? cgs.media.jetpackOnSound : cgs.media.jetpackOn2Sound );
+					cent->hasPlayedJetpackSounds = qtrue;
+				}
 
-			trap->S_AddLoopingSound( cent->currentState.number, cent->lerpOrigin, vec3_origin,
-				cg_jetpackHoverSound.integer <= 1 ? cgs.media.jetpackHoverSound : cgs.media.jetpackHover2Sound );
+				trap->S_AddLoopingSound( cent->currentState.number, cent->lerpOrigin, vec3_origin,
+					cg_jetpackHoverSound.integer <= 1 ? cgs.media.jetpackHoverSound : cgs.media.jetpackHover2Sound );
+			}
 		}
 		else if (cent->hasPlayedJetpackSounds && !(cent->currentState.eFlags & EF_JETPACK_ACTIVE))
 		{
-			trap->S_StartSound (cent->lerpOrigin, 0, CHAN_LOCAL, cgs.media.jetpackOffSound );
+			if (jetpackVisible)
+				trap->S_StartSound (cent->lerpOrigin, 0, CHAN_LOCAL, cgs.media.jetpackOffSound );
 			cent->hasPlayedJetpackSounds = qfalse;
 		}
 	}
@@ -11870,14 +11883,22 @@ skipTrail:
 	{ //keep track of death anim frame for when we copy off the bodyqueue
 		ci->frame = cent->pe.torso.frame;
 	}
-
-	CG_RunTimedForceAnimFX(cent, ci);
-
 				
+	qboolean forceFXVisible = !CG_IsMindTricked(cent->currentState.trickedentindex,
+		cent->currentState.trickedentindex2,
+		cent->currentState.trickedentindex3,
+		cent->currentState.trickedentindex4,
+		cg.snap->ps.clientNum);
+
+	if (forceFXVisible)
+		CG_RunTimedForceAnimFX(cent, ci);
+
+
 	qboolean stopFlameThrowerSnd = qtrue;
 				
 	if (cent->currentState.activeForcePass > FORCE_LEVEL_3
-		&& cent->currentState.NPC_class != CLASS_VEHICLE)
+		&& cent->currentState.NPC_class != CLASS_VEHICLE
+		&& forceFXVisible)
 	{
 		matrix3_t axis;
 		vec3_t tAng, fAng, fxDir;
@@ -11940,7 +11961,8 @@ skipTrail:
 		*/
 	}
 	else if ( cent->currentState.activeForcePass
-		&& cent->currentState.NPC_class != CLASS_VEHICLE)
+		&& cent->currentState.NPC_class != CLASS_VEHICLE
+		&& forceFXVisible)
 	{//doing the electrocuting
 		matrix3_t axis;
 		vec3_t tAng, fAng, fxDir;
@@ -12021,8 +12043,15 @@ skipTrail:
 					cent->flameThrowerSndActive = qfalse;
 					trap->S_MuteSound(cent->currentState.number, CHAN_WEAPON);
 				}
+<<<<<<< Updated upstream
 	//fullbody push effect
 	if (cent->currentState.eFlags & EF_BODYPUSH)
+=======
+	//fullbody push effect - don't render it for anyone while the local player is zoomed (keeps the scope view clean)
+	if ((cent->currentState.eFlags & EF_BODYPUSH) &&
+		forceFXVisible &&
+		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.predictedPlayerState.clientNum))
+>>>>>>> Stashed changes
 	{
 		CG_ForcePushBodyBlur(cent);
 	}
@@ -12109,7 +12138,8 @@ skipTrail:
 		efOrg[2] = lHandMatrix.matrix[2][3];
 
 		if ( (cent->currentState.forcePowersActive & (1 << FP_GRIP)) &&
-			(cg.renderingThirdPerson || cent->currentState.number != cg.snap->ps.clientNum) )
+			(cg.renderingThirdPerson || cent->currentState.number != cg.snap->ps.clientNum) &&
+			forceFXVisible )
 		{
 			vec3_t boltDir;
 			vec3_t origBolt;
@@ -12203,7 +12233,7 @@ skipTrail:
 			}
 			*/
 		}
-		else if (!(cent->currentState.forcePowersActive & (1 << FP_GRIP)))
+		else if (!(cent->currentState.forcePowersActive & (1 << FP_GRIP)) && forceFXVisible)
 		{
 			//use refractive effect
 			CG_ForcePushBlur( efOrg, cent );
