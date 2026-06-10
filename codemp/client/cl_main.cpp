@@ -1787,7 +1787,9 @@ void CL_InitDownloads(void) {
 		if ( *clc.downloadList ) {
 			const char *serverInfo = cl.gameState.stringData + cl.gameState.stringOffsets[ CS_SERVERINFO ];
 			if ( !atoi( Info_ValueForKey( serverInfo, "sv_allowDownload" ) ) ) {
-				Com_Error( ERR_DROP, "Server does not allow file downloads (sv_allowDownload 0).\nYou are missing required files:\n%s", clc.downloadList );
+				// Server doesn't allow downloads — behave as if cl_allowDownload were 0
+				Com_Printf( "\nWARNING: Server does not allow file downloads (sv_allowDownload 0).\nYou might not be able to join the game\nYou are missing required files:\n%s\n", clc.downloadList );
+				CL_DownloadsComplete();
 				return;
 			}
 
