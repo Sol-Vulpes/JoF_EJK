@@ -1395,7 +1395,12 @@ void CG_PredictPlayerState( void ) {
 				len = VectorLength( delta );
 				if ( len > 0.1 ) {
 					if ( cg_showMiss.integer ) {
-						trap->Print("Prediction miss: %f\n", len);
+						// dump the snapshot anim state too, to identify states (e.g. JA+
+						// knockdown get-ups) that slip past the knockdown prediction gate
+						trap->Print("Prediction miss: %f (legsAnim %d legsTimer %d torsoAnim %d torsoTimer %d fhe %d pm_type %d)\n",
+							len, cg.snap->ps.legsAnim, cg.snap->ps.legsTimer,
+							cg.snap->ps.torsoAnim, cg.snap->ps.torsoTimer,
+							cg.snap->ps.forceHandExtend, cg.snap->ps.pm_type);
 					}
 					if ( cg_errorDecay.integer ) {
 						int		t;
