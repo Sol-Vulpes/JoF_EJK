@@ -1065,6 +1065,27 @@ static qboolean CG_InKnockDownState( playerState_t *ps )
 	{
 		return qtrue;
 	}
+	// JA+ kicks use these custom falling/get-up anims (seen with fhe already
+	// cleared); BG_InKnockDown only counts them on JA Pro servers, so handle
+	// them here explicitly.
+	switch ( ps->legsAnim )
+	{
+	case BOTH_BACK_FALLING:
+	case BOTH_BACK_FALLING_GETUP:
+	case BOTH_BACK_FALLING_GETUP_SLOW:
+		return qtrue;
+	default:
+		break;
+	}
+	switch ( ps->torsoAnim )
+	{
+	case BOTH_BACK_FALLING:
+	case BOTH_BACK_FALLING_GETUP:
+	case BOTH_BACK_FALLING_GETUP_SLOW:
+		return qtrue;
+	default:
+		break;
+	}
 	return qfalse;
 }
 
