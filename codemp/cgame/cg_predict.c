@@ -1042,6 +1042,31 @@ static QINLINE int FindGrappleHook( int clientNum ) {
 #endif
 
 extern qboolean PM_InKnockDown( playerState_t *ps ); //bg_panimate.c
+extern qboolean BG_InKnockDown( int anim ); //bg_pmove.c
+
+// True from the moment we're knocked down until the get-up animation has fully
+// played out. PM_InKnockDown alone isn't enough: JA+ can play the get-up on the
+// torso channel while the legs are already free, so check both channels.
+static qboolean CG_InKnockDownState( playerState_t *ps )
+{
+	if ( ps->forceHandExtend == HANDEXTEND_KNOCKDOWN )
+	{
+		return qtrue;
+	}
+	if ( PM_InKnockDown( ps ) )
+	{
+		return qtrue;
+	}
+	if ( BG_InKnockDown( ps->legsAnim ) && ps->legsTimer > 0 )
+	{
+		return qtrue;
+	}
+	if ( BG_InKnockDown( ps->torsoAnim ) && ps->torsoTimer > 0 )
+	{
+		return qtrue;
+	}
+	return qfalse;
+}
 
 void CG_PredictPlayerState( void ) {
 	int			cmdNum, current, i;
@@ -1093,9 +1118,7 @@ void CG_PredictPlayerState( void ) {
 	// and the constant error corrections make the camera stutter. We can't actually
 	// move during the knockdown anyway, so prediction buys nothing there: fall back to
 	// snapshot interpolation (cg_noPredict behavior) until we're back on our feet.
-	if ( cgs.serverMod == SVMOD_JAPLUS
-		&& ( cg.snap->ps.forceHandExtend == HANDEXTEND_KNOCKDOWN
-			|| PM_InKnockDown( &cg.snap->ps ) ) )
+	if ( cgs.serverMod == SVMOD_JAPLUS && CG_InKnockDownState( &cg.snap->ps ) )
 	{
 		CG_InterpolatePlayerState( qtrue );
 		if (CG_Piloting(cg.predictedPlayerState.m_iVehicleNum))
