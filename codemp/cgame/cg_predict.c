@@ -1041,6 +1041,8 @@ static QINLINE int FindGrappleHook( int clientNum ) {
 }
 #endif
 
+extern qboolean PM_InKnockDown( playerState_t *ps ); //bg_panimate.c
+
 void CG_PredictPlayerState( void ) {
 	int			cmdNum, current, i;
 	playerState_t	oldPlayerState;
@@ -1078,6 +1080,23 @@ void CG_PredictPlayerState( void ) {
 
 	// non-predicting local movement will grab the latest angles
 	if ( cg_noPredict.integer || g_synchronousClients.integer || CG_UsingEWeb() ) {
+		CG_InterpolatePlayerState( qtrue );
+		if (CG_Piloting(cg.predictedPlayerState.m_iVehicleNum))
+		{
+			CG_InterpolateVehiclePlayerState(qtrue);
+		}
+		return;
+	}
+
+	// JA+ kick knockdowns: the server runs its own knockdown/get-up rules that our
+	// bg_pmove doesn't replicate, so while we're down every movement input mispredicts
+	// and the constant error corrections make the camera stutter. We can't actually
+	// move during the knockdown anyway, so prediction buys nothing there: fall back to
+	// snapshot interpolation (cg_noPredict behavior) until we're back on our feet.
+	if ( cgs.serverMod == SVMOD_JAPLUS
+		&& ( cg.snap->ps.forceHandExtend == HANDEXTEND_KNOCKDOWN
+			|| PM_InKnockDown( &cg.snap->ps ) ) )
+	{
 		CG_InterpolatePlayerState( qtrue );
 		if (CG_Piloting(cg.predictedPlayerState.m_iVehicleNum))
 		{
