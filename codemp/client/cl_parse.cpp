@@ -629,6 +629,15 @@ void CL_ParseGamestate( msg_t *msg ) {
 	// parse serverId and other cvars
 	CL_SystemInfoChanged();
 
+	// if the server offers extended snapshots, opt in so it may send us more
+	// than the vanilla 256 entities per snapshot before dropping any
+	if ( !clc.demoplaying && cl_extSnapshots->integer ) {
+		const char *extSnaps = Info_ValueForKey( cl.gameState.stringData + cl.gameState.stringOffsets[CS_SYSTEMINFO], "sv_extSnapshots" );
+		if ( atoi( extSnaps ) > MAX_SNAPSHOT_ENTITIES_VANILLA ) {
+			CL_AddReliableCommand( va( "extsnaps %i", MAX_ENTITIES_IN_SNAPSHOT ), qfalse );
+		}
+	}
+
 	// reinitialize the filesystem if the game directory has changed
 	if( FS_ConditionalRestart( clc.checksumFeed ) ) {
 		// don't set to true because we yet have to start downloading

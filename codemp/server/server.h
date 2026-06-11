@@ -200,6 +200,8 @@ typedef struct client_s {
 
 	demoInfo_t		demo;
 
+	int				maxSnapshotEntities;	// negotiated via the "extsnaps" opt-in; 0 = vanilla MAX_SNAPSHOT_ENTITIES_VANILLA
+
 #ifdef DEDICATED
 	qboolean		disableDuelCull;	//set for clients with "Duel see others" option set in cp_pluginDisable on JA+ servers
 	qboolean		jpPlugin;
@@ -310,6 +312,7 @@ extern	cvar_t	*sv_autoDemo;
 extern	cvar_t	*sv_autoDemoBots;
 extern	cvar_t	*sv_autoDemoMaxMaps;
 extern	cvar_t	*sv_legacyFixes;
+extern	cvar_t	*sv_extSnapshots;
 extern	cvar_t	*sv_banFile;
 extern	cvar_t	*sv_maxOOBRate;
 extern	cvar_t	*sv_maxOOBRateIP;

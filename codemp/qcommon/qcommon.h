@@ -125,7 +125,8 @@ NET
 
 #define	MAX_PACKET_USERCMDS		32		// max number of usercmd_t in a packet
 
-#define	MAX_SNAPSHOT_ENTITIES	256
+#define	MAX_SNAPSHOT_ENTITIES	512		// engine ceiling; must match MAX_ENTITIES_IN_SNAPSHOT in cg_public.h
+#define	MAX_SNAPSHOT_ENTITIES_VANILLA	256	// all an unmodified client can hold; never exceeded without the "extsnaps" opt-in
 
 #define	PORT_ANY			-1
 

@@ -1455,6 +1455,33 @@ static void SV_UpdateUserinfo_f( client_t *cl ) {
 	GVM_ClientUserinfoChanged( cl - svs.clients );
 }
 
+/*
+==================
+SV_ExtSnapshots_f
+
+Opt-in from modified clients whose snapshot buffers hold more than the
+vanilla 256 entities. The argument is the client's compiled-in capacity;
+never grant more than that, sv_extSnapshots, or our own ceiling. Vanilla
+clients never send this, so they always stay at the vanilla limit.
+==================
+*/
+static void SV_ExtSnapshots_f( client_t *cl ) {
+	int limit = atoi( Cmd_Argv( 1 ) );
+
+	if ( sv_extSnapshots->integer <= MAX_SNAPSHOT_ENTITIES_VANILLA || limit <= MAX_SNAPSHOT_ENTITIES_VANILLA ) {
+		cl->maxSnapshotEntities = 0;
+		return;
+	}
+
+	if ( limit > sv_extSnapshots->integer )
+		limit = sv_extSnapshots->integer;
+	if ( limit > MAX_SNAPSHOT_ENTITIES )
+		limit = MAX_SNAPSHOT_ENTITIES;
+
+	cl->maxSnapshotEntities = limit;
+	Com_DPrintf( "Client %i opted in to extended snapshots (%i entities)\n", (int)(cl - svs.clients), limit );
+}
+
 typedef struct ucmd_s {
 	const char	*name;
 	void	(*func)( client_t *cl );
@@ -1463,6 +1490,7 @@ typedef struct ucmd_s {
 static ucmd_t ucmds[] = {
 	{"userinfo", SV_UpdateUserinfo_f},
 	{"disconnect", SV_Disconnect_f},
+	{"extsnaps", SV_ExtSnapshots_f},
 	{"cp", SV_VerifyPaks_f},
 	{"vdr", SV_ResetPureClient_f},
 	{"download", SV_BeginDownload_f},

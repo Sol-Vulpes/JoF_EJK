@@ -32,7 +32,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // needs to be larger than PACKET_BACKUP
 
 
-#define	MAX_ENTITIES_IN_SNAPSHOT	256
+#define	MAX_ENTITIES_IN_SNAPSHOT	512	// must match MAX_SNAPSHOT_ENTITIES in qcommon.h (engine <-> cgame ABI: sizes snapshot_t)
 
 // snapshots are a view of the server at a given time
 

@@ -257,15 +257,19 @@ This benefits even vanilla clients (fewer dropped bolts within their 256).
 
 ## 10. Phased checklist
 
-- [ ] Phase 0: add `MAX_ENTITIES_IN_SNAPSHOT_VANILLA (256)` constant; replace
-      the literal `256` discard with the per-build cap field (still always 256).
-      No behavior change. Verify vanilla unaffected.
-- [ ] Phase 1: raise `MAX_SNAPSHOT_ENTITIES` + `MAX_ENTITIES_IN_SNAPSHOT` to the
-      new ceiling. Rebuild engine + cgame. Verify normal play (cap still 256 per
-      client via the gate).
-- [ ] Phase 2: add `client_t.extSnapshots` / `maxSnapshotEntities`, the
-      `sv_extSnapshots` cvar, and the `extsnaps` client-command handshake.
-- [ ] Phase 3: client-side systeminfo detection + auto `cmd extsnaps`.
+- [x] Phase 0: `MAX_SNAPSHOT_ENTITIES_VANILLA (256)` constant (qcommon.h);
+      discard check in `SV_AddEntToSnapshot` now uses the per-build cap field.
+- [x] Phase 1: ceiling raised to **512** (not 1024 — keeps the dedicated
+      snapshot ring allocation and worst-case snapshot size vs MAX_MSGLEN sane;
+      one pair of constants to raise later if ever needed).
+- [x] Phase 2: `client_t.maxSnapshotEntities` (0 = vanilla; single field, no
+      separate bool needed), `sv_extSnapshots` cvar (CVAR_SYSTEMINFO, default
+      0/off), `extsnaps` handler in ucmds. New connections always start zeroed
+      (`SV_DirectConnect` copies a memset temp), so slot reuse cannot leak the
+      opt-in to a vanilla client.
+- [x] Phase 3: client auto-opts-in at the end of `CL_ParseGamestate` when
+      systeminfo advertises `sv_extSnapshots` > 256 and `cl_extSnapshots`
+      (default 1) allows; sends `extsnaps <MAX_ENTITIES_IN_SNAPSHOT>`.
 - [ ] Phase 4 (optional): projectile-priority pass in
       `SV_AddEntitiesVisibleFromPoint`.
 - [ ] Phase 5: stress test, bandwidth check, demo/regression notes.

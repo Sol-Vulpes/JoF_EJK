@@ -308,6 +308,7 @@ Build a client snapshot structure
 
 typedef struct snapshotEntityNumbers_s {
 	int		numSnapshotEntities;
+	int		maxSnapshotEntities;	// per-client cap; vanilla clients can only hold MAX_SNAPSHOT_ENTITIES_VANILLA
 	int		snapshotEntities[MAX_SNAPSHOT_ENTITIES];
 } snapshotEntityNumbers_t;
 
@@ -347,7 +348,7 @@ static void SV_AddEntToSnapshot( svEntity_t *svEnt, sharedEntity_t *gEnt, snapsh
 	svEnt->snapshotCounter = sv.snapshotCounter;
 
 	// if we are full, silently discard entities
-	if ( eNums->numSnapshotEntities == MAX_SNAPSHOT_ENTITIES ) {
+	if ( eNums->numSnapshotEntities >= eNums->maxSnapshotEntities ) {
 		return;
 	}
 
@@ -605,6 +606,12 @@ static void SV_BuildClientSnapshot( client_t *client ) {
 
 	// clear everything in this snapshot
 	entityNumbers.numSnapshotEntities = 0;
+	// never exceed the vanilla limit unless this client opted in via "extsnaps"
+	if ( client->maxSnapshotEntities > MAX_SNAPSHOT_ENTITIES_VANILLA ) {
+		entityNumbers.maxSnapshotEntities = client->maxSnapshotEntities;
+	} else {
+		entityNumbers.maxSnapshotEntities = MAX_SNAPSHOT_ENTITIES_VANILLA;
+	}
 	Com_Memset( frame->areabits, 0, sizeof( frame->areabits ) );
 
 	frame->num_entities = 0;

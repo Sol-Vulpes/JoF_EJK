@@ -1011,6 +1011,9 @@ void SV_Init (void) {
 	sv_autoDemoBots = Cvar_Get( "sv_autoDemoBots", "0", CVAR_ARCHIVE_ND, "Record server-side demos for bots" );
 	sv_autoDemoMaxMaps = Cvar_Get( "sv_autoDemoMaxMaps", "0", CVAR_ARCHIVE_ND );
 
+	sv_extSnapshots = Cvar_Get( "sv_extSnapshots", "0", CVAR_SYSTEMINFO | CVAR_ARCHIVE, "Entities per snapshot offered to clients that opt in via the extsnaps command (0: vanilla 256 for everyone)" );
+	Cvar_CheckRange( sv_extSnapshots, 0, MAX_SNAPSHOT_ENTITIES, qtrue );
+
 #ifndef DEDICATED //Default this to off on client to avoid potential mod compatibility issues.
 	sv_legacyFixes = Cvar_Get( "sv_legacyFixes", "0", CVAR_ARCHIVE );
 #else
