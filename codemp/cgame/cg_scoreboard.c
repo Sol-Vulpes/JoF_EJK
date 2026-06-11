@@ -1049,7 +1049,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 	}
 
 	if (cg_showClientIDs.integer)
-		CG_Text_Paint(SB_ID_X, y, menuHeadersScale, colorWhite, "ID", 0, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM);
+		CG_Text_Paint(SB_ID_X, y, menuHeadersScale, colorWhite, "Id", 0, 0, ITEM_TEXTSTYLE_OUTLINED, FONT_MEDIUM);
 
 	y = maxClientsScoreboard ? SB_TOP - 62 : SB_TOP;
 
