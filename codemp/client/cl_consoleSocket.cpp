@@ -60,6 +60,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 typedef struct socketClient_s {
 	qboolean	active;
+	qboolean	authed;		// has sent the correct password (or none is required)
 	SOCKET		sock;
 	std::string	outbuf;
 	char		line[MAX_COMMAND_LINE];
@@ -68,6 +69,7 @@ typedef struct socketClient_s {
 } socketClient_t;
 
 static cvar_t			*cl_consoleSocket = NULL;
+static cvar_t			*cl_consoleSocketPassword = NULL;
 static SOCKET			listenSocket = INVALID_SOCKET;
 static socketClient_t	socketClients[MAX_SOCKET_CLIENTS];
 
@@ -90,6 +92,7 @@ static void ConsoleSocket_DropClient( socketClient_t *cl, const char *reason ) {
 	closesocket( cl->sock );
 	cl->sock = INVALID_SOCKET;
 	cl->active = qfalse;
+	cl->authed = qfalse;
 	cl->outbuf.clear();
 	cl->lineLen = 0;
 	cl->lineOverflow = qfalse;
@@ -196,10 +199,13 @@ static void ConsoleSocket_Accept( void ) {
 
 		socketClients[i].sock = sock;
 		socketClients[i].active = qtrue;
+		// with no password set, clients are trusted as soon as they connect
+		socketClients[i].authed = (qboolean)( cl_consoleSocketPassword->string[0] == '\0' );
 		socketClients[i].outbuf.clear();
 		socketClients[i].lineLen = 0;
 		socketClients[i].lineOverflow = qfalse;
-		Com_Printf( "Console socket: client connected\n" );
+		Com_Printf( "Console socket: client connected%s\n",
+			socketClients[i].authed ? "" : " (waiting for password)" );
 	}
 }
 
@@ -227,7 +233,23 @@ static void ConsoleSocket_ReceiveFrom( socketClient_t *cl ) {
 				continue;
 			}
 			if ( c == '\n' ) {
-				if ( !cl->lineOverflow && cl->lineLen > 0 ) {
+				if ( !cl->authed ) {
+					// first line must be the password, anything else
+					// (including HTTP requests from a hostile browser tab)
+					// gets the connection closed
+					cl->line[cl->lineLen] = '\0';
+					if ( !cl->lineOverflow && cl->lineLen > 0
+						&& cl_consoleSocketPassword->string[0]
+						&& !strcmp( cl->line, cl_consoleSocketPassword->string ) ) {
+						cl->authed = qtrue;
+						cl->outbuf.append( "cl_consoleSocket: authenticated\n" );
+					}
+					else {
+						ConsoleSocket_DropClient( cl, "bad password" );
+						return;
+					}
+				}
+				else if ( !cl->lineOverflow && cl->lineLen > 0 ) {
 					cl->line[cl->lineLen] = '\0';
 					Cbuf_AddText( cl->line );
 					Cbuf_AddText( "\n" );
@@ -261,12 +283,70 @@ static void ConsoleSocket_SendTo( socketClient_t *cl ) {
 	}
 }
 
+/*
+==================
+CL_ConsoleSocketInfo_f
+
+Player-facing explanation of the whole feature, shown by typing /consolesocket
+==================
+*/
+static void CL_ConsoleSocketInfo_f( void ) {
+	int i, connected = 0;
+
+	for ( i = 0; i < MAX_SOCKET_CLIENTS; i++ ) {
+		if ( socketClients[i].active ) {
+			connected++;
+		}
+	}
+
+	Com_Printf( "\n^5--- Console Socket: external app access ---\n" );
+	Com_Printf( "^7Lets a program running on ^2this computer^7 read everything that\n" );
+	Com_Printf( "^7appears in this console (chat included!) and send console\n" );
+	Com_Printf( "^7commands back, over a local TCP connection.\n\n" );
+
+	Com_Printf( "^5Status:\n" );
+	if ( listenSocket != INVALID_SOCKET ) {
+		Com_Printf( "  ^2enabled^7 - listening on 127.0.0.1:%d\n", cl_consoleSocket->integer );
+		Com_Printf( "  connected apps: ^3%d^7 (max %d)\n", connected, MAX_SOCKET_CLIENTS );
+	}
+	else {
+		Com_Printf( "  ^1disabled^7\n" );
+	}
+	Com_Printf( "  password: %s\n\n", cl_consoleSocketPassword->string[0] ? "^2set" : "^1not set" );
+
+	Com_Printf( "^5Settings (both saved in your config):\n" );
+	Com_Printf( "  ^3cl_consoleSocket <port>^7 - port to listen on, ^30^7 = off (default)\n" );
+	Com_Printf( "  ^3cl_consoleSocketPassword <password>^7 - apps must send this as\n" );
+	Com_Printf( "    their first line before anything works (recommended!)\n\n" );
+
+	Com_Printf( "^5Quick start:\n" );
+	Com_Printf( "  ^21.^7 ^3cl_consoleSocketPassword mySecret123\n" );
+	Com_Printf( "  ^22.^7 ^3cl_consoleSocket 29071\n" );
+	Com_Printf( "  ^23.^7 connect your app to ^3127.0.0.1:29071^7 and have it send the\n" );
+	Com_Printf( "     password followed by a newline\n" );
+	Com_Printf( "  ^24.^7 console lines stream to the app as they happen; any line the\n" );
+	Com_Printf( "     app sends back runs as a console command (e.g. ^3say hi^7)\n\n" );
+
+	Com_Printf( "^5Security:\n" );
+	Com_Printf( "  ^7- Only programs on ^2your own computer^7 can connect, ever.\n" );
+	Com_Printf( "    The socket is bound to 127.0.0.1 (loopback only).\n" );
+	Com_Printf( "  ^1- A connected app can run ANY console command as you, so set a\n" );
+	Com_Printf( "    password and only use apps you trust.\n\n" );
+
+	Com_Printf( "^7Turn it off any time with ^3cl_consoleSocket 0^7.\n\n" );
+}
+
 void CL_ConsoleSocket_Init( void ) {
 	cl_consoleSocket = Cvar_Get( "cl_consoleSocket", "0", CVAR_ARCHIVE_ND,
 		"TCP port on 127.0.0.1 that streams console output to external apps and accepts console commands (0 = disabled)" );
+	cl_consoleSocketPassword = Cvar_Get( "cl_consoleSocketPassword", "", CVAR_ARCHIVE_ND,
+		"If set, apps connecting to cl_consoleSocket must send this as their first line" );
+
+	Cmd_AddCommand( "consolesocket", CL_ConsoleSocketInfo_f, "Explain the console socket feature (external app access)" );
 }
 
 void CL_ConsoleSocket_Shutdown( void ) {
+	Cmd_RemoveCommand( "consolesocket" );
 	ConsoleSocket_CloseAll();
 }
 
@@ -318,7 +398,7 @@ void CL_ConsoleSocket_Frame( void ) {
 		if ( socketClients[i].active ) {
 			ConsoleSocket_ReceiveFrom( &socketClients[i] );
 		}
-		if ( socketClients[i].active ) {
+		if ( socketClients[i].active && socketClients[i].authed ) {
 			anyActive = true;
 		}
 	}
@@ -333,7 +413,7 @@ void CL_ConsoleSocket_Frame( void ) {
 		if ( !socketClients[i].active ) {
 			continue;
 		}
-		if ( !out.empty() ) {
+		if ( !out.empty() && socketClients[i].authed ) {
 			if ( socketClients[i].outbuf.size() + out.size() > MAX_CLIENT_OUTBUF ) {
 				ConsoleSocket_DropClient( &socketClients[i], "send backlog overflow" );
 				continue;
