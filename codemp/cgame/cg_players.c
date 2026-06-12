@@ -10179,6 +10179,13 @@ void CG_DrawHolsteredSaber( centity_t *cent, int time, qhandle_t *gameModels, cl
     if ( cent->currentState.eFlags & EF_DEAD )
         return;
 
+    if ( cent->currentState.powerups & ( 1 << PW_CLOAKED ) )
+    {
+        if ( !( cg.snap->ps.fd.forcePowersActive & ( 1 << FP_SEE ) )
+            || cg.snap->ps.clientNum == cent->currentState.number )
+            return;
+    }
+
     if (!cg.renderingThirdPerson && cent->currentState.clientNum == cg.clientNum)
         return;
 
