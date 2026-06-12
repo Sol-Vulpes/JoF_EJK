@@ -12,7 +12,7 @@ work natively) called **Sol's Archive**. It connects to my Jedi Academy
 client (a JoF_EJK / OpenJK fork) over a local TCP socket, shows the live game
 console with colors, lets me send commands and chat from the app, lets me
 save funny chat lines as "quotes", and runs an in-game chat bot that answers
-`!so` commands by posting saved quotes back into the game chat.
+`!sa` commands by posting saved quotes back into the game chat.
 
 ## Tech stack (decided, don't change without strong reason)
 
@@ -125,34 +125,34 @@ codes. Detect chat on the raw bytes *before* UTF-8 conversion.
   `message_raw` (with color codes), `raw_line` (full original line(s)).
   Save the file on every change.
 
-### 4. The in-game `!so` bot
+### 4. The in-game `!sa` bot
 
 While connected, watch incoming **chat** messages for bot commands. When my
 app sees one, it answers by sending a `say` command back through the socket,
 so the reply appears in game chat for everyone.
 
-Commands (a chat message whose clean text starts with `!so`):
+Commands (a chat message whose clean text starts with `!sa`):
 
-- `!so <number>` → look up quote by id. Reply: `so - id <id>: <message_clean>`
-- `!so <text>` → case-insensitive substring search over `message_clean` and
+- `!sa <number>` → look up quote by id. Reply: `sa - id <id>: <message_clean>`
+- `!sa <text>` → case-insensitive substring search over `message_clean` and
   `speaker`; if multiple match, pick one at random. Reply same format.
-- `!so random` (or `!so r`) → random quote, same reply format.
-- `!so count` → reply `so - <N> quotes archived`
-- `!so help` → reply `so - commands: !so <id> | !so <search> | !so random | !so count`
-- No match → reply `so - nothing found for: <query>`
-- Bare `!so` or unparseable → reply the help line.
+- `!sa random` (or `!sa r`) → random quote, same reply format.
+- `!sa count` → reply `sa - <N> quotes archived`
+- `!sa help` → reply `sa - commands: !sa <id> | !sa <search> | !sa random | !sa count`
+- No match → reply `sa - nothing found for: <query>`
+- Bare `!sa` or unparseable → reply the help line.
 
 Bot safety rules (all required):
 
 - **Loop prevention:** never trigger on a chat message whose clean text
-  starts with `so - ` (that's our own reply echoing back), and never trigger
+  starts with `sa - ` (that's our own reply echoing back), and never trigger
   on messages we ourselves just sent.
 - **Sanitization:** before embedding any quote text in a `say` line, strip
   `\n`, `\r`, `;` and the `0x19` byte (a `;` would let a quote inject a
   second console command), collapse whitespace, and truncate the final say
   text to 140 characters (the game caps chat length at 150).
 - **Rate limiting:** minimum 1.5s between bot replies (queue them), and a
-  global cooldown of ~2s per trigger so chat spam of `!so` can't flood; drop
+  global cooldown of ~2s per trigger so chat spam of `!sa` can't flood; drop
   triggers while on cooldown.
 - A master **bot on/off toggle** in the UI, default ON, state persisted.
 - Log every bot trigger and reply to a small activity area or status line.
@@ -160,8 +160,8 @@ Bot safety rules (all required):
 ### 5. Settings
 
 - Settings UI (small dialog or collapsible section): port (default 29071),
-  password, bot on/off, reply prefix (default `so - `), trigger prefix
-  (default `!so`). Persist to `config.json` next to `quotes.json`. Connect on
+  password, bot on/off, reply prefix (default `sa - `), trigger prefix
+  (default `!sa`). Persist to `config.json` next to `quotes.json`. Connect on
   launch with saved settings.
 
 ## Quality bar
