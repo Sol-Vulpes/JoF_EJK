@@ -708,6 +708,9 @@ void CL_ConsolePrint( const char *txt ) {
 	qboolean skipnotify = qfalse;		// NERVE - SMF
 	int prev;							// NERVE - SMF
 
+	// mirror everything to external apps connected via cl_consoleSocket
+	CL_ConsoleSocket_Print( txt );
+
 	// for some demos we don't want to ever show anything on the console
 	if (cl_noprint && cl_noprint->integer) {
 		return;

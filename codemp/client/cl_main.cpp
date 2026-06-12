@@ -2911,6 +2911,8 @@ void CL_Frame ( int msec ) {
 
 	Con_RunConsole();
 
+	CL_ConsoleSocket_Frame();
+
 	// reset the heap for Ghoul2 vert transform space gameside
 	if (G2VertSpaceServer)
 	{
@@ -3824,6 +3826,8 @@ void CL_Init( void ) {
 
 	CL_InitInput ();
 
+	CL_ConsoleSocket_Init ();
+
 	//
 	// register our variables
 	//
@@ -4089,6 +4093,8 @@ void CL_Shutdown( void ) {
 
 	// RJ: added the shutdown all to close down the cgame (to free up some memory, such as in the fx system)
 	CL_ShutdownAll( qtrue );
+
+	CL_ConsoleSocket_Shutdown();
 
 	S_Shutdown();
 	//CL_ShutdownUI();

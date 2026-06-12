@@ -529,6 +529,7 @@ if(BuildMPEngine)
 		"${MPDir}/client/cl_cgameapi.h"
 		"${MPDir}/client/cl_cin.cpp"
 		"${MPDir}/client/cl_console.cpp"
+		"${MPDir}/client/cl_consoleSocket.cpp"
 		"${MPDir}/client/cl_discordrpc.cpp"
 		"${MPDir}/client/cl_input.cpp"
 		"${MPDir}/client/cl_keys.cpp"

@@ -673,6 +673,14 @@ extern qboolean con_alert;
 #endif
 
 //
+// cl_consoleSocket.cpp
+//
+void CL_ConsoleSocket_Init( void );
+void CL_ConsoleSocket_Shutdown( void );
+void CL_ConsoleSocket_Frame( void );
+void CL_ConsoleSocket_Print( const char *text );
+
+//
 // cl_scrn.c
 //
 void	SCR_Init (void);
