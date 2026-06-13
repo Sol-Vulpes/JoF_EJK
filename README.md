@@ -17,9 +17,27 @@ For detailed build instructions across all platforms (Windows 32/64-bit, Linux, 
 
 **Custom CMake Path**: If you use a specific CMake version, see [CMAKE_PATH_README.md](CMAKE_PATH_README.md) for configuration options.
 
-### Requirements & Supported Compilers
+The code targets the **C++11** standard and requires **CMake 3.10 or later**.
 
-The code targets the **C++11** standard and requires **CMake 3.10 or later**. Our release binaries (see [`.github/workflows/build.yml`](.github/workflows/build.yml)) are produced with the toolchains below, so these are the recommended/tested versions:
+### Building on Windows (most common)
+
+On Windows you build with **Visual Studio / MSVC** — you do **not** need GCC. You only need:
+
+- **Visual Studio 2022** with the *Desktop development with C++* workload (VS 2015 or later also works)
+- **CMake** (3.10+; if it isn't on your `PATH`, see [CMAKE_PATH_README.md](CMAKE_PATH_README.md))
+
+Then from the repo root just run the helper script — it auto-detects your newest installed Visual Studio, configures, and builds Release:
+
+```batch
+build-win64.bat    :: 64-bit  -> output in build64temp\Release\
+build-win32.bat    :: 32-bit
+```
+
+The script is incremental: if the build directory already exists it skips reconfiguring and just rebuilds (like Visual Studio's Build button). The PowerShell equivalent is `.\build.ps1` (defaults to 64-bit Release). For more options see the [Easy Build Scripts](#easy-build-scripts) section below.
+
+### Linux / macOS compilers
+
+GCC is only relevant for **Linux** builds (these are what our CI runs). Our release binaries are produced by [`.github/workflows/build.yml`](.github/workflows/build.yml) with the toolchains below:
 
 | Platform | Compiler | Tested version | Notes |
 |----------|----------|----------------|-------|
