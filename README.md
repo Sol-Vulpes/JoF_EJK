@@ -17,7 +17,7 @@ For detailed build instructions across all platforms (Windows 32/64-bit, Linux, 
 
 **Custom CMake Path**: If you use a specific CMake version, see [CMAKE_PATH_README.md](CMAKE_PATH_README.md) for configuration options.
 
-The code targets the **C++11** standard and requires **CMake 3.10 or later**.
+The code targets the **C++11** standard and requires **CMake 3.10 or later** (our builds are tested with **CMake 3.28** — if you hit generator/configure issues on a much newer CMake, install 3.28 and point the scripts at it via [CMAKE_PATH_README.md](CMAKE_PATH_README.md)).
 
 ### Building on Windows (most common)
 
