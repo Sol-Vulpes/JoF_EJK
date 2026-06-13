@@ -13,9 +13,31 @@ OpenJK is licensed under GPLv2 as free software. You are free to use, modify and
 
 ## Build Instructions
 
-For detailed build instructions across all platforms (Windows 32/64-bit, Linux, cross-compilation), see [BUILD.md](BUILD.md).
+For detailed build instructions across all platforms (Windows 32/64-bit, Linux, macOS, cross-compilation), see [BUILD.md](BUILD.md).
 
 **Custom CMake Path**: If you use a specific CMake version, see [CMAKE_PATH_README.md](CMAKE_PATH_README.md) for configuration options.
+
+### Requirements & Supported Compilers
+
+The code targets the **C++11** standard and requires **CMake 3.10 or later**. Our release binaries (see [`.github/workflows/build.yml`](.github/workflows/build.yml)) are produced with the toolchains below, so these are the recommended/tested versions:
+
+| Platform | Compiler | Tested version | Notes |
+|----------|----------|----------------|-------|
+| Windows  | MSVC | Visual Studio 2022 (v143) | VS 2015 (v140) and later also work |
+| Linux (x86_64) | GCC | **GCC 11** (Ubuntu 22.04) | GCC 9+ should work; Clang also supported |
+| Linux (x86, 32-bit) | GCC | **GCC 11** via `gcc-multilib` / `g++-multilib` | uses `linux-i686` toolchain file |
+| Linux → Windows (cross) | MinGW-w64 GCC | mingw-w64 (e.g. GCC 10+) | via `x86_64-w64-mingw32` / `i686-w64-mingw32` toolchain files |
+| macOS (x86_64 / arm64) | Apple Clang | Xcode (macOS 15 runners) | |
+
+On Debian/Ubuntu you can install the Linux toolchain with:
+
+```bash
+# 64-bit
+sudo apt-get install build-essential cmake libsdl2-dev libopenal-dev zlib1g-dev libpng-dev libjpeg-dev
+
+# 32-bit (adds the multilib GCC)
+sudo apt-get install gcc-multilib g++-multilib libjpeg-dev:i386 libpng-dev:i386 zlib1g-dev:i386 libsdl2-dev:i386
+```
 
 ### Easy Build Scripts
 
