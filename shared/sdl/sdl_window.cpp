@@ -1046,6 +1046,20 @@ qboolean WIN_GL_ExtensionSupported( const char *extension )
 	return SDL_GL_ExtensionSupported( extension ) == SDL_TRUE ? qtrue : qfalse;
 }
 
+// Release the GL context from the calling thread so another thread can acquire it.
+void WIN_ReleaseGLContext( void )
+{
+	if ( opengl_context )
+		SDL_GL_MakeCurrent( screen, NULL );
+}
+
+// Make the main GL context current on the calling thread.
+void WIN_ReacquireGLContext( void )
+{
+	if ( opengl_context )
+		SDL_GL_MakeCurrent( screen, opengl_context );
+}
+
 //#if WIN32
 //qboolean WIN_VK_GetInstanceExtensions(
 //	unsigned int *extensionCount,
