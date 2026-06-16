@@ -264,6 +264,7 @@ void CG_ParseServerinfo( void ) {
 			cgs.cinfo = atoi(Info_ValueForKey(info, "jp_cinfo"));//[JAPRO - Clientside - All - Add jp_cinfo variable to get cinfo from japlus servers]
 			cgs.hookpull = 800;
 			cgs.pluginSet = qtrue;
+			trap->Cvar_Set("cjp_client", JOFCLIENTVERSION);
 		}
 		else if (!Q_stricmpn(gamename, "japro", 5)) {
 			cgs.serverMod = SVMOD_JAPRO;
