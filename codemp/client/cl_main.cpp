@@ -27,7 +27,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "client.h"
 
 #include <limits.h>
+#include <SDL.h>
 #include <SDL_vulkan.h>
+#include <atomic>
+#include <thread>
 
 #include "ghoul2/G2.h"
 #include "qcommon/cm_public.h"
@@ -93,6 +96,8 @@ cvar_t	*m_side;
 cvar_t	*m_filter;
 
 cvar_t	*cl_activeAction;
+
+cvar_t	*cl_asyncMapLoad;
 
 cvar_t	*cl_motdString;
 
@@ -1569,16 +1574,43 @@ void CL_DownloadsComplete( void ) {
 
 	// starting to load a map so we get out of full screen ui mode
 	Cvar_Set("r_uiFullScreen", "0");
+	
+	if ( cl_asyncMapLoad->integer ) {
+		// Hand the GL context to the worker thread so it can own the full load stage.
+		// Main thread pumps OS events so the window stays responsive during connect->load.
+		WIN_ReleaseGLContext();
 
-	// flush client memory and start loading stuff
-	// this will also (re)load the UI
-	// if this is a local client then only the client part of the hunk
-	// will be cleared, note that this is done after the hunk mark has been set
-	CL_FlushMemory();
+		std::atomic<bool> loadDone{false};
+		std::thread loadThread([&]() {
+			WIN_ReacquireGLContext();
 
-	// initialize the CGame
-	cls.cgameStarted = qtrue;
-	CL_InitCGame();
+			// This includes the expensive pre-map flush/restart work before cgame init.
+			CL_FlushMemory();
+			cls.cgameStarted = qtrue;
+			CL_InitCGame();
+
+			WIN_ReleaseGLContext();
+			loadDone.store(true, std::memory_order_release);
+		});
+
+		while (!loadDone.load(std::memory_order_acquire)) {
+			SDL_PumpEvents();
+			Sys_Sleep(10);
+		}
+
+		loadThread.join();
+		WIN_ReacquireGLContext();
+	} else {
+		// flush client memory and start loading stuff
+		// this will also (re)load the UI
+		// if this is a local client then only the client part of the hunk
+		// will be cleared, note that this is done after the hunk mark has been set
+		CL_FlushMemory();
+
+		// initialize the CGame
+		cls.cgameStarted = qtrue;
+		CL_InitCGame();
+	}
 
 	// set pure checksums
 	CL_SendPureChecksums();
@@ -3800,6 +3832,8 @@ void CL_Init( void ) {
 	cl_aviMotionJpeg = Cvar_Get ("cl_aviMotionJpeg", "1", CVAR_ARCHIVE);
 	cl_avi2GBLimit = Cvar_Get ("cl_avi2GBLimit", "1", CVAR_ARCHIVE );
 	cl_forceavidemo = Cvar_Get ("cl_forceavidemo", "0", 0);
+	
+	cl_asyncMapLoad = Cvar_Get ("cl_asyncMapLoad", "1", CVAR_ARCHIVE_ND );
 
 #if JAMME_PIPES
 	cl_aviPipe = Cvar_Get("cl_aviPipe", "0", CVAR_ARCHIVE_ND, "use ffmpeg pipe for avi recording");
