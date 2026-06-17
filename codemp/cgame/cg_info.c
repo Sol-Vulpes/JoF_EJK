@@ -32,6 +32,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 //static qhandle_t	loadingPlayerIcons[MAX_LOADING_PLAYER_ICONS];
 
 void CG_LoadBar(void);
+static void CG_DrawAltLoadingInfoBox( const char *info, const char *sysInfo );
 
 /*
 ======================
@@ -161,6 +162,11 @@ void CG_DrawInformation( void ) {
 
 	// draw the icons of things as they are loaded
 //	CG_DrawLoadingIcons();
+
+    if ( cg_altLoadingScreen.integer ) {
+        CG_DrawAltLoadingInfoBox( info, sysInfo );
+        return;
+    }
 
 	// the first 150 rows are reserved for the client connection
 	// screen to write into
@@ -380,6 +386,41 @@ void CG_DrawInformation( void ) {
 	}
 }
 
+static void CG_DrawAltLoadingInfoBox( const char *info, const char *sysInfo ) {
+    static const vec4_t screenTint = { 0.0f, 0.0f, 0.0f, 0.24f };
+    char mapName[MAX_QPATH];
+    char hostname[MAX_INFO_VALUE];
+    char modName[MAX_INFO_VALUE];
+    char hostLine[MAX_INFO_VALUE];
+    const char *pure = Info_ValueForKey( sysInfo, "sv_pure" );
+    const char *statusText;
+    float metaX = 470.0f;
+    float metaY = 24.0f;
+
+    Q_strncpyz( mapName, Info_ValueForKey( info, "mapname" ), sizeof( mapName ) );
+    Q_strncpyz( hostname, Info_ValueForKey( info, "sv_hostname" ), sizeof( hostname ) );
+    Q_CleanAsciiStr( hostname );
+    Q_strncpyz( modName, Info_ValueForKey( info, "gamename" ), sizeof( modName ) );
+
+    if ( pure[0] == '1' ) {
+        Com_sprintf( hostLine, sizeof( hostLine ), "%s  %s", hostname, CG_GetStringEdString( "MP_INGAME", "PURE_SERVER" ) );
+    } else {
+        Q_strncpyz( hostLine, hostname, sizeof( hostLine ) );
+    }
+
+    statusText = cg.infoScreenText[0] ? va( CG_GetStringEdString( "MENUS", "LOADING_MAPNAME" ), cg.infoScreenText ) : CG_GetStringEdString( "MENUS", "AWAITING_SNAPSHOT" );
+
+    CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, screenTint );
+
+	/*
+    CG_DrawProportionalString( 24.0f, SCREEN_HEIGHT - 104.0f, mapName, UI_DROPSHADOW, colorWhite );
+    CG_DrawProportionalString( 24.0f, SCREEN_HEIGHT - 72.0f, statusText, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+*/
+	
+    CG_DrawProportionalString( metaX, metaY + 0.0f, mapName, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+    CG_DrawProportionalString( metaX, metaY + 18.0f, hostLine, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+    CG_DrawProportionalString( metaX, metaY + 36.0f, modName, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+}
 /*
 ===================
 CG_LoadBar
@@ -387,8 +428,11 @@ CG_LoadBar
 */
 void CG_LoadBar(void)
 {
-	const int numticks = 9, tickwidth = 40, tickheight = 8;
-	const int tickpadx = 20, tickpady = 12;
+	const int numticks = 9;
+	const int tickwidth = cg_altLoadingScreen.integer ? 28 : 40;
+	const int tickheight = cg_altLoadingScreen.integer ? 5 : 8;
+	const int tickpadx = cg_altLoadingScreen.integer ? 14 : 20;
+	const int tickpady = cg_altLoadingScreen.integer ? 8 : 12;
 	const int capwidth = 8;
 	const int barwidth = numticks*tickwidth+tickpadx*2+capwidth*2, barleft = ((640-barwidth)/2);
 	const int barheight = tickheight + tickpady*2, bartop = 480-barheight;
