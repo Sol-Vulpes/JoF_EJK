@@ -7459,8 +7459,13 @@ static void CG_DrawCrosshair( vec3_t worldPoint, int chEntValid ) {
 				hisVeh->currentState.maxhealth &&
 				hisVeh->m_pVehicle)
 			{ //draw the health for this vehicle
-				CG_DrawHealthBar(hisVeh, chX, chY, w, h);
-				chY += HEALTH_HEIGHT*2;
+				if (hisVeh->currentState.shouldtarget
+					|| (cg.predictedPlayerState.fd.forcePowersActive & (1 << FP_SEE)
+						&& cg.predictedPlayerState.fd.forcePowerLevel[FP_SEE] >= 3))
+				{
+					CG_DrawHealthBar(hisVeh, chX, chY, w, h);
+					chY += HEALTH_HEIGHT*2;
+				}
 			}
 		}
 	}

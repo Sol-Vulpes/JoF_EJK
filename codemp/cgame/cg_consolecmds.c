@@ -767,7 +767,6 @@ static void CG_ModVersion_f(void)
 	trap->SendConsoleCommand("ui_modversion\n");
 	if (cgs.serverMod == SVMOD_JAPRO) {
 		trap->SendClientCommand( "modversion" );
-		trap->Cvar_Set("cjp_client", "1.4JAPRO"); //Do this manually here i guess, just incase it does not do it when game is created due to ja+ or something
 	}
 }
 
