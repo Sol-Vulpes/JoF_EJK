@@ -392,10 +392,14 @@ static void CG_DrawAltLoadingInfoBox( const char *info, const char *sysInfo ) {
     char hostname[MAX_INFO_VALUE];
     char modName[MAX_INFO_VALUE];
     char hostLine[MAX_INFO_VALUE];
+    char buf[1024];
     const char *pure = Info_ValueForKey( sysInfo, "sv_pure" );
     const char *statusText;
-    float metaX = 470.0f;
+    const char *s;
+    float metaX = 430.0f;
     float metaY = 24.0f;
+    const float metaStep = 16.0f;
+    int value, valueNOFP;
 
     Q_strncpyz( mapName, Info_ValueForKey( info, "mapname" ), sizeof( mapName ) );
     Q_strncpyz( hostname, Info_ValueForKey( info, "sv_hostname" ), sizeof( hostname ) );
@@ -412,14 +416,104 @@ static void CG_DrawAltLoadingInfoBox( const char *info, const char *sysInfo ) {
 
     CG_FillRect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, screenTint );
 
-	/*
-    CG_DrawProportionalString( 24.0f, SCREEN_HEIGHT - 104.0f, mapName, UI_DROPSHADOW, colorWhite );
-    CG_DrawProportionalString( 24.0f, SCREEN_HEIGHT - 72.0f, statusText, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
-*/
+    //CG_DrawProportionalString( 24.0f, SCREEN_HEIGHT - 104.0f, mapName, UI_DROPSHADOW, colorWhite );
+    //CG_DrawProportionalString( 24.0f, SCREEN_HEIGHT - 72.0f, statusText, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+
+    CG_DrawProportionalString( metaX, metaY, mapName, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+    metaY += metaStep;
+    CG_DrawProportionalString( metaX, metaY, hostLine, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+    metaY += metaStep;
+    if ( modName[0] && cgs.serverMod != SVMOD_JAPRO ) {
+        CG_DrawProportionalString( metaX, metaY, modName, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+        metaY += metaStep;
+    }
+
+    trap->Cvar_VariableStringBuffer( "sv_running", buf, sizeof( buf ) );
+    if ( !atoi( buf ) ) {
+        metaY += 8.0f;
+    }
+
+    s = Info_ValueForKey( sysInfo, "sv_cheats" );
+    if ( s[0] == '1' ) {
+        CG_DrawProportionalString( metaX, metaY, CG_GetStringEdString("MP_INGAME", "CHEATSAREENABLED"), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+        metaY += metaStep;
+    }
+
+    s = BG_GetGametypeString( cgs.gametype );
+    CG_DrawProportionalString( metaX, metaY, s, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+    metaY += metaStep;
+
+    if (cgs.gametype != GT_SIEGE) {
+        value = atoi( Info_ValueForKey( info, "timelimit" ) );
+        if ( value ) {
+            CG_DrawProportionalString( metaX, metaY, va( "%s %i", CG_GetStringEdString("MP_INGAME", "TIMELIMIT"), value ), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+            metaY += metaStep;
+        }
+
+        if (cgs.gametype < GT_CTF ) {
+            value = atoi( Info_ValueForKey( info, "fraglimit" ) );
+            if ( value ) {
+                CG_DrawProportionalString( metaX, metaY, va( "%s %i", CG_GetStringEdString("MP_INGAME", "FRAGLIMIT"), value ), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+                metaY += metaStep;
+            }
+            if (cgs.gametype == GT_DUEL || cgs.gametype == GT_POWERDUEL) {
+                value = atoi( Info_ValueForKey( info, "duel_fraglimit" ) );
+                if ( value ) {
+                    CG_DrawProportionalString( metaX, metaY, va( "%s %i", CG_GetStringEdString("MP_INGAME", "WINLIMIT"), value ), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+                    metaY += metaStep;
+                }
+            }
+        }
+    }
+
+    if (cgs.gametype >= GT_CTF) {
+        value = atoi( Info_ValueForKey( info, "capturelimit" ) );
+        if ( value ) {
+            CG_DrawProportionalString( metaX, metaY, va( "%s %i", CG_GetStringEdString("MP_INGAME", "CAPTURELIMIT"), value ), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+            metaY += metaStep;
+        }
+    }
+
+    if (cgs.gametype >= GT_TEAM) {
+        value = atoi( Info_ValueForKey( info, "g_forceBasedTeams" ) );
+        if ( value ) {
+            CG_DrawProportionalString( metaX, metaY, CG_GetStringEdString("MP_INGAME", "FORCEBASEDTEAMS"), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+            metaY += metaStep;
+        }
+    }
+
+    if (cgs.gametype != GT_SIEGE) {
+        valueNOFP = atoi( Info_ValueForKey( info, "g_forcePowerDisable" ) );
+        value = atoi( Info_ValueForKey( info, "g_maxForceRank" ) );
+        if ( value && !valueNOFP && (value < NUM_FORCE_MASTERY_LEVELS) ) {
+            char fmStr[1024];
+            trap->SE_GetStringTextString("MP_INGAME_MAXFORCERANK",fmStr, sizeof(fmStr));
+            CG_DrawProportionalString( metaX, metaY, va( "%s %s", fmStr, CG_GetStringEdString("MP_INGAME", forceMasteryLevels[value]) ), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+            metaY += metaStep;
+        } else if (!valueNOFP) {
+            char fmStr[1024];
+            trap->SE_GetStringTextString("MP_INGAME_MAXFORCERANK",fmStr, sizeof(fmStr));
+            CG_DrawProportionalString( metaX, metaY, va( "%s %s", fmStr, (char *)CG_GetStringEdString("MP_INGAME", forceMasteryLevels[7]) ), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+            metaY += metaStep;
+        }
+
+        if (cgs.gametype == GT_DUEL || cgs.gametype == GT_POWERDUEL) {
+            value = atoi( Info_ValueForKey( info, "g_duelWeaponDisable" ) );
+        } else {
+            value = atoi( Info_ValueForKey( info, "g_weaponDisable" ) );
+        }
+        if ( cgs.gametype != GT_JEDIMASTER && value ) {
+            CG_DrawProportionalString( metaX, metaY, (char *)CG_GetStringEdString("MP_INGAME", "SABERONLYSET"), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+            metaY += metaStep;
+        }
+        if ( valueNOFP ) {
+            CG_DrawProportionalString( metaX, metaY, (char *)CG_GetStringEdString("MP_INGAME", "NOFPSET"), UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+            metaY += metaStep;
+        }
+    }
+
+
 	
-    CG_DrawProportionalString( metaX, metaY + 0.0f, mapName, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
-    CG_DrawProportionalString( metaX, metaY + 18.0f, hostLine, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
-    CG_DrawProportionalString( metaX, metaY + 36.0f, modName, UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
 }
 /*
 ===================
