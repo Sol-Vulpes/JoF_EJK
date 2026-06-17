@@ -23,9 +23,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 // cl_cgame.c  -- client system interaction with client game
 #include "client.h"
-#include <SDL.h>
-#include <atomic>
-#include <thread>
 #include "cl_cgameapi.h"
 #include "botlib/botlib.h"
 #include "FXExport.h"
@@ -742,39 +739,12 @@ void CL_InitCGame( void ) {
 
 	cls.state = CA_LOADING;
 
-	static cvar_t *cl_asyncMapLoad = Cvar_Get( "cl_asyncMapLoad", "1", CVAR_ARCHIVE_ND );
-
-	if ( cl_asyncMapLoad->integer ) {
-		// Hand the GL context to the worker thread so it can do all GL work.
-		// Main thread pumps OS events so the window stays responsive during load.
-		const int loadServerSeq = clc.serverMessageSequence;
-		const int loadLastCmd   = clc.lastExecutedServerCommand;
-		const int loadClientNum = clc.clientNum;
-
-		WIN_ReleaseGLContext();
-
-		std::atomic<bool> loadDone{false};
-		std::thread loadThread([&]() {
-			WIN_ReacquireGLContext();
-			CGVM_Init( loadServerSeq, loadLastCmd, loadClientNum );
-			re->EndRegistration();
-			Com_TouchMemory();
-			WIN_ReleaseGLContext();
-			loadDone.store(true, std::memory_order_release);
-		});
-
-		while (!loadDone.load(std::memory_order_acquire)) {
-			SDL_PumpEvents();
-			Sys_Sleep(10);
-		}
-
-		loadThread.join();
-		WIN_ReacquireGLContext();
-	} else {
-		CGVM_Init( clc.serverMessageSequence, clc.lastExecutedServerCommand, clc.clientNum );
-		re->EndRegistration();
-		Com_TouchMemory();
-	}
+	// init for this gamestate
+	// use the lastExecutedServerCommand instead of the serverCommandSequence
+	// otherwise server commands sent just before a gamestate are dropped
+	CGVM_Init( clc.serverMessageSequence, clc.lastExecutedServerCommand, clc.clientNum );
+	re->EndRegistration();
+	Com_TouchMemory();
 
 	int clRate = Cvar_VariableIntegerValue( "rate" );
 	if ( clRate == 4000 ) {
