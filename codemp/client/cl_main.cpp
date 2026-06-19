@@ -1584,6 +1584,14 @@ void CL_DownloadsComplete( void ) {
 	if ( cl_asyncMapLoad->integer ) {
 		// Hand the GL context to the worker thread so it can own the full load stage.
 		// Main thread pumps OS events so the window stays responsive during connect->load.
+
+		// Prevent SDL from calling ChangeDisplaySettingsEx on focus loss while the GL
+		// context belongs to the worker thread. On Windows, restoring the display mode
+		// while wglMakeCurrent is current on another thread can invalidate that context,
+		// turning the next GL call into an access violation (SEH) that bypasses catch(int).
+		const char *prevMinOnFocus = SDL_GetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS);
+		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
+
 		WIN_ReleaseGLContext();
 
 		std::atomic<bool> loadDone{false};
@@ -1599,6 +1607,9 @@ void CL_DownloadsComplete( void ) {
 				// Com_Error throws an int; catch here so std::terminate() is not called,
 				// then re-throw on the main thread after join where Com_Frame can catch it.
 				loadError = code;
+			} catch (...) {
+				// Any other C++ exception (e.g. from a DLL) also must not escape the thread.
+				loadError = ERR_DROP;
 			}
 			WIN_ReleaseGLContext();
 			loadDone.store(true, std::memory_order_release);
@@ -1611,6 +1622,8 @@ void CL_DownloadsComplete( void ) {
 
 		loadThread.join();
 		WIN_ReacquireGLContext();
+
+		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, prevMinOnFocus ? prevMinOnFocus : "1");
 
 		if (loadError) {
 			throw loadError;
