@@ -1587,14 +1587,19 @@ void CL_DownloadsComplete( void ) {
 		WIN_ReleaseGLContext();
 
 		std::atomic<bool> loadDone{false};
+		int loadError = 0;
 		std::thread loadThread([&]() {
 			WIN_ReacquireGLContext();
-
-			// This includes the expensive pre-map flush/restart work before cgame init.
-			CL_FlushMemory();
-			cls.cgameStarted = qtrue;
-			CL_InitCGame();
-
+			try {
+				// This includes the expensive pre-map flush/restart work before cgame init.
+				CL_FlushMemory();
+				cls.cgameStarted = qtrue;
+				CL_InitCGame();
+			} catch (int code) {
+				// Com_Error throws an int; catch here so std::terminate() is not called,
+				// then re-throw on the main thread after join where Com_Frame can catch it.
+				loadError = code;
+			}
 			WIN_ReleaseGLContext();
 			loadDone.store(true, std::memory_order_release);
 		});
@@ -1606,6 +1611,10 @@ void CL_DownloadsComplete( void ) {
 
 		loadThread.join();
 		WIN_ReacquireGLContext();
+
+		if (loadError) {
+			throw loadError;
+		}
 	} else {
 		// flush client memory and start loading stuff
 		// this will also (re)load the UI
