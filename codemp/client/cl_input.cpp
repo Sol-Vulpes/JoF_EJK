@@ -843,6 +843,12 @@ void IN_Button14Up(void) {IN_KeyUp(&in_buttons[14]);}
 void IN_Button15Down(void) {IN_KeyDown(&in_buttons[15]);}
 void IN_Button15Up(void) {IN_KeyUp(&in_buttons[15]);}
 
+// Force Stasis (JoF JA+ V58): a dedicated key-button so the engage bind can be gated
+// on the server having actually granted stasis, independently of a raw +button14 bind.
+kbutton_t	in_forceStasis;
+void IN_ForceStasisDown(void) {IN_KeyDown(&in_forceStasis);}
+void IN_ForceStasisUp(void) {IN_KeyUp(&in_forceStasis);}
+
 void IN_CenterView (void) {
 	cl.viewangles[PITCH] = -SHORT2ANGLE(cl.snap.ps.delta_angles[PITCH]);
 }
@@ -1654,6 +1660,29 @@ void CL_CmdButtons( usercmd_t *cmd ) {
 		in_buttons[i].wasPressed = qfalse;
 	}
 
+	// Force Stasis (JoF JA+ V58): route the dedicated +force_stasis bind to usercmd
+	// bit 14, but only when the server has granted stasis (i.e. it's a JoF JA+ server
+	// that set the spare forcePowersKnown bit). Inert and harmless everywhere else.
+	if ( in_forceStasis.active || in_forceStasis.wasPressed ) {
+		if ( cl.snap.valid && (cl.snap.ps.fd.forcePowersKnown & (1 << STASIS_KNOWN_BIT)) )
+			cmd->buttons |= (1 << STASIS_ENGAGE_BTN);
+	}
+	in_forceStasis.wasPressed = qfalse;
+
+	// Force Stasis: when "Stasis" is the selected wheel slot (cgame mirrors this into
+	// cl_stasisSelected), turn a held +useforce into the stasis engage bit instead of
+	// firing a real force power. Must run BEFORE the BUTTON_FORCEPOWER->USE_HOLDABLE
+	// remap below so the two don't fight.
+	{
+		static cvar_t *cl_stasisSelected = NULL;
+		if ( !cl_stasisSelected )
+			cl_stasisSelected = Cvar_Get( "cl_stasisSelected", "0", CVAR_ROM );
+		if ( (cmd->buttons & BUTTON_FORCEPOWER) && cl_stasisSelected->integer ) {
+			cmd->buttons &= ~BUTTON_FORCEPOWER;			// don't fire a real force power
+			cmd->buttons |= (1 << STASIS_ENGAGE_BTN);	// engage stasis instead
+		}
+	}
+
 	if (cmd->buttons & BUTTON_FORCEPOWER)
 	{ //check for transferring a use force to a use inventory...
 		if ((cmd->buttons & BUTTON_USE) || CL_NoUseableForce())
@@ -2234,6 +2263,8 @@ static const cmdList_t inputCmds[] =
 	{ "-button13", NULL, IN_Button13Up, NULL },
 	{ "+button14", "Button 14", IN_Button14Down, NULL },
 	{ "-button14", NULL, IN_Button14Up, NULL },
+	{ "+force_stasis", "Hold to use stasis force power", IN_ForceStasisDown, NULL },
+	{ "-force_stasis", NULL, IN_ForceStasisUp, NULL },
 	{ "+button15", "Button 15", IN_Button15Down, NULL },
 	{ "-button15", NULL, IN_Button15Up, NULL },
 	{ "+mlook", "Hold to use mouse look", IN_MLookDown, NULL },
