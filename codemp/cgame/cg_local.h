@@ -2290,6 +2290,7 @@ void CG_NextForcePower_f(void);
 void CG_PrevForcePower_f(void);
 qboolean ForcePower_Valid(int i);
 qboolean CG_HasStasis(void);
+int CG_BuildForceWheel(int *slots);
 
 //
 // cg_view.c

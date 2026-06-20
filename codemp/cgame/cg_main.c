@@ -3235,23 +3235,33 @@ qboolean CG_HasStasis( void )
 CG_BuildForceWheel
 
 Builds the ordered list of selectable force-wheel entries: the valid real powers in
-display order, then the stasis pseudo-slot last if granted. Returns the count and
-fills slots[] (must hold at least NUM_FORCE_POWERS+1 entries).
+display order, with the stasis pseudo-slot inserted right after Force Sense (FP_SEE)
+if granted (or appended last if Force Sense isn't owned). Returns the count and fills
+slots[] (must hold at least NUM_FORCE_POWERS+1 entries).
 ===============
 */
-static int CG_BuildForceWheel( int *slots )
+int CG_BuildForceWheel( int *slots )
 {
+	qboolean stasis = CG_HasStasis();
+	qboolean placed = qfalse;
 	int n = 0, i;
 
 	for ( i = 0; i < NUM_FORCE_POWERS; i++ )
 	{
 		int p = forcePowerSorted[i];
-		if ( ForcePower_Valid( p ) )
-			slots[n++] = p;
+		if ( !ForcePower_Valid( p ) )
+			continue;
+
+		slots[n++] = p;
+		if ( stasis && p == FP_SEE )		// place stasis right after Force Sense
+		{
+			slots[n++] = STASIS_WHEEL_SLOT;
+			placed = qtrue;
+		}
 	}
 
-	if ( CG_HasStasis() )
-		slots[n++] = STASIS_WHEEL_SLOT;	// stasis last
+	if ( stasis && !placed )				// Force Sense not owned: fall back to the end
+		slots[n++] = STASIS_WHEEL_SLOT;
 
 	return n;
 }
