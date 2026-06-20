@@ -1798,6 +1798,18 @@ typedef struct serverCommand_s {
 	void		(*func)(void);
 } serverCommand_t;
 
+// Force Stasis (JoF JA+ V58): the server sends a reliable "stasis" command when the
+// power fires (only to clients that advertised the "jofejk" userinfo key). Play the
+// local feedback sound, with a client-side cooldown so bursts / replayed snapshots
+// don't spam it.
+static void CG_Stasis_f( void ) {
+	static int s_lastStasisSnd = 0;
+	if ( cg.time - s_lastStasisSnd < 250 )
+		return;
+	s_lastStasisSnd = cg.time;
+	trap->S_StartLocalSound( cgs.media.stasisSound, CHAN_LOCAL );
+}
+
 int svcmdcmp( const void *a, const void *b ) {
 	return Q_stricmp( (const char *)a, ((serverCommand_t*)b)->cmd );
 }
@@ -1824,6 +1836,7 @@ static serverCommand_t	commands[] = {
 	{ "scl",				CG_SiegeClassSelect_f },
 	{ "scores",				CG_ParseScores },
 	{ "spc",				CG_SiegeProfileMenu_f },
+	{ "stasis",				CG_Stasis_f },
 	{ "sxd",				CG_ParseSiegeExtendedData },
 	{ "tchat",				CG_Chat_f },
 	{ "tinfo",				CG_ParseTeamInfo },
