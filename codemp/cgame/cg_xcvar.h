@@ -213,6 +213,9 @@ XCVAR_DEF( cl_timeNudge,						"0",	NULL,					CVAR_ARCHIVE )
 #endif
 XCVAR_DEF( cl_maxPackets,						"125",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cjp_client,						JOFCLIENTVERSION,	NULL,					CVAR_USERINFO|CVAR_ROM )
+// Advertise to a JoF JA+ server that this client wants the Force Stasis "it fired" sound.
+// The server only sends the reliable "stasis" servercmd when this userinfo key is non-empty.
+XCVAR_DEF( jofejk,							"1",	NULL,					CVAR_USERINFO|CVAR_ARCHIVE )
 XCVAR_DEF( cp_clanPwd,							"none",	NULL,					CVAR_USERINFO )
 XCVAR_DEF( cp_sbRGB1,							"0",	NULL,					CVAR_ARCHIVE | CVAR_USERINFO )
 XCVAR_DEF( cp_sbRGB2,							"0",	NULL,					CVAR_ARCHIVE | CVAR_USERINFO )

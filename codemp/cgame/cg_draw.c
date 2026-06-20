@@ -2440,6 +2440,11 @@ void CG_DrawHUD(centity_t	*cent)
 
 qboolean ForcePower_Valid(int i)
 {
+	if (i == STASIS_WHEEL_SLOT)		// our display-only pseudo-slot
+	{
+		return CG_HasStasis();
+	}
+
 	if (i == FP_LEVITATION ||
 		i == FP_SABER_OFFENSE ||
 		i == FP_SABER_DEFENSE ||
@@ -2479,7 +2484,12 @@ void CG_DrawForceSelect( void )
 
 	if ((cg.forceSelectTime+WEAPON_SELECT_TIME)<cg.time)	// Time is up for the HUD to display
 	{
-		cg.forceSelect = cg.snap->ps.fd.forcePowerSelected;
+		// Real powers persist as the networked forcePowerSelected, so resetting to it is a
+		// no-op for them. Stasis is a pseudo-slot that has no networked home, so keep it
+		// selected across the timeout (like a real power stays selected) unless it's been
+		// revoked, so a held +useforce still engages stasis after the wheel fades.
+		if ( cg.forceSelect != STASIS_WHEEL_SLOT || !CG_HasStasis() )
+			cg.forceSelect = cg.snap->ps.fd.forcePowerSelected;
 		return;
 	}
 
@@ -2563,10 +2573,12 @@ void CG_DrawForceSelect( void )
 
 	if (ForcePower_Valid(cg.forceSelect))
 	{
-		// Current Center Icon
-		if (cgs.media.forcePowerIcons[cg.forceSelect])
+		// Current Center Icon. Stasis is a pseudo-slot (18) with no icon of its own;
+		// borrow the jump (FP_LEVITATION) icon so it isn't an out-of-range lookup.
+		int centerIcon = (cg.forceSelect == STASIS_WHEEL_SLOT) ? FP_LEVITATION : cg.forceSelect;
+		if (cgs.media.forcePowerIcons[centerIcon])
 		{
-			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.forcePowerIcons[cg.forceSelect] ); //only cache the icon for display
+			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.forcePowerIcons[centerIcon] ); //only cache the icon for display
 		}
 	}
 
@@ -2599,7 +2611,12 @@ void CG_DrawForceSelect( void )
 		}
 	}
 
-	if ( showPowersName[cg.forceSelect] )
+	if ( cg.forceSelect == STASIS_WHEEL_SLOT )
+	{
+		// pseudo-slot has no entry in showPowersName[]; draw a literal name
+		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, "Stasis", UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
+	}
+	else if ( showPowersName[cg.forceSelect] )
 	{
 		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, CG_GetStringEdString("SP_INGAME", showPowersName[cg.forceSelect]), UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
 	}

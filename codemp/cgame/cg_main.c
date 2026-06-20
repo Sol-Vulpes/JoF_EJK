@@ -646,6 +646,8 @@ static void CG_RegisterSounds( void ) {
 	cgs.media.jetpackHoverSound = trap->S_RegisterSound( "sound/chars/boba/jethover.wav" );
 	cgs.media.jetpackHover2Sound = trap->S_RegisterSound( "sound/chars/boba/bf_jetpack_lp.wav" );
 
+	cgs.media.stasisSound = trap->S_RegisterSound( "sound/jof/stasis.mp3" ); // Force Stasis "it fired" feedback (JoF asset)
+
 	cgs.media.hackerIconShader			= trap->R_RegisterShaderNoMip("gfx/mp/c_icon_tech");
 
 	cgs.media.redSaberGlowShader		= trap->R_RegisterShader( "gfx/effects/sabers/red_glow" );
@@ -3216,6 +3218,46 @@ void CG_Shutdown( void )
 
 /*
 ===============
+CG_HasStasis
+
+True only on a JoF JA+ server that has granted us Force Stasis (it re-asserts the
+spare forcePowersKnown bit every frame while granted). Doubles as the "is this a
+JoF JA+ server" gate for all of the stasis client UI.
+===============
+*/
+qboolean CG_HasStasis( void )
+{
+	return (cg.snap && (cg.snap->ps.fd.forcePowersKnown & (1 << STASIS_KNOWN_BIT))) ? qtrue : qfalse;
+}
+
+/*
+===============
+CG_BuildForceWheel
+
+Builds the ordered list of selectable force-wheel entries: the valid real powers in
+display order, then the stasis pseudo-slot last if granted. Returns the count and
+fills slots[] (must hold at least NUM_FORCE_POWERS+1 entries).
+===============
+*/
+static int CG_BuildForceWheel( int *slots )
+{
+	int n = 0, i;
+
+	for ( i = 0; i < NUM_FORCE_POWERS; i++ )
+	{
+		int p = forcePowerSorted[i];
+		if ( ForcePower_Valid( p ) )
+			slots[n++] = p;
+	}
+
+	if ( CG_HasStasis() )
+		slots[n++] = STASIS_WHEEL_SLOT;	// stasis last
+
+	return n;
+}
+
+/*
+===============
 CG_NextForcePower_f
 ===============
 */
@@ -3244,19 +3286,22 @@ void CG_NextForcePower_f( void )
 		return;
 	}
 
-//	BG_CycleForce(&cg.snap->ps, 1);
-	if (cg.forceSelect != -1)
+	// Walk our own wheel order so the stasis pseudo-slot can be cycled onto/off of
+	// without ever putting 18 into the networked forcePowerSelected (kept 0-17).
 	{
-		cg.snap->ps.fd.forcePowerSelected = cg.forceSelect;
-	}
-
-	BG_CycleForce(&cg.snap->ps, 1);
-
-	if (cg.snap->ps.fd.forcePowersKnown & (1 << cg.snap->ps.fd.forcePowerSelected))
-	{
-		//Add a check for (if cgs.isjapro + g_forcepowerdisableFFA & power) -> return ? This requires forcepowerdisableFFA to be cvar_serverinfo :S
-		cg.forceSelect = cg.snap->ps.fd.forcePowerSelected;
-		cg.forceSelectTime = cg.time;
+		int slots[NUM_FORCE_POWERS + 1], n = CG_BuildForceWheel( slots ), cur = -1, i;
+		for ( i = 0; i < n; i++ )
+		{
+			if ( slots[i] == cg.forceSelect ) { cur = i; break; }
+		}
+		if ( n > 0 )
+		{
+			cur = (cur + 1) % n;
+			cg.forceSelect = slots[cur];
+			cg.forceSelectTime = cg.time;
+			if ( cg.forceSelect != STASIS_WHEEL_SLOT )
+				cg.snap->ps.fd.forcePowerSelected = cg.forceSelect;
+		}
 	}
 }
 
@@ -3290,18 +3335,21 @@ void CG_PrevForcePower_f( void )
 		return;
 	}
 
-//	BG_CycleForce(&cg.snap->ps, -1);
-	if (cg.forceSelect != -1)
+	// Mirror of CG_NextForcePower_f, stepping the other way. See note there.
 	{
-		cg.snap->ps.fd.forcePowerSelected = cg.forceSelect;
-	}
-
-	BG_CycleForce(&cg.snap->ps, -1);
-
-	if (cg.snap->ps.fd.forcePowersKnown & (1 << cg.snap->ps.fd.forcePowerSelected))
-	{
-		cg.forceSelect = cg.snap->ps.fd.forcePowerSelected;
-		cg.forceSelectTime = cg.time;
+		int slots[NUM_FORCE_POWERS + 1], n = CG_BuildForceWheel( slots ), cur = -1, i;
+		for ( i = 0; i < n; i++ )
+		{
+			if ( slots[i] == cg.forceSelect ) { cur = i; break; }
+		}
+		if ( n > 0 )
+		{
+			cur = (cur + n - 1) % n;
+			cg.forceSelect = slots[cur];
+			cg.forceSelectTime = cg.time;
+			if ( cg.forceSelect != STASIS_WHEEL_SLOT )
+				cg.snap->ps.fd.forcePowerSelected = cg.forceSelect;
+		}
 	}
 }
 
