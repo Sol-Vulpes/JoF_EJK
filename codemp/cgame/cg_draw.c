@@ -2466,8 +2466,10 @@ void CG_DrawForceSelect( void )
 	int		smallIconSize,bigIconSize;
 	int		holdX, x, y, pad;
 	int		sideLeftIconCnt,sideRightIconCnt;
-	int		sideMax,holdCount,iconCnt;
+	int		sideMax,holdCount;
 	int		yOffset = 0;
+	int		wheel[NUM_FORCE_POWERS + 1];
+	int		wheelCount, cur = -1, idx, drawn, power, icon;
 
 	// don't display if dead
 	if ( cg.snap->ps.stats[STAT_HEALTH] <= 0 )
@@ -2491,21 +2493,30 @@ void CG_DrawForceSelect( void )
 		return;
 	}
 
-	// count the number of powers owned
-	count = 0;
-
-	for (i=0;i < NUM_FORCE_POWERS;++i)
-	{
-		if (ForcePower_Valid(i))
-		{
-			count++;
-		}
-	}
-
-	if (count == 0)	// If no force powers, don't display
+	// Build the wheel order (valid real powers + the stasis pseudo-slot in its place) and
+	// locate the current selection. Driving the whole wheel from this one list keeps stasis
+	// a first-class entry: it shows up as a side icon too and the side counts line up,
+	// instead of only appearing when it happens to be the centered icon.
+	wheelCount = CG_BuildForceWheel( wheel );
+	if (wheelCount == 0)	// If no selectable powers, don't display
 	{
 		return;
 	}
+
+	for (i = 0; i < wheelCount; i++)
+	{
+		if (wheel[i] == cg.forceSelect)
+		{
+			cur = i;
+			break;
+		}
+	}
+	if (cur < 0)	// current selection isn't a selectable wheel entry
+	{
+		return;
+	}
+
+	count = wheelCount;
 
 	sideMax = 3;	// Max number of icons on the side
 
@@ -2534,72 +2545,53 @@ void CG_DrawForceSelect( void )
 	x = SCREEN_WIDTH / 2;
 	y = 425;
 
-	i = BG_ProperForceIndex(cg.forceSelect) - 1;
-	if (i < 0)
-	{
-		i = MAX_SHOWPOWERS - 1;
-	}
-
 	trap->R_SetColor(NULL);
-	// Work backwards from current icon
+
+	// Work backwards (left) from the centered icon, walking the wheel list
 	holdX = x - ((bigIconSize/2) + pad + smallIconSize) * cgs.widthRatioCoef;
-	for (iconCnt=1;iconCnt<(sideLeftIconCnt+1);i--)
+	idx = cur;
+	for (drawn = 0; drawn < sideLeftIconCnt; drawn++)
 	{
-		if (i < 0)
+		idx--;
+		if (idx < 0)
 		{
-			i = MAX_SHOWPOWERS - 1;
+			idx = wheelCount - 1;
 		}
 
-		if (!ForcePower_Valid(forcePowerSorted[i]))	// Does he have this power?
+		power = wheel[idx];
+		// stasis (18) has no icon of its own; borrow the jump (FP_LEVITATION) icon
+		icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
+		if (cgs.media.forcePowerIcons[icon])
 		{
-			continue;
-		}
-
-		++iconCnt;					// Good icon
-
-		if (cgs.media.forcePowerIcons[forcePowerSorted[i]])
-		{
-			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[forcePowerSorted[i]] );
+			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] );
 			holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
 		}
 	}
 
-	if (ForcePower_Valid(cg.forceSelect))
+	// Current center icon
+	power = wheel[cur];
+	icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
+	if (cgs.media.forcePowerIcons[icon])
 	{
-		// Current Center Icon. Stasis is a pseudo-slot (18) with no icon of its own;
-		// borrow the jump (FP_LEVITATION) icon so it isn't an out-of-range lookup.
-		int centerIcon = (cg.forceSelect == STASIS_WHEEL_SLOT) ? FP_LEVITATION : cg.forceSelect;
-		if (cgs.media.forcePowerIcons[centerIcon])
-		{
-			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.forcePowerIcons[centerIcon] ); //only cache the icon for display
-		}
+		CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
 	}
 
-	i = BG_ProperForceIndex(cg.forceSelect) + 1;
-	if (i>=MAX_SHOWPOWERS)
-	{
-		i = 0;
-	}
-
-	// Work forwards from current icon
+	// Work forwards (right) from the centered icon, walking the wheel list
 	holdX = x + ((bigIconSize/2) + pad) * cgs.widthRatioCoef;
-	for (iconCnt=1;iconCnt<(sideRightIconCnt+1);i++)
+	idx = cur;
+	for (drawn = 0; drawn < sideRightIconCnt; drawn++)
 	{
-		if (i>=MAX_SHOWPOWERS)
+		idx++;
+		if (idx >= wheelCount)
 		{
-			i = 0;
+			idx = 0;
 		}
 
-		if (!ForcePower_Valid(forcePowerSorted[i]))	// Does he have this power?
+		power = wheel[idx];
+		icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
+		if (cgs.media.forcePowerIcons[icon])
 		{
-			continue;
-		}
-
-		++iconCnt;					// Good icon
-
-		if (cgs.media.forcePowerIcons[forcePowerSorted[i]])
-		{
-			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[forcePowerSorted[i]] ); //only cache the icon for display
+			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
 			holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
 		}
 	}
