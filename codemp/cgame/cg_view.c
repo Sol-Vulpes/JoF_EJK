@@ -2831,6 +2831,7 @@ void	CG_AddAllStrafeTrails( void );
 
 void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback ) {
 	int		inwater;
+	int		fpSel;
 	const char *cstr;
 	float mSensitivity = cg.zoomSensitivity;
 	float mPitchOverride = 0.0f;
@@ -2963,6 +2964,15 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	}
 	//end
 
+	// Force Stasis: hand the engine a real force selection (0-17) even when the stasis
+	// pseudo-slot (18) is centered, so forcesel is never out of range; and mirror whether
+	// stasis is the active selection into cl_stasisSelected so the engine can route a held
+	// +useforce to the stasis engage button.
+	if ( cg.forceSelect == STASIS_WHEEL_SLOT )
+		fpSel = cg.snap ? cg.snap->ps.fd.forcePowerSelected : 0;
+	else
+		fpSel = cg.forceSelect;
+	trap->Cvar_Set( "cl_stasisSelected", (cg.forceSelect == STASIS_WHEEL_SLOT && CG_HasStasis()) ? "1" : "0" );
 
 	// let the client system know what our weapon and zoom settings are
 	if (cg.snap && cg.snap->ps.saberLockTime > cg.time)
@@ -2986,7 +2996,7 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 			//mSensitivityOverride = 5.0f;//old default value
 			mSensitivityOverride = 0.0f;
 			bUseFighterPitch = qtrue;
-			trap->SetUserCmdValue( cg.weaponSelect, mSensitivity, mPitchOverride, mYawOverride, mSensitivityOverride, cg.forceSelect, cg.itemSelect, bUseFighterPitch );
+			trap->SetUserCmdValue( cg.weaponSelect, mSensitivity, mPitchOverride, mYawOverride, mSensitivityOverride, fpSel, cg.itemSelect, bUseFighterPitch );
 			isFighter = qtrue;
 		}
 	}
@@ -3005,12 +3015,12 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 			veh->m_pVehicle->m_pVehicleInfo->type == VH_FIGHTER &&
 			bg_fighterAltControl.integer)
 		{
-			trap->SetUserCmdValue( cg.weaponSelect, mSensitivity, mPitchOverride, mYawOverride, 0.0f, cg.forceSelect, cg.itemSelect, qtrue );
+			trap->SetUserCmdValue( cg.weaponSelect, mSensitivity, mPitchOverride, mYawOverride, 0.0f, fpSel, cg.itemSelect, qtrue );
 			veh = NULL; //this is done because I don't want an extra assign each frame because I am so perfect and super efficient.
 		}
 		else
 		{
-			trap->SetUserCmdValue( cg.weaponSelect, mSensitivity, mPitchOverride, mYawOverride, 0.0f, cg.forceSelect, cg.itemSelect, qfalse );
+			trap->SetUserCmdValue( cg.weaponSelect, mSensitivity, mPitchOverride, mYawOverride, 0.0f, fpSel, cg.itemSelect, qfalse );
 		}
 	}
 
