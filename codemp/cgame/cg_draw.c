@@ -12000,6 +12000,9 @@ static void CG_PlayerLabels(void)
 			cent->currentState.trickedentindex4,
 			cg.snap->ps.clientNum))
 			continue;
+			
+		if (cent->cloaked)
+			continue;
 
 		VectorSubtract(cent->lerpOrigin, cg.predictedPlayerState.origin, diff);
 		if (VectorLength(diff) >= 3000) //Make sure distance is less than... 3000 ?
