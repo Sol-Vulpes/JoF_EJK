@@ -1671,17 +1671,31 @@ void CL_CmdButtons( usercmd_t *cmd ) {
 	}
 	in_forceStasis.wasPressed = qfalse;
 
-	// Force Stasis: when "Stasis" is the selected wheel slot (cgame mirrors this into
-	// cl_stasisSelected), turn a held +useforce into the stasis engage bit instead of
-	// firing a real force power. Must run BEFORE the BUTTON_FORCEPOWER->USE_HOLDABLE
-	// remap below so the two don't fight.
+	// When a pseudo-slot is the selected wheel entry (cgame mirrors this via cvars), remap
+	// +useforce so the real force power is suppressed and the JoF ability fires instead.
+	// Must run BEFORE the BUTTON_FORCEPOWER->USE_HOLDABLE remap below so they don't fight.
+	// Only one pseudo-slot can be selected at a time so else-if ordering is fine.
 	{
-		static cvar_t *cl_stasisSelected = NULL;
+		static cvar_t *cl_stasisSelected  = NULL;
+		static cvar_t *cl_repulseSelected = NULL;
+		static qboolean s_repulseWasDown  = qfalse;
 		if ( !cl_stasisSelected )
-			cl_stasisSelected = Cvar_Get( "cl_stasisSelected", "0", CVAR_ROM );
+			cl_stasisSelected  = Cvar_Get( "cl_stasisSelected",  "0", CVAR_ROM );
+		if ( !cl_repulseSelected )
+			cl_repulseSelected = Cvar_Get( "cl_repulseSelected", "0", CVAR_ROM );
+
 		if ( (cmd->buttons & BUTTON_FORCEPOWER) && cl_stasisSelected->integer ) {
-			cmd->buttons &= ~BUTTON_FORCEPOWER;			// don't fire a real force power
-			cmd->buttons |= (1 << STASIS_ENGAGE_BTN);	// engage stasis instead
+			cmd->buttons &= ~BUTTON_FORCEPOWER;
+			cmd->buttons |= (1 << STASIS_ENGAGE_BTN);
+			s_repulseWasDown = qfalse;
+		} else if ( cl_repulseSelected->integer ) {
+			qboolean down = (cmd->buttons & BUTTON_FORCEPOWER) ? qtrue : qfalse;
+			cmd->buttons &= ~BUTTON_FORCEPOWER;		// suppress the real force power
+			if ( down && !s_repulseWasDown )
+				Cbuf_AddText( "force_repulse\n" );	// send the ClientCommand once per press
+			s_repulseWasDown = down;
+		} else {
+			s_repulseWasDown = qfalse;
 		}
 	}
 
