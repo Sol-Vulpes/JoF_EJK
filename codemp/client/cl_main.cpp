@@ -1589,7 +1589,8 @@ void CL_DownloadsComplete( void ) {
 		// context belongs to the worker thread. On Windows, restoring the display mode
 		// while wglMakeCurrent is current on another thread can invalidate that context,
 		// turning the next GL call into an access violation (SEH) that bypasses catch(int).
-		const char *prevMinOnFocus = SDL_GetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS);
+		const char *prevMinOnFocusTmp = SDL_GetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS);
+		std::string prevMinOnFocus = prevMinOnFocusTmp ? prevMinOnFocusTmp : "";
 		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
 
 		WIN_ReleaseGLContext();
@@ -1623,7 +1624,8 @@ void CL_DownloadsComplete( void ) {
 		loadThread.join();
 		WIN_ReacquireGLContext();
 
-		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, prevMinOnFocus ? prevMinOnFocus : "1");
+		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS,
+			prevMinOnFocus.empty() ? "1" : prevMinOnFocus.c_str());
 
 		if (loadError) {
 			throw loadError;
