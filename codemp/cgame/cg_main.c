@@ -92,6 +92,10 @@ qboolean CG_NoUseableForce(void)
 		i++;
 	}
 
+	// Also count JoF pseudo-powers (stasis/repulse live in bits beyond NUM_FORCE_POWERS).
+	if ( CG_HasStasis() || CG_HasRepulse() )
+		return qfalse;
+
 	//no useable force powers, I guess.
 	return qtrue;
 }
@@ -3260,16 +3264,16 @@ int CG_BuildForceWheel( int *slots )
 		slots[n++] = p;
 		if ( (stasis || repulse) && p == FP_SEE && !placed )	// place pseudo-slots right after Force Sense
 		{
-			if ( stasis )  slots[n++] = STASIS_WHEEL_SLOT;
 			if ( repulse ) slots[n++] = REPULSE_WHEEL_SLOT;
+			if ( stasis )  slots[n++] = STASIS_WHEEL_SLOT;
 			placed = qtrue;
 		}
 	}
 
 	if ( !placed )	// Force Sense not owned: fall back to the end
 	{
-		if ( stasis )  slots[n++] = STASIS_WHEEL_SLOT;
 		if ( repulse ) slots[n++] = REPULSE_WHEEL_SLOT;
+		if ( stasis )  slots[n++] = STASIS_WHEEL_SLOT;
 	}
 
 	return n;
