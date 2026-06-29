@@ -1843,6 +1843,7 @@ typedef struct cgMedia_s {
 	sfxHandle_t jetpackHoverSound;
 	sfxHandle_t jetpackHover2Sound;
 	sfxHandle_t stasisSound;
+	sfxHandle_t repulseSound;
 
 	// new stuff
 	qhandle_t patrolShader;

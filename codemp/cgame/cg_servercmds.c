@@ -1861,6 +1861,15 @@ static void CG_Stasis_f( void ) {
 	trap->S_StartLocalSound( cgs.media.stasisSound, CHAN_LOCAL );
 }
 
+// Force Repulse (JoF JA+ V71): same pattern as Stasis — server sends "repulse" on fire.
+static void CG_Repulse_f( void ) {
+	static int s_lastRepulseSnd = 0;
+	if ( cg.time - s_lastRepulseSnd < 250 )
+		return;
+	s_lastRepulseSnd = cg.time;
+	trap->S_StartLocalSound( cgs.media.repulseSound, CHAN_LOCAL );
+}
+
 int svcmdcmp( const void *a, const void *b ) {
 	return Q_stricmp( (const char *)a, ((serverCommand_t*)b)->cmd );
 }
@@ -1887,6 +1896,7 @@ static serverCommand_t	commands[] = {
 	{ "scl",				CG_SiegeClassSelect_f },
 	{ "scores",				CG_ParseScores },
 	{ "spc",				CG_SiegeProfileMenu_f },
+	{ "repulse",			CG_Repulse_f },
 	{ "stasis",				CG_Stasis_f },
 	{ "sxd",				CG_ParseSiegeExtendedData },
 	{ "tchat",				CG_Chat_f },

@@ -650,7 +650,8 @@ static void CG_RegisterSounds( void ) {
 	cgs.media.jetpackHoverSound = trap->S_RegisterSound( "sound/chars/boba/jethover.wav" );
 	cgs.media.jetpackHover2Sound = trap->S_RegisterSound( "sound/chars/boba/bf_jetpack_lp.wav" );
 
-	cgs.media.stasisSound = trap->S_RegisterSound( "sound/jof/stasis.wav" ); // Force Stasis "it fired" feedback (shipped in jofclient-assets.pk3)
+	cgs.media.stasisSound   = trap->S_RegisterSound( "sound/jof/stasis.wav" );   // Force Stasis "it fired" feedback (shipped in jofclient-assets.pk3)
+	cgs.media.repulseSound  = trap->S_RegisterSound( "sound/jof/repulse.wav" );  // Force Repulse "it fired" feedback (shipped in jofclient-assets.pk3)
 
 	cgs.media.hackerIconShader			= trap->R_RegisterShaderNoMip("gfx/mp/c_icon_tech");
 
