@@ -2433,10 +2433,10 @@ void CG_DrawHUD(centity_t	*cent)
 
 qboolean ForcePower_Valid(int i)
 {
-	if (i == STASIS_WHEEL_SLOT)		// our display-only pseudo-slot
-	{
+	if (i == STASIS_WHEEL_SLOT)		// display-only pseudo-slot (18)
 		return CG_HasStasis();
-	}
+	if (i == REPULSE_WHEEL_SLOT)	// display-only pseudo-slot (19)
+		return CG_HasRepulse();
 
 	if (i == FP_LEVITATION ||
 		i == FP_SABER_OFFENSE ||
@@ -2468,7 +2468,7 @@ void CG_DrawForceSelect( void )
 	int		sideLeftIconCnt,sideRightIconCnt;
 	int		sideMax,holdCount;
 	int		yOffset = 0;
-	int		wheel[NUM_FORCE_POWERS + 1];
+	int		wheel[NUM_FORCE_POWERS + 2];
 	int		wheelCount, cur = -1, idx, drawn, power, icon;
 
 	// don't display if dead
@@ -2479,11 +2479,10 @@ void CG_DrawForceSelect( void )
 
 	if ((cg.forceSelectTime+WEAPON_SELECT_TIME)<cg.time)	// Time is up for the HUD to display
 	{
-		// Real powers persist as the networked forcePowerSelected, so resetting to it is a
-		// no-op for them. Stasis is a pseudo-slot that has no networked home, so keep it
-		// selected across the timeout (like a real power stays selected) unless it's been
-		// revoked, so a held +useforce still engages stasis after the wheel fades.
-		if ( cg.forceSelect != STASIS_WHEEL_SLOT || !CG_HasStasis() )
+		// Real powers persist via forcePowerSelected. Pseudo-slots (stasis/repulse) have no
+		// networked home, so keep them selected after the wheel fades unless revoked.
+		if ( !((cg.forceSelect == STASIS_WHEEL_SLOT && CG_HasStasis()) ||
+		        (cg.forceSelect == REPULSE_WHEEL_SLOT && CG_HasRepulse())) )
 			cg.forceSelect = cg.snap->ps.fd.forcePowerSelected;
 		return;
 	}
@@ -2559,21 +2558,30 @@ void CG_DrawForceSelect( void )
 		}
 
 		power = wheel[idx];
-		// stasis (18) has no icon of its own; borrow the jump (FP_LEVITATION) icon
-		icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
-		if (cgs.media.forcePowerIcons[icon])
-		{
-			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] );
-			holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
+		if ( power == REPULSE_WHEEL_SLOT ) {
+			if (cgs.media.repulseIcon) {
+				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.repulseIcon );
+				holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
+			}
+		} else {
+			// stasis (18) has no icon of its own; borrow the jump (FP_LEVITATION) icon
+			icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
+			if (cgs.media.forcePowerIcons[icon]) {
+				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] );
+				holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
+			}
 		}
 	}
 
 	// Current center icon
 	power = wheel[cur];
-	icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
-	if (cgs.media.forcePowerIcons[icon])
-	{
-		CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
+	if ( power == REPULSE_WHEEL_SLOT ) {
+		if (cgs.media.repulseIcon)
+			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.repulseIcon );
+	} else {
+		icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
+		if (cgs.media.forcePowerIcons[icon])
+			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
 	}
 
 	// Work forwards (right) from the centered icon, walking the wheel list
@@ -2588,18 +2596,27 @@ void CG_DrawForceSelect( void )
 		}
 
 		power = wheel[idx];
-		icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
-		if (cgs.media.forcePowerIcons[icon])
-		{
-			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
-			holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
+		if ( power == REPULSE_WHEEL_SLOT ) {
+			if (cgs.media.repulseIcon) {
+				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.repulseIcon );
+				holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
+			}
+		} else {
+			icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
+			if (cgs.media.forcePowerIcons[icon]) {
+				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
+				holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
+			}
 		}
 	}
 
 	if ( cg.forceSelect == STASIS_WHEEL_SLOT )
 	{
-		// pseudo-slot has no entry in showPowersName[]; draw a literal name
 		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, "Stasis", UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
+	}
+	else if ( cg.forceSelect == REPULSE_WHEEL_SLOT )
+	{
+		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, "Repulse", UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
 	}
 	else if ( showPowersName[cg.forceSelect] )
 	{

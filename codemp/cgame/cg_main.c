@@ -92,6 +92,10 @@ qboolean CG_NoUseableForce(void)
 		i++;
 	}
 
+	// Also count JoF pseudo-powers (stasis/repulse live in bits beyond NUM_FORCE_POWERS).
+	if ( CG_HasStasis() || CG_HasRepulse() )
+		return qfalse;
+
 	//no useable force powers, I guess.
 	return qtrue;
 }
@@ -646,7 +650,8 @@ static void CG_RegisterSounds( void ) {
 	cgs.media.jetpackHoverSound = trap->S_RegisterSound( "sound/chars/boba/jethover.wav" );
 	cgs.media.jetpackHover2Sound = trap->S_RegisterSound( "sound/chars/boba/bf_jetpack_lp.wav" );
 
-	cgs.media.stasisSound = trap->S_RegisterSound( "sound/jof/stasis.wav" ); // Force Stasis "it fired" feedback (shipped in jofclient-assets.pk3)
+	cgs.media.stasisSound   = trap->S_RegisterSound( "sound/jof/stasis.wav" );   // Force Stasis "it fired" feedback (shipped in jofclient-assets.pk3)
+	cgs.media.repulseSound  = trap->S_RegisterSound( "sound/jof/repulse.wav" );  // Force Repulse "it fired" feedback (shipped in jofclient-assets.pk3)
 
 	cgs.media.hackerIconShader			= trap->R_RegisterShaderNoMip("gfx/mp/c_icon_tech");
 
@@ -2981,6 +2986,7 @@ Ghoul2 Insert End
 		i++;
 	}
 	cgs.media.rageRecShader = trap->R_RegisterShaderNoMip("gfx/mp/f_icon_ragerec");
+	cgs.media.repulseIcon   = trap->R_RegisterShaderNoMip("gfx/jof/force_repulse.tga");	// JoF: Force Repulse wheel icon
 
 
 	//body decal shaders -rww
@@ -3223,17 +3229,30 @@ qboolean CG_HasStasis( void )
 
 /*
 ===============
+CG_HasRepulse
+
+True only on a JoF JA+ V71+ server that has granted us Force Repulse.
+===============
+*/
+qboolean CG_HasRepulse( void )
+{
+	return (cg.snap && (cg.snap->ps.fd.forcePowersKnown & (1 << REPULSE_KNOWN_BIT))) ? qtrue : qfalse;
+}
+
+/*
+===============
 CG_BuildForceWheel
 
 Builds the ordered list of selectable force-wheel entries: the valid real powers in
-display order, with the stasis pseudo-slot inserted right after Force Sense (FP_SEE)
-if granted (or appended last if Force Sense isn't owned). Returns the count and fills
-slots[] (must hold at least NUM_FORCE_POWERS+1 entries).
+display order, with the stasis and repulse pseudo-slots inserted right after Force
+Sense (FP_SEE) if granted (or appended last if Force Sense isn't owned). Returns
+the count and fills slots[] (must hold at least NUM_FORCE_POWERS+2 entries).
 ===============
 */
 int CG_BuildForceWheel( int *slots )
 {
 	qboolean stasis = CG_HasStasis();
+	qboolean repulse = CG_HasRepulse();
 	qboolean placed = qfalse;
 	int n = 0, i;
 
@@ -3244,15 +3263,19 @@ int CG_BuildForceWheel( int *slots )
 			continue;
 
 		slots[n++] = p;
-		if ( stasis && p == FP_SEE )		// place stasis right after Force Sense
+		if ( (stasis || repulse) && p == FP_SEE && !placed )	// place pseudo-slots right after Force Sense
 		{
-			slots[n++] = STASIS_WHEEL_SLOT;
+			if ( repulse ) slots[n++] = REPULSE_WHEEL_SLOT;
+			if ( stasis )  slots[n++] = STASIS_WHEEL_SLOT;
 			placed = qtrue;
 		}
 	}
 
-	if ( stasis && !placed )				// Force Sense not owned: fall back to the end
-		slots[n++] = STASIS_WHEEL_SLOT;
+	if ( !placed )	// Force Sense not owned: fall back to the end
+	{
+		if ( repulse ) slots[n++] = REPULSE_WHEEL_SLOT;
+		if ( stasis )  slots[n++] = STASIS_WHEEL_SLOT;
+	}
 
 	return n;
 }
@@ -3287,10 +3310,10 @@ void CG_NextForcePower_f( void )
 		return;
 	}
 
-	// Walk our own wheel order so the stasis pseudo-slot can be cycled onto/off of
-	// without ever putting 18 into the networked forcePowerSelected (kept 0-17).
+	// Walk our own wheel order so pseudo-slots (stasis=18, repulse=19) can be cycled
+	// onto/off of without ever putting them into the networked forcePowerSelected (kept 0-17).
 	{
-		int slots[NUM_FORCE_POWERS + 1], n = CG_BuildForceWheel( slots ), cur = -1, i;
+		int slots[NUM_FORCE_POWERS + 2], n = CG_BuildForceWheel( slots ), cur = -1, i;
 		for ( i = 0; i < n; i++ )
 		{
 			if ( slots[i] == cg.forceSelect ) { cur = i; break; }
@@ -3300,7 +3323,7 @@ void CG_NextForcePower_f( void )
 			cur = (cur + 1) % n;
 			cg.forceSelect = slots[cur];
 			cg.forceSelectTime = cg.time;
-			if ( cg.forceSelect != STASIS_WHEEL_SLOT )
+			if ( cg.forceSelect < NUM_FORCE_POWERS )
 				cg.snap->ps.fd.forcePowerSelected = cg.forceSelect;
 		}
 	}
@@ -3338,7 +3361,7 @@ void CG_PrevForcePower_f( void )
 
 	// Mirror of CG_NextForcePower_f, stepping the other way. See note there.
 	{
-		int slots[NUM_FORCE_POWERS + 1], n = CG_BuildForceWheel( slots ), cur = -1, i;
+		int slots[NUM_FORCE_POWERS + 2], n = CG_BuildForceWheel( slots ), cur = -1, i;
 		for ( i = 0; i < n; i++ )
 		{
 			if ( slots[i] == cg.forceSelect ) { cur = i; break; }
@@ -3348,7 +3371,7 @@ void CG_PrevForcePower_f( void )
 			cur = (cur + n - 1) % n;
 			cg.forceSelect = slots[cur];
 			cg.forceSelectTime = cg.time;
-			if ( cg.forceSelect != STASIS_WHEEL_SLOT )
+			if ( cg.forceSelect < NUM_FORCE_POWERS )
 				cg.snap->ps.fd.forcePowerSelected = cg.forceSelect;
 		}
 	}

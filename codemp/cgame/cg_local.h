@@ -1803,6 +1803,7 @@ typedef struct cgMedia_s {
 	sfxHandle_t jetpackHoverSound;
 	sfxHandle_t jetpackHover2Sound;
 	sfxHandle_t stasisSound;
+	sfxHandle_t repulseSound;
 
 	// new stuff
 	qhandle_t patrolShader;
@@ -1832,6 +1833,7 @@ typedef struct cgMedia_s {
 
 	//force power icons
 	qhandle_t forcePowerIcons[NUM_FORCE_POWERS];
+	qhandle_t repulseIcon;		// JoF: custom Force Repulse wheel icon
 
 	qhandle_t rageRecShader;
 
@@ -2250,6 +2252,7 @@ void CG_NextForcePower_f(void);
 void CG_PrevForcePower_f(void);
 qboolean ForcePower_Valid(int i);
 qboolean CG_HasStasis(void);
+qboolean CG_HasRepulse(void);
 int CG_BuildForceWheel(int *slots);
 
 //
