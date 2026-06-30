@@ -214,6 +214,8 @@ void *		WIN_GL_GetProcAddress( const char *proc );
 qboolean	WIN_GL_ExtensionSupported( const char *extension );
 void		WIN_ReleaseGLContext( void );
 void		WIN_ReacquireGLContext( void );
+void		WIN_BeginAsyncLoad( void );
+void		WIN_EndAsyncLoad( void );
 
 //#if WIN32 && !defined(DEDICATED)
 //qboolean	WIN_VK_GetInstanceExtensions( unsigned int *extensionCount, const char *extensions[] );
