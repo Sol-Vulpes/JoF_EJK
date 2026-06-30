@@ -1585,13 +1585,18 @@ void CL_DownloadsComplete( void ) {
 		// Hand the GL context to the worker thread so it can own the full load stage.
 		// Main thread pumps OS events so the window stays responsive during connect->load.
 
-		// Prevent SDL from calling ChangeDisplaySettingsEx on focus loss while the GL
-		// context belongs to the worker thread. On Windows, restoring the display mode
-		// while wglMakeCurrent is current on another thread can invalidate that context,
-		// turning the next GL call into an access violation (SEH) that bypasses catch(int).
+		// Prevent SDL from calling ChangeDisplaySettingsEx while the GL context
+		// belongs to the worker thread.  Exclusive fullscreen triggers this on
+		// both focus loss (minimize path) and focus gain (restore path), either
+		// of which can invalidate a wglMakeCurrent'd context on another thread,
+		// producing an SEH access violation that bypasses catch(int).
+		// WIN_BeginAsyncLoad temporarily switches to desktop fullscreen (no
+		// ChangeDisplaySettingsEx) so focus events during the load are harmless.
+		// The minimize hint suppresses any remaining minimise-on-focus-loss path.
 		const char *prevMinOnFocusTmp = SDL_GetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS);
 		std::string prevMinOnFocus = prevMinOnFocusTmp ? prevMinOnFocusTmp : "";
 		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
+		WIN_BeginAsyncLoad();
 
 		WIN_ReleaseGLContext();
 
@@ -1623,6 +1628,7 @@ void CL_DownloadsComplete( void ) {
 
 		loadThread.join();
 		WIN_ReacquireGLContext();
+		WIN_EndAsyncLoad();
 
 		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS,
 			prevMinOnFocus.empty() ? "1" : prevMinOnFocus.c_str());
