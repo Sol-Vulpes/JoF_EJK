@@ -1058,10 +1058,57 @@ void WIN_ReleaseGLContext( void )
 }
 
 // Make the main GL context current on the calling thread.
-void WIN_ReacquireGLContext( void )
+// Returns qfalse if the context could not be made current (e.g. it was
+// invalidated by a display mode change while owned by another thread);
+// callers must not issue GL calls in that case.
+qboolean WIN_ReacquireGLContext( void )
 {
-	if ( opengl_context )
-		SDL_GL_MakeCurrent( screen, opengl_context );
+	if ( !opengl_context )
+		return qtrue;
+	if ( SDL_GL_MakeCurrent( screen, opengl_context ) != 0 ) {
+		Com_Printf( S_COLOR_YELLOW "WIN_ReacquireGLContext: SDL_GL_MakeCurrent failed: %s\n", SDL_GetError() );
+		return qfalse;
+	}
+	return qtrue;
+}
+
+// Async map load hands the GL context to a worker thread. That is only safe
+// while no display mode change (ChangeDisplaySettingsEx on Windows) can occur,
+// because a mode change can invalidate a context that is current on another
+// thread and the next GL call then dies with an access violation.
+// WIN_BeginAsyncLoad sidesteps focus-driven mode changes by switching to
+// desktop fullscreen for the duration of the load, but that switch itself is a
+// real mode change whenever the exclusive fullscreen mode differs from the
+// desktop mode. On some display links (HDMI notably) a real mode change
+// re-syncs the link for seconds and can even flap a monitor
+// disconnect/reconnect mid-load. So async is only considered safe when the
+// window is not exclusive fullscreen, or its mode already matches the desktop
+// mode (the fullscreen-desktop round trip then changes nothing).
+qboolean WIN_AsyncLoadSafe( void )
+{
+	if ( !screen )
+		return qtrue;
+
+	Uint32 flags = SDL_GetWindowFlags( screen );
+	if ( ( flags & SDL_WINDOW_FULLSCREEN_DESKTOP ) != SDL_WINDOW_FULLSCREEN )
+		return qtrue; // windowed or desktop fullscreen: no mode change possible
+
+	int displayIndex = SDL_GetWindowDisplayIndex( screen );
+	SDL_DisplayMode fsMode, desktopMode;
+	if ( displayIndex < 0 ||
+		SDL_GetWindowDisplayMode( screen, &fsMode ) != 0 ||
+		SDL_GetDesktopDisplayMode( displayIndex, &desktopMode ) != 0 )
+	{
+		return qfalse; // can't verify the modes match: assume unsafe
+	}
+
+	if ( fsMode.w == desktopMode.w && fsMode.h == desktopMode.h &&
+		fsMode.refresh_rate == desktopMode.refresh_rate &&
+		fsMode.format == desktopMode.format )
+	{
+		return qtrue;
+	}
+	return qfalse;
 }
 
 static bool g_asyncLoadTemporaryDesktopFS = false;

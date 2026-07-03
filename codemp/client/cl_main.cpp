@@ -1581,7 +1581,16 @@ void CL_DownloadsComplete( void ) {
 	// starting to load a map so we get out of full screen ui mode
 	Cvar_Set("r_uiFullScreen", "0");
 	
-	if ( cl_asyncMapLoad->integer ) {
+	// Async loading is skipped when a display mode change could occur during the
+	// load (exclusive fullscreen at a non-desktop mode): a mode change while the
+	// GL context is current on the worker thread can invalidate the context and
+	// crash the process. See WIN_AsyncLoadSafe.
+	qboolean asyncSafe = WIN_AsyncLoadSafe();
+	if ( cl_asyncMapLoad->integer && !asyncSafe ) {
+		Com_Printf( "Async map load skipped: exclusive fullscreen mode differs from desktop mode\n" );
+	}
+
+	if ( cl_asyncMapLoad->integer && asyncSafe ) {
 		// Hand the GL context to the worker thread so it can own the full load stage.
 		// Main thread pumps OS events so the window stays responsive during connect->load.
 
@@ -1602,8 +1611,16 @@ void CL_DownloadsComplete( void ) {
 
 		std::atomic<bool> loadDone{false};
 		int loadError = 0;
+		bool workerRanLoad = false;
 		std::thread loadThread([&]() {
-			WIN_ReacquireGLContext();
+			if (!WIN_ReacquireGLContext()) {
+				// The context could not be made current on this thread (e.g. it
+				// was invalidated by a display change). Bail out without issuing
+				// any GL calls; the main thread will load synchronously instead.
+				loadDone.store(true, std::memory_order_release);
+				return;
+			}
+			workerRanLoad = true;
 			try {
 				// This includes the expensive pre-map flush/restart work before cgame init.
 				CL_FlushMemory();
@@ -1627,14 +1644,26 @@ void CL_DownloadsComplete( void ) {
 		}
 
 		loadThread.join();
-		WIN_ReacquireGLContext();
+		qboolean reacquired = WIN_ReacquireGLContext();
 		WIN_EndAsyncLoad();
 
 		SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS,
 			prevMinOnFocus.empty() ? "1" : prevMinOnFocus.c_str());
 
+		if (!reacquired) {
+			Com_Error( ERR_FATAL, "CL_DownloadsComplete: could not restore GL context after async map load" );
+		}
+
 		if (loadError) {
 			throw loadError;
+		}
+
+		if (!workerRanLoad) {
+			// Worker never got the GL context; run the load on the main thread.
+			Com_Printf( S_COLOR_YELLOW "WARNING: async map load unavailable, loading synchronously\n" );
+			CL_FlushMemory();
+			cls.cgameStarted = qtrue;
+			CL_InitCGame();
 		}
 	} else {
 		// flush client memory and start loading stuff
