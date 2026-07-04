@@ -3267,8 +3267,8 @@ CG_BuildForceWheel
 
 Builds the ordered list of selectable force-wheel entries: the valid real powers in
 display order, with the stasis and repulse pseudo-slots inserted right after Force
-Sense (FP_SEE) and the dash pseudo-slot inserted between Speed and Push (right after
-FP_SPEED), if granted. Any pseudo-slot whose anchor power isn't owned is appended last.
+Sense (FP_SEE) and the dash pseudo-slot inserted right before Speed (FP_SPEED), if
+granted. Any pseudo-slot whose anchor power isn't owned is appended last.
 Returns the count and fills slots[] (must hold at least NUM_FORCE_POWERS+3 entries).
 ===============
 */
@@ -3287,16 +3287,16 @@ int CG_BuildForceWheel( int *slots )
 		if ( !ForcePower_Valid( p ) )
 			continue;
 
-		slots[n++] = p;
-		if ( dash && p == FP_SPEED && !dashPlaced )	// place dash between Speed and Push (right after Speed)
+		if ( dash && p == FP_SPEED && !dashPlaced )	// place dash right before Speed
 		{
 			slots[n++] = DASH_WHEEL_SLOT;
 			dashPlaced = qtrue;
 		}
+		slots[n++] = p;
 		if ( (stasis || repulse) && p == FP_SEE && !placed )	// place pseudo-slots right after Force Sense
 		{
-			if ( repulse ) slots[n++] = REPULSE_WHEEL_SLOT;
 			if ( stasis )  slots[n++] = STASIS_WHEEL_SLOT;
+			if ( repulse ) slots[n++] = REPULSE_WHEEL_SLOT;
 			placed = qtrue;
 		}
 	}
@@ -3306,8 +3306,8 @@ int CG_BuildForceWheel( int *slots )
 
 	if ( !placed )	// Force Sense not owned: fall back to the end
 	{
-		if ( repulse ) slots[n++] = REPULSE_WHEEL_SLOT;
 		if ( stasis )  slots[n++] = STASIS_WHEEL_SLOT;
+		if ( repulse ) slots[n++] = REPULSE_WHEEL_SLOT;
 	}
 
 	return n;
