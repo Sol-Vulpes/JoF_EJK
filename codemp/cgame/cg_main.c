@@ -92,8 +92,8 @@ qboolean CG_NoUseableForce(void)
 		i++;
 	}
 
-	// Also count JoF pseudo-powers (stasis/repulse live in bits beyond NUM_FORCE_POWERS).
-	if ( CG_HasStasis() || CG_HasRepulse() )
+	// Also count JoF pseudo-powers (stasis/repulse/dash live in bits beyond NUM_FORCE_POWERS).
+	if ( CG_HasStasis() || CG_HasRepulse() || CG_HasDash() )
 		return qfalse;
 
 	//no useable force powers, I guess.
@@ -2995,6 +2995,7 @@ Ghoul2 Insert End
 	}
 	cgs.media.rageRecShader = trap->R_RegisterShaderNoMip("gfx/mp/f_icon_ragerec");
 	cgs.media.repulseIcon   = trap->R_RegisterShaderNoMip("gfx/jof/force_repulse.tga");	// JoF: Force Repulse wheel icon
+	cgs.media.dashIcon      = trap->R_RegisterShaderNoMip("gfx/jof/force_dash.tga");		// JoF: Force Dash wheel icon
 
 
 	//body decal shaders -rww
@@ -3249,19 +3250,34 @@ qboolean CG_HasRepulse( void )
 
 /*
 ===============
+CG_HasDash
+
+True only on a JoF JA+ V69+ server that has granted us Force Dash.
+===============
+*/
+qboolean CG_HasDash( void )
+{
+	return (cg.snap && (cg.snap->ps.fd.forcePowersKnown & (1 << DASH_KNOWN_BIT))) ? qtrue : qfalse;
+}
+
+/*
+===============
 CG_BuildForceWheel
 
 Builds the ordered list of selectable force-wheel entries: the valid real powers in
 display order, with the stasis and repulse pseudo-slots inserted right after Force
-Sense (FP_SEE) if granted (or appended last if Force Sense isn't owned). Returns
-the count and fills slots[] (must hold at least NUM_FORCE_POWERS+2 entries).
+Sense (FP_SEE) and the dash pseudo-slot inserted between Speed and Push (right after
+FP_SPEED), if granted. Any pseudo-slot whose anchor power isn't owned is appended last.
+Returns the count and fills slots[] (must hold at least NUM_FORCE_POWERS+3 entries).
 ===============
 */
 int CG_BuildForceWheel( int *slots )
 {
 	qboolean stasis = CG_HasStasis();
 	qboolean repulse = CG_HasRepulse();
-	qboolean placed = qfalse;
+	qboolean dash = CG_HasDash();
+	qboolean placed = qfalse;		// stasis/repulse anchor (FP_SEE)
+	qboolean dashPlaced = qfalse;	// dash anchor (FP_SPEED)
 	int n = 0, i;
 
 	for ( i = 0; i < NUM_FORCE_POWERS; i++ )
@@ -3271,6 +3287,11 @@ int CG_BuildForceWheel( int *slots )
 			continue;
 
 		slots[n++] = p;
+		if ( dash && p == FP_SPEED && !dashPlaced )	// place dash between Speed and Push (right after Speed)
+		{
+			slots[n++] = DASH_WHEEL_SLOT;
+			dashPlaced = qtrue;
+		}
 		if ( (stasis || repulse) && p == FP_SEE && !placed )	// place pseudo-slots right after Force Sense
 		{
 			if ( repulse ) slots[n++] = REPULSE_WHEEL_SLOT;
@@ -3278,6 +3299,9 @@ int CG_BuildForceWheel( int *slots )
 			placed = qtrue;
 		}
 	}
+
+	if ( dash && !dashPlaced )	// Force Speed not owned: fall back to the end
+		slots[n++] = DASH_WHEEL_SLOT;
 
 	if ( !placed )	// Force Sense not owned: fall back to the end
 	{
@@ -3318,10 +3342,10 @@ void CG_NextForcePower_f( void )
 		return;
 	}
 
-	// Walk our own wheel order so pseudo-slots (stasis=18, repulse=19) can be cycled
+	// Walk our own wheel order so pseudo-slots (stasis=18, repulse=19, dash=20) can be cycled
 	// onto/off of without ever putting them into the networked forcePowerSelected (kept 0-17).
 	{
-		int slots[NUM_FORCE_POWERS + 2], n = CG_BuildForceWheel( slots ), cur = -1, i;
+		int slots[NUM_FORCE_POWERS + 3], n = CG_BuildForceWheel( slots ), cur = -1, i;
 		for ( i = 0; i < n; i++ )
 		{
 			if ( slots[i] == cg.forceSelect ) { cur = i; break; }
@@ -3369,7 +3393,7 @@ void CG_PrevForcePower_f( void )
 
 	// Mirror of CG_NextForcePower_f, stepping the other way. See note there.
 	{
-		int slots[NUM_FORCE_POWERS + 2], n = CG_BuildForceWheel( slots ), cur = -1, i;
+		int slots[NUM_FORCE_POWERS + 3], n = CG_BuildForceWheel( slots ), cur = -1, i;
 		for ( i = 0; i < n; i++ )
 		{
 			if ( slots[i] == cg.forceSelect ) { cur = i; break; }
