@@ -419,6 +419,11 @@ typedef enum
 #define REPULSE_KNOWN_BIT	(NUM_FORCE_POWERS + 1)	// spare forcePowersKnown bit (19) the server sets while repulse is granted
 #define REPULSE_WHEEL_SLOT	(NUM_FORCE_POWERS + 1)	// client-only pseudo-slot (19) for the force wheel; display only, never networked
 
+// Force Dash (JoF JA+ V69) client integration.
+// Same rules as Stasis / Repulse: not a real power, never resizes playerState arrays, never sent as forcesel.
+#define DASH_KNOWN_BIT		(NUM_FORCE_POWERS + 2)	// spare forcePowersKnown bit (20) the server sets while dash is granted
+#define DASH_WHEEL_SLOT		(NUM_FORCE_POWERS + 2)	// client-only pseudo-slot (20) for the force wheel; display only, never networked
+
 typedef enum forcePowerLevels_e {
 	FORCE_LEVEL_0,
 	FORCE_LEVEL_1,
