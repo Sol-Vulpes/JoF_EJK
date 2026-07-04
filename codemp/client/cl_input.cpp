@@ -1678,24 +1678,38 @@ void CL_CmdButtons( usercmd_t *cmd ) {
 	{
 		static cvar_t *cl_stasisSelected  = NULL;
 		static cvar_t *cl_repulseSelected = NULL;
+		static cvar_t *cl_dashSelected    = NULL;
 		static qboolean s_repulseWasDown  = qfalse;
+		static qboolean s_dashWasDown     = qfalse;
 		if ( !cl_stasisSelected )
 			cl_stasisSelected  = Cvar_Get( "cl_stasisSelected",  "0", CVAR_ROM );
 		if ( !cl_repulseSelected )
 			cl_repulseSelected = Cvar_Get( "cl_repulseSelected", "0", CVAR_ROM );
+		if ( !cl_dashSelected )
+			cl_dashSelected    = Cvar_Get( "cl_dashSelected",    "0", CVAR_ROM );
 
 		if ( (cmd->buttons & BUTTON_FORCEPOWER) && cl_stasisSelected->integer ) {
 			cmd->buttons &= ~BUTTON_FORCEPOWER;
 			cmd->buttons |= (1 << STASIS_ENGAGE_BTN);
 			s_repulseWasDown = qfalse;
+			s_dashWasDown = qfalse;
 		} else if ( cl_repulseSelected->integer ) {
 			qboolean down = (cmd->buttons & BUTTON_FORCEPOWER) ? qtrue : qfalse;
 			cmd->buttons &= ~BUTTON_FORCEPOWER;		// suppress the real force power
 			if ( down && !s_repulseWasDown )
 				Cbuf_AddText( "force_repulse\n" );	// send the ClientCommand once per press
 			s_repulseWasDown = down;
+			s_dashWasDown = qfalse;
+		} else if ( cl_dashSelected->integer ) {
+			qboolean down = (cmd->buttons & BUTTON_FORCEPOWER) ? qtrue : qfalse;
+			cmd->buttons &= ~BUTTON_FORCEPOWER;		// suppress the real force power
+			if ( down && !s_dashWasDown )
+				Cbuf_AddText( "force_dash\n" );		// send the ClientCommand once per press
+			s_dashWasDown = down;
+			s_repulseWasDown = qfalse;
 		} else {
 			s_repulseWasDown = qfalse;
+			s_dashWasDown = qfalse;
 		}
 	}
 

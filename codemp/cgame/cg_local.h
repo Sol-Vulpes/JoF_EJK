@@ -1834,6 +1834,7 @@ typedef struct cgMedia_s {
 	//force power icons
 	qhandle_t forcePowerIcons[NUM_FORCE_POWERS];
 	qhandle_t repulseIcon;		// JoF: custom Force Repulse wheel icon
+	qhandle_t dashIcon;			// JoF: custom Force Dash wheel icon
 
 	qhandle_t rageRecShader;
 
@@ -2253,6 +2254,7 @@ void CG_PrevForcePower_f(void);
 qboolean ForcePower_Valid(int i);
 qboolean CG_HasStasis(void);
 qboolean CG_HasRepulse(void);
+qboolean CG_HasDash(void);
 int CG_BuildForceWheel(int *slots);
 
 //
