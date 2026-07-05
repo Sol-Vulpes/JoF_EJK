@@ -97,6 +97,7 @@ cvar_t	*cl_activeAction;
 cvar_t	*cl_motdString;
 
 cvar_t	*cl_allowDownload;
+cvar_t	*cl_trustJofDownloads;
 cvar_t	*cl_allowAltEnter;
 cvar_t	*cl_allowEnterCompletion;
 cvar_t	*cl_conXOffset;
@@ -1646,6 +1647,38 @@ void CL_BeginDownload( const char *localName, const char *remoteName ) {
 
 /*
 =================
+CL_JoFTrustedServer
+
+Returns qtrue when the server we are connected to is a JoF JA+ server,
+identified by the JA+ version string "2.5B0" that JoF servers advertise in the
+serverinfo under the "V" key. Used so cl_trustJofDownloads can auto-allow
+downloads from trusted JoF servers even when cl_allowDownload is off.
+=================
+*/
+static qboolean CL_JoFTrustedServer(void) {
+	const char *serverInfo = cl.gameState.stringData + cl.gameState.stringOffsets[ CS_SERVERINFO ];
+	return (qboolean)( !Q_stricmp( Info_ValueForKey( serverInfo, "V" ), "2.5B0" ) );
+}
+
+/*
+=================
+CL_AllowDownload
+
+Whether UDP downloads from the current server are permitted: either the user
+enabled cl_allowDownload, or they trust JoF downloads (cl_trustJofDownloads, on
+by default) and we are connected to a JoF JA+ server.
+=================
+*/
+static qboolean CL_AllowDownload(void) {
+	if ( cl_allowDownload->integer )
+		return qtrue;
+	if ( cl_trustJofDownloads->integer && CL_JoFTrustedServer() )
+		return qtrue;
+	return qfalse;
+}
+
+/*
+=================
 CL_NextDownload
 
 A download completed or failed
@@ -1693,7 +1726,7 @@ void CL_NextDownload(void) {
 		else
 			s = localName + strlen(localName); // point at the nul byte
 
-		if (!cl_allowDownload->integer) {
+		if (!CL_AllowDownload()) {
 			Com_Error(ERR_DROP, "UDP Downloads are disabled on your client. (cl_allowDownload is %d)", cl_allowDownload->integer);
 			return;
 		}
@@ -1735,7 +1768,7 @@ void CL_InitDownloads(void) {
 		clc.downloadMenuActive = qtrue;
 	}
 
-	if ( !cl_allowDownload->integer )
+	if ( !CL_AllowDownload() )
 	{
 		// autodownload is disabled on the client
 		// but it's possible that some referenced files on the server are missing
@@ -3891,6 +3924,7 @@ void CL_Init( void ) {
 	cl_showMouseRate = Cvar_Get ("cl_showmouserate", "0", 0);
 	cl_framerate	= Cvar_Get ("cl_framerate", "0", CVAR_TEMP);
 	cl_allowDownload = Cvar_Get ("cl_allowDownload", "0", CVAR_ARCHIVE_ND, "Allow downloading custom paks from server");
+	cl_trustJofDownloads = Cvar_Get ("cl_trustJofDownloads", "1", CVAR_ARCHIVE_ND, "Auto-allow UDP downloads when connected to a trusted JoF (JA+ 2.5B0) server, even if cl_allowDownload is 0");
 	cl_allowAltEnter = Cvar_Get ("cl_allowAltEnter", "1", CVAR_ARCHIVE_ND, "Enables use of ALT+ENTER keyboard combo to toggle fullscreen" );
 	cl_allowEnterCompletion = Cvar_Get("cl_allowEnterCompletion", "1", CVAR_ARCHIVE, "Enables autocomplete when pressing enter");
 
