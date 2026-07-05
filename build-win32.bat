@@ -57,11 +57,25 @@ if exist "%BUILD_DIR%\CMakeCache.txt" (
     )
 )
 
+REM Force the asset pk3s to rebuild so new/changed sounds and textures get packed.
+REM The CMake zip step declares no input deps, so it keeps a stale archive on
+REM incremental builds; deleting them makes the build regenerate from assets\.
+if exist "codemp\jofclient-assets.pk3" del /q "codemp\jofclient-assets.pk3"
+if exist "codemp\japro-assets.pk3" del /q "codemp\japro-assets.pk3"
+
 "%CMAKE_CMD%" --build . --config Release
 if %errorlevel% neq 0 (
     echo Build failed!
     cd ..
     exit /b 1
+)
+
+REM Redeploy the freshly built pk3s next to the exe (the engine's own copy step
+REM is skipped when it doesn't relink, e.g. when only assets or cgame changed).
+if exist "codemp\jofclient-assets.pk3" (
+    if not exist "Release\EternalJK" mkdir "Release\EternalJK"
+    copy /y "codemp\jofclient-assets.pk3" "Release\EternalJK\" >nul
+    if exist "codemp\japro-assets.pk3" copy /y "codemp\japro-assets.pk3" "Release\EternalJK\" >nul
 )
 
 echo Build completed successfully! Files are in %BUILD_DIR%\Release\

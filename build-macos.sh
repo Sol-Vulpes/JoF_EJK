@@ -83,12 +83,25 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
+# Force the asset pk3s to rebuild so new/changed sounds and textures get packed.
+# The CMake zip step declares no input deps, so it keeps a stale archive on
+# incremental builds; deleting them makes the build regenerate from assets/.
+rm -f codemp/jofclient-assets.pk3 codemp/japro-assets.pk3
+
 # Build
 "$CMAKE_CMD" --build . --config Release
 if [[ $? -ne 0 ]]; then
   echo "Build failed!"
   cd "$SCRIPT_DIR" || exit 1
   exit 1
+fi
+
+# Redeploy the freshly built pk3s next to the exe (the engine's own copy step is
+# skipped when it doesn't relink, e.g. when only assets or cgame changed).
+if [[ -f codemp/jofclient-assets.pk3 ]]; then
+  mkdir -p EternalJK
+  cp -f codemp/jofclient-assets.pk3 EternalJK/
+  [[ -f codemp/japro-assets.pk3 ]] && cp -f codemp/japro-assets.pk3 EternalJK/
 fi
 
 echo "Build completed successfully! Files are in $BUILD_DIR"

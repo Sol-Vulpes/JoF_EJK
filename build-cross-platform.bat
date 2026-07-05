@@ -46,11 +46,22 @@ if %errorlevel% neq 0 (
     goto end
 )
 
+REM Force the asset pk3s to rebuild so new/changed assets get packed (CMake keeps
+REM a stale archive otherwise), then redeploy them next to the exe.
+if exist "codemp\jofclient-assets.pk3" del /q "codemp\jofclient-assets.pk3"
+if exist "codemp\japro-assets.pk3" del /q "codemp\japro-assets.pk3"
+
 "%CMAKE_CMD%" --build . --config Release
 if %errorlevel% neq 0 (
     echo Build failed!
     cd ..
     goto end
+)
+
+if exist "codemp\jofclient-assets.pk3" (
+    if not exist "Release\EternalJK" mkdir "Release\EternalJK"
+    copy /y "codemp\jofclient-assets.pk3" "Release\EternalJK\" >nul
+    if exist "codemp\japro-assets.pk3" copy /y "codemp\japro-assets.pk3" "Release\EternalJK\" >nul
 )
 
 echo Build completed successfully! Files are in build-win64\Release\
@@ -86,11 +97,22 @@ if %errorlevel% neq 0 (
     goto end
 )
 
+REM Force the asset pk3s to rebuild so new/changed assets get packed (CMake keeps
+REM a stale archive otherwise), then redeploy them next to the exe.
+if exist "codemp\jofclient-assets.pk3" del /q "codemp\jofclient-assets.pk3"
+if exist "codemp\japro-assets.pk3" del /q "codemp\japro-assets.pk3"
+
 "%CMAKE_CMD%" --build . --config Release
 if %errorlevel% neq 0 (
     echo Build failed!
     cd ..
     goto end
+)
+
+if exist "codemp\jofclient-assets.pk3" (
+    if not exist "Release\EternalJK" mkdir "Release\EternalJK"
+    copy /y "codemp\jofclient-assets.pk3" "Release\EternalJK\" >nul
+    if exist "codemp\japro-assets.pk3" copy /y "codemp\japro-assets.pk3" "Release\EternalJK\" >nul
 )
 
 echo Build completed successfully! Files are in build-win32\Release\
