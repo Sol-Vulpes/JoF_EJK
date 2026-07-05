@@ -514,6 +514,7 @@ extern	cvar_t	*cl_forceavidemo;
 extern	cvar_t	*cl_activeAction;
 
 extern	cvar_t	*cl_allowDownload;
+extern	cvar_t	*cl_trustJofDownloads;
 extern	cvar_t	*cl_allowAltEnter;
 extern	cvar_t	*cl_allowEnterCompletion;
 extern	cvar_t	*cl_conXOffset;
