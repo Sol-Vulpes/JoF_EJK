@@ -97,7 +97,7 @@ cvar_t	*cl_activeAction;
 cvar_t	*cl_motdString;
 
 cvar_t	*cl_allowDownload;
-cvar_t	*cl_trustJofDownloads;
+cvar_t	*cl_autoDownloadJof;
 cvar_t	*cl_allowAltEnter;
 cvar_t	*cl_allowEnterCompletion;
 cvar_t	*cl_conXOffset;
@@ -1640,6 +1640,7 @@ void CL_BeginDownload( const char *localName, const char *remoteName ) {
 	if ( cl_downloadPrompt->integer ) {
 		clc.downloadMenuActive = qtrue;
 		clc.downloadWaitingOnUser = qtrue;
+		clc.downloadPromptTime = cls.realtime;	// start the cl_autoDownloadJof auto-confirm countdown
 	} else {
 		CL_BeginDownloadConfirm();
 	}
@@ -1651,30 +1652,13 @@ CL_JoFTrustedServer
 
 Returns qtrue when the server we are connected to is a JoF JA+ server,
 identified by the JA+ version string "2.5B0" that JoF servers advertise in the
-serverinfo under the "V" key. Used so cl_trustJofDownloads can auto-allow
-downloads from trusted JoF servers even when cl_allowDownload is off.
+serverinfo under the "V" key. Used so cl_autoDownloadJof only auto-confirms the
+download prompt on trusted JoF servers.
 =================
 */
 static qboolean CL_JoFTrustedServer(void) {
 	const char *serverInfo = cl.gameState.stringData + cl.gameState.stringOffsets[ CS_SERVERINFO ];
 	return (qboolean)( !Q_stricmp( Info_ValueForKey( serverInfo, "V" ), "2.5B0" ) );
-}
-
-/*
-=================
-CL_AllowDownload
-
-Whether UDP downloads from the current server are permitted: either the user
-enabled cl_allowDownload, or they trust JoF downloads (cl_trustJofDownloads, on
-by default) and we are connected to a JoF JA+ server.
-=================
-*/
-static qboolean CL_AllowDownload(void) {
-	if ( cl_allowDownload->integer )
-		return qtrue;
-	if ( cl_trustJofDownloads->integer && CL_JoFTrustedServer() )
-		return qtrue;
-	return qfalse;
 }
 
 /*
@@ -1726,7 +1710,7 @@ void CL_NextDownload(void) {
 		else
 			s = localName + strlen(localName); // point at the nul byte
 
-		if (!CL_AllowDownload()) {
+		if (!cl_allowDownload->integer) {
 			Com_Error(ERR_DROP, "UDP Downloads are disabled on your client. (cl_allowDownload is %d)", cl_allowDownload->integer);
 			return;
 		}
@@ -1768,7 +1752,7 @@ void CL_InitDownloads(void) {
 		clc.downloadMenuActive = qtrue;
 	}
 
-	if ( !CL_AllowDownload() )
+	if ( !cl_allowDownload->integer )
 	{
 		// autodownload is disabled on the client
 		// but it's possible that some referenced files on the server are missing
@@ -3924,7 +3908,7 @@ void CL_Init( void ) {
 	cl_showMouseRate = Cvar_Get ("cl_showmouserate", "0", 0);
 	cl_framerate	= Cvar_Get ("cl_framerate", "0", CVAR_TEMP);
 	cl_allowDownload = Cvar_Get ("cl_allowDownload", "0", CVAR_ARCHIVE_ND, "Allow downloading custom paks from server");
-	cl_trustJofDownloads = Cvar_Get ("cl_trustJofDownloads", "1", CVAR_ARCHIVE_ND, "Auto-allow UDP downloads when connected to a trusted JoF (JA+ 2.5B0) server, even if cl_allowDownload is 0");
+	cl_autoDownloadJof = Cvar_Get ("cl_autoDownloadJof", "1", CVAR_ARCHIVE_ND, "On a JoF (JA+ 2.5B0) server, auto-confirm the download prompt after a 10s countdown if the user does not respond");
 	cl_allowAltEnter = Cvar_Get ("cl_allowAltEnter", "1", CVAR_ARCHIVE_ND, "Enables use of ALT+ENTER keyboard combo to toggle fullscreen" );
 	cl_allowEnterCompletion = Cvar_Get("cl_allowEnterCompletion", "1", CVAR_ARCHIVE, "Enables autocomplete when pressing enter");
 
@@ -5249,6 +5233,10 @@ const char *CL_DurationSecToString( int duration )
     return durationStr;
 }
 
+// How long (ms) the download confirm prompt waits before cl_autoDownloadJof
+// auto-confirms it on a trusted JoF server.
+#define CL_JOF_AUTODL_TIMEOUT 10000
+
 void CL_DrawDownloadRequest( void ) {
 	// Menu values
 	static vec4_t backgroundColor = { 0.1f, 0.2f, 0.45f, 0.9f };
@@ -5278,7 +5266,18 @@ void CL_DrawDownloadRequest( void ) {
 	if ( clc.downloadWaitingOnUser ) {
 		// Tell user that we're waiting on their decision
 		CL_DrawCenterStringAt( centerX, centerY-10, "Do you want to download this file?", cls.menuFont, scale );
-		CL_DrawCenterStringAt( centerX, centerY+10, "Please select an option", cls.menuFont, scale );
+
+		// On a trusted JoF server, auto-confirm after a countdown unless the user answers first.
+		if ( cl_autoDownloadJof->integer && CL_JoFTrustedServer() ) {
+			int msLeft = CL_JOF_AUTODL_TIMEOUT - ( cls.realtime - clc.downloadPromptTime );
+			if ( msLeft <= 0 ) {
+				CL_BeginDownloadConfirm();
+				return;
+			}
+			CL_DrawCenterStringAt( centerX, centerY+10, va( "Auto-downloading in %d...", ( msLeft + 999 ) / 1000 ), cls.menuFont, scale );
+		} else {
+			CL_DrawCenterStringAt( centerX, centerY+10, "Please select an option", cls.menuFont, scale );
+		}
 	} else {
 		// Draw Progress Bar
 		static vec4_t barBackgroundColor = { 0.1f, 0.8f, 0.4f, 0.9f };
