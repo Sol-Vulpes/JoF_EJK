@@ -270,6 +270,7 @@ typedef struct clientConnection_s {
 	qboolean	downloadRestart;	// if true, we need to do another FS_Restart because we downloaded a pak
 	qboolean	downloadMenuActive;
 	qboolean	downloadWaitingOnUser;
+	int			downloadPromptTime;	// cls.realtime when the download confirm prompt was shown (for cl_autoDownloadJof auto-confirm)
 	qboolean	downloadFinished;
 	int			downloadTime;
 
@@ -515,7 +516,7 @@ extern	cvar_t	*cl_forceavidemo;
 extern	cvar_t	*cl_activeAction;
 
 extern	cvar_t	*cl_allowDownload;
-extern	cvar_t	*cl_trustJofDownloads;
+extern	cvar_t	*cl_autoDownloadJof;
 extern	cvar_t	*cl_allowAltEnter;
 extern	cvar_t	*cl_allowEnterCompletion;
 extern	cvar_t	*cl_conXOffset;
