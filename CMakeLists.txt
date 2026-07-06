@@ -45,6 +45,8 @@ option(BuildDiscordRichPresence "Whether to build with Discord Rich Presence int
 
 option(BuildMPRend2 "Whether to create projects for the EXPERIMENTAL MP rend2 renderer (rd-rend2-etjk_x86.dll)" ON)
 
+option(BuildMPRdNull "Whether to create projects for the headless no-GPU renderer (rd-null_x86.dll)" ON)
+
 option(BuildTests "Whether to build automatic unit tests (requires Boost)" OFF)
 
 Include(CMakeDependentOption)
@@ -153,6 +155,7 @@ message(STATUS "Git revision is ${GIT_SHA1}")
 # Binary names
 set(MPEngine "eternaljk.${Architecture}")
 set(MPVanillaRenderer "rd-eternaljk_${Architecture}")
+set(MPNullRenderer "rd-null_${Architecture}")
 set(MPDed "eternaljkded.${Architecture}")
 set(MPGame "jampgame${Architecture}")
 set(MPCGame "cgame${Architecture}")

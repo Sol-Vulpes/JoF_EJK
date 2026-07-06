@@ -117,6 +117,10 @@ if(BuildMPRend2)
 	add_subdirectory("${MPDir}/rd-rend2")
 endif(BuildMPRend2)
 
+if(BuildMPRdNull)
+	add_subdirectory("${MPDir}/rd-null")
+endif(BuildMPRdNull)
+
 
 #    Common things between Engine and Dedicated Server
 if(BuildMPEngine OR BuildMPDed)

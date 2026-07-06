@@ -549,7 +549,15 @@ GetRefAPI
 
 @@@@@@@@@@@@@@@@@@@@@
 */
+#ifdef REND_NULL
+// When these sources are compiled into the headless "rd-null" renderer module,
+// this only fills the server/ghoul2 half of the export table. The real DLL
+// entry point (GetRefAPI) lives in rd-null/tr_null.cpp, wraps this, and adds
+// safe stubs for the client-facing rendering half.
+refexport_t *GetRefAPI_Core ( int apiVersion, refimport_t *rimp ) {
+#else
 refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
+#endif
 	static refexport_t re;
 
 	assert( rimp );
