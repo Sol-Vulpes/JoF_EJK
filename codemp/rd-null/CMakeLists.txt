@@ -44,6 +44,10 @@ set(MPNullRendererFiles
 
 	# modular-renderer engine shim (Com_Printf/Error, Hunk_*, Z_* -> ri.*)
 	"${MPDir}/rd-vanilla/tr_subs.cpp"
+
+	# GL-backend stubs the renderer core references (R_IssuePendingRenderCommands,
+	# RB_StageIterator*); same file the dedicated server links.
+	"${MPDir}/null/null_renderer.cpp"
 	)
 source_group("renderer" FILES ${MPNullRendererFiles})
 

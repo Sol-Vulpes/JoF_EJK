@@ -24,6 +24,20 @@ NULL pointer.
 // From rd-dedicated/tr_init.cpp (compiled with REND_NULL).
 extern refexport_t *GetRefAPI_Core( int apiVersion, refimport_t *rimp );
 
+// Engine shim: rd-vanilla/tr_subs.cpp supplies Com_Printf/Com_OPrintf/Com_Error
+// and Hunk_*/Z_* for a modular renderer, but not Com_DPrintf, which the
+// dedicated renderer sources reference. Provide it here (only in rd-null).
+void QDECL Com_DPrintf( const char *msg, ... ) {
+	va_list	argptr;
+	char	text[1024];
+
+	va_start( argptr, msg );
+	Q_vsnprintf( text, sizeof( text ), msg, argptr );
+	va_end( argptr );
+
+	ri.Printf( PRINT_DEVELOPER, "%s", text );
+}
+
 // Real, headless-safe subsystem init living in the rd-dedicated sources.
 extern void R_Init( void );
 extern void R_InitShaders( qboolean server );
