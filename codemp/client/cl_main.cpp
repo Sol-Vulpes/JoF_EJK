@@ -3188,7 +3188,12 @@ void CL_InitRef( void ) {
 
 	cl_renderer = Cvar_Get( "cl_renderer", DEFAULT_RENDER_LIBRARY, CVAR_ARCHIVE|CVAR_LATCH, "Which renderer library to use" );
 
-	Com_sprintf( dllName, sizeof( dllName ), "%s_" ARCH_STRING DLL_EXT, cl_renderer->string );
+	// Headless mode forces the null (no-GPU) renderer for this session only.
+	// We deliberately don't touch cl_renderer so nothing persists to the config.
+	if ( com_headless && com_headless->integer )
+		Com_sprintf( dllName, sizeof( dllName ), "rd-null_" ARCH_STRING DLL_EXT );
+	else
+		Com_sprintf( dllName, sizeof( dllName ), "%s_" ARCH_STRING DLL_EXT, cl_renderer->string );
 
 	if( !(rendererLib = Sys_LoadDll( dllName, qfalse )) && strcmp( cl_renderer->string, cl_renderer->resetString ) )
 	{

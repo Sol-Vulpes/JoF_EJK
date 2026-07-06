@@ -775,6 +775,14 @@ int main ( int argc, char* argv[] )
 
 	Com_Init (commandLine);
 
+#if defined(WIN32) && !defined(DEDICATED)
+	// Headless client: Release builds don't create a console window, so spawn one
+	// here for reliable stdin/stdout (chat in, console commands out/in).
+	if ( Cvar_VariableIntegerValue( "com_headless" ) ) {
+		CON_CreateConsoleWindow();
+	}
+#endif
+
 #ifndef DEDICATED
 
 #if 0//defined(WIN32) && !defined(_DEBUG)

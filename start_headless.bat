@@ -18,8 +18,9 @@ REM --- Where the game lives (folder holding eternaljk.x86_64.exe). Edit if need
 set "GAMEDATA=C:\Program Files (x86)\Steam\steamapps\common\Jedi Academy\GameData"
 set "EXE=eternaljk.x86_64.exe"
 
-REM --- Headless cvars: null renderer, no audio device, low fps to stay near-idle.
-set "ARGS=+set cl_renderer rd-null +set s_initsound 0 +set com_maxfps 30"
+REM --- One flag enables headless mode (null renderer, no sound, capped fps,
+REM     own console window). It is NOT archived, so it never affects normal play.
+set "ARGS=+set com_headless 1"
 
 REM --- Optional first argument = server to auto-connect to.
 if not "%~1"=="" set "ARGS=%ARGS% +connect %~1"
@@ -42,11 +43,10 @@ if not exist "rd-null_x86_64.dll" (
     echo.
 )
 
-echo Starting EternalJK headless...  (type "quit" to exit)
+echo Starting EternalJK headless...  A separate console window will open;
+echo type your commands there (connect / say / tell / quit).
 echo.
 
-REM /wait /b keeps the game attached to THIS console window (shared stdin/stdout)
-REM so you can read chat and type commands here.
-start "" /wait /b "%EXE%" %ARGS%
+start "" "%EXE%" %ARGS%
 
 endlocal

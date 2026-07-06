@@ -543,7 +543,7 @@ void S_Init( void ) {
 	MP3_InitCvars();
 
 	cv = Cvar_Get ("s_initsound", "1", 0);
-	if ( !cv->integer ) {
+	if ( !cv->integer || ( com_headless && com_headless->integer ) ) {
 		s_soundStarted = 0;	// needed in case you set s_initsound to 0 midgame then snd_restart (div0 err otherwise later)
 		Com_Printf ("not initializing.\n");
 		Com_Printf("------------------------------------\n");

@@ -44,6 +44,7 @@ fileHandle_t	com_journalDataFile;		// config files are written here
 cvar_t	*com_speeds;
 cvar_t	*com_developer;
 cvar_t	*com_dedicated;
+cvar_t	*com_headless;
 cvar_t	*com_timescale;
 cvar_t	*com_fixedtime;
 cvar_t	*com_journal;
@@ -1256,6 +1257,11 @@ void Com_Init( char *commandLine ) {
 		com_dedicated = Cvar_Get ("_dedicated", "0", CVAR_ROM|CVAR_INIT|CVAR_PROTECTED);
 	//	Cvar_CheckRange( com_dedicated, 0, 2, qtrue );
 	#endif
+
+		// Headless client mode: null renderer, no sound, capped fps. Command-line
+		// only (CVAR_INIT) and NOT archived, so nothing here persists to the
+		// config or affects a normal windowed launch.
+		com_headless = Cvar_Get( "com_headless", "0", CVAR_INIT, "Run the client headless (no window/GPU/sound), console/chat only" );
 		// allocate the stack based hunk allocator
 		Com_InitHunkMemory();
 
@@ -1645,7 +1651,9 @@ void Com_Frame( void )
 			}
 			else
 			{
-				if(com_minimized->integer && com_maxfpsMinimized->integer > 0)
+				if(com_headless && com_headless->integer)
+					minMsec = 1000 / 30;	// headless: near-idle, independent of the archived com_maxfps
+				else if(com_minimized->integer && com_maxfpsMinimized->integer > 0)
 					minMsec = 1000 / com_maxfpsMinimized->integer;
 				else if(com_unfocused->integer && com_maxfpsUnfocused->integer > 0)
 					minMsec = 1000 / com_maxfpsUnfocused->integer;
