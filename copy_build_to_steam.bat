@@ -7,7 +7,7 @@ set "GAMEDATA=C:\Program Files (x86)\Steam\steamapps\common\Jedi Academy\GameDat
 set "ETERNALJK=%GAMEDATA%\EternalJK"
 
 echo Copying main executables/DLLs to GameData (only if newer)...
-robocopy "%SRC%" "%GAMEDATA%" eternaljk.x86_64.exe rd-eternaljk_x86_64.dll eternaljkded.x86_64.exe /XO /R:1 /W:1
+robocopy "%SRC%" "%GAMEDATA%" eternaljk.x86_64.exe rd-eternaljk_x86_64.dll rd-null_x86_64.dll eternaljkded.x86_64.exe /XO /R:1 /W:1
 
 echo.
 echo Copying EternalJK files to GameData\EternalJK (only if newer)...
