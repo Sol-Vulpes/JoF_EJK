@@ -471,64 +471,66 @@ static rserr_t GLimp_CreateOpenGLWindow(
 		else
 			perChannelColorBits = 4;
 
-		SDL_GL_SetAttribute( SDL_GL_RED_SIZE, perChannelColorBits );
-		SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, perChannelColorBits );
-		SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, perChannelColorBits );
-		SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, testDepthBits );
-		SDL_GL_SetAttribute( SDL_GL_STENCIL_SIZE, testStencilBits );
+		if (windowDesc->api == GRAPHICS_API_OPENGL) {
+			SDL_GL_SetAttribute( SDL_GL_RED_SIZE, perChannelColorBits );
+			SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, perChannelColorBits );
+			SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, perChannelColorBits );
+			SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, testDepthBits );
+			SDL_GL_SetAttribute( SDL_GL_STENCIL_SIZE, testStencilBits );
 
-		SDL_GL_SetAttribute( SDL_GL_MULTISAMPLEBUFFERS, samples ? 1 : 0 );
-		SDL_GL_SetAttribute( SDL_GL_MULTISAMPLESAMPLES, samples );
+			SDL_GL_SetAttribute( SDL_GL_MULTISAMPLEBUFFERS, samples ? 1 : 0 );
+			SDL_GL_SetAttribute( SDL_GL_MULTISAMPLESAMPLES, samples );
 
-		if ( windowDesc->gl.majorVersion )
-		{
-			int compactVersion = windowDesc->gl.majorVersion * 100 + windowDesc->gl.minorVersion * 10;
-
-			SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, windowDesc->gl.majorVersion );
-			SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, windowDesc->gl.minorVersion );
-
-			if ( windowDesc->gl.profile == GLPROFILE_ES || compactVersion >= 320 )
+			if ( windowDesc->gl.majorVersion )
 			{
-				int profile;
-				switch ( windowDesc->gl.profile )
+				int compactVersion = windowDesc->gl.majorVersion * 100 + windowDesc->gl.minorVersion * 10;
+
+				SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, windowDesc->gl.majorVersion );
+				SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, windowDesc->gl.minorVersion );
+
+				if ( windowDesc->gl.profile == GLPROFILE_ES || compactVersion >= 320 )
 				{
-				default:
-				case GLPROFILE_COMPATIBILITY:
-					profile = SDL_GL_CONTEXT_PROFILE_COMPATIBILITY;
-					break;
+					int profile;
+					switch ( windowDesc->gl.profile )
+					{
+					default:
+					case GLPROFILE_COMPATIBILITY:
+						profile = SDL_GL_CONTEXT_PROFILE_COMPATIBILITY;
+						break;
 
-				case GLPROFILE_CORE:
-					profile = SDL_GL_CONTEXT_PROFILE_CORE;
-					break;
+					case GLPROFILE_CORE:
+						profile = SDL_GL_CONTEXT_PROFILE_CORE;
+						break;
 
-				case GLPROFILE_ES:
-					profile = SDL_GL_CONTEXT_PROFILE_ES;
-					break;
+					case GLPROFILE_ES:
+						profile = SDL_GL_CONTEXT_PROFILE_ES;
+						break;
+					}
+
+					SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, profile );
 				}
-
-				SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, profile );
 			}
-		}
 
-		if ( windowDesc->gl.contextFlags & GLCONTEXT_DEBUG )
-		{
-			SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
-		}
+			if ( windowDesc->gl.contextFlags & GLCONTEXT_DEBUG )
+			{
+				SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
+			}
 
-		if(r_stereo->integer)
-		{
-			glConfig->stereoEnabled = qtrue;
-			SDL_GL_SetAttribute(SDL_GL_STEREO, 1);
-		}
-		else
-		{
-			glConfig->stereoEnabled = qfalse;
-			SDL_GL_SetAttribute(SDL_GL_STEREO, 0);
-		}
+			if(r_stereo->integer)
+			{
+				glConfig->stereoEnabled = qtrue;
+				SDL_GL_SetAttribute(SDL_GL_STEREO, 1);
+			}
+			else
+			{
+				glConfig->stereoEnabled = qfalse;
+				SDL_GL_SetAttribute(SDL_GL_STEREO, 0);
+			}
 
-		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
-		//SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, r_swapInterval->integer );
-		SDL_GL_SetAttribute( SDL_GL_ACCELERATED_VISUAL, !r_allowSoftwareGL->integer );
+			SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+			//SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, r_swapInterval->integer );
+			SDL_GL_SetAttribute( SDL_GL_ACCELERATED_VISUAL, !r_allowSoftwareGL->integer );
+		}
 
 		if( ( screen = SDL_CreateWindow( windowTitle, x, y,
 				glConfig->vidWidth, glConfig->vidHeight, flags ) ) == NULL )
@@ -564,15 +566,17 @@ static rserr_t GLimp_CreateOpenGLWindow(
 			}
 		}
 
-		if( ( opengl_context = SDL_GL_CreateContext( screen ) ) == NULL )
-		{
-			Com_Printf( "SDL_GL_CreateContext failed: %s\n", SDL_GetError( ) );
-			continue;
-		}
+		if (windowDesc->api == GRAPHICS_API_OPENGL) {
+			if( ( opengl_context = SDL_GL_CreateContext( screen ) ) == NULL )
+			{
+				Com_Printf( "SDL_GL_CreateContext failed: %s\n", SDL_GetError( ) );
+				continue;
+			}
 
-		if ( SDL_GL_SetSwapInterval( r_swapInterval->integer ) == -1 )
-		{
-			Com_DPrintf( "SDL_GL_SetSwapInterval failed: %s\n", SDL_GetError() );
+			if ( SDL_GL_SetSwapInterval( r_swapInterval->integer ) == -1 )
+			{
+				Com_DPrintf( "SDL_GL_SetSwapInterval failed: %s\n", SDL_GetError() );
+			}
 		}
 
 		glConfig->colorBits = testColorBits;
@@ -584,8 +588,10 @@ static rserr_t GLimp_CreateOpenGLWindow(
 		break;
 	}
 
-	if (opengl_context == NULL) {
-		return RSERR_UNKNOWN;
+	if (windowDesc->api == GRAPHICS_API_OPENGL) {
+		if (opengl_context == NULL) {
+			return RSERR_UNKNOWN;
+		}
 	}
 
 	return RSERR_OK;
@@ -727,7 +733,7 @@ static rserr_t GLimp_SetMode(
 		glConfig->isFullscreen = qfalse;
 	}
 
-	if (windowDesc->api == GRAPHICS_API_OPENGL)
+	if (windowDesc->api == GRAPHICS_API_OPENGL || windowDesc->api == GRAPHICS_API_VULKAN)
 	{
 		const rserr_t rcode = GLimp_CreateOpenGLWindow(
 			windowTitle, x, y, windowDesc, flags, icon, glConfig);
