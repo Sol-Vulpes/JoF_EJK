@@ -3991,7 +3991,7 @@ void CL_Init( void ) {
 
 	cl_maxpackets = Cvar_Get ("cl_maxpackets", "125", CVAR_ARCHIVE );
 	cl_packetdup = Cvar_Get ("cl_packetdup", "1", CVAR_ARCHIVE_ND );
-	cl_cmdratecap = Cvar_Get("cl_cmdratecap", "0", CVAR_ARCHIVE);
+	cl_cmdratecap = Cvar_Get("cl_cmdratecap", "1", CVAR_ARCHIVE);
 	cl_extSnapshots = Cvar_Get( "cl_extSnapshots", "1", CVAR_ARCHIVE_ND, "Opt in to receiving more than the vanilla 256 entities per snapshot on servers that support it (sv_extSnapshots)" );
 
 #ifndef TOURNAMENT_CLIENT

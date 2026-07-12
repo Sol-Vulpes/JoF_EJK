@@ -2564,6 +2564,18 @@ static void CG_HelpUsSol_f( void ) {
 	Com_Printf( S_COLOR_GREEN "cg_showClientIDs " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - show client ID numbers on the scoreboard and next to your score on the HUD.\n" );
 	Com_Printf( S_COLOR_GREEN "in_noAltF4 " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - block Alt+F4 from closing the game.\n" );
 	Com_Printf( S_COLOR_GREEN "cg_autoHeal " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - automatically use force heal while alive and at or below 75 health, if you have the power and the force to spend.\n" );
+	Com_Printf( S_COLOR_GREEN "cl_cmdratecap " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - cap movement command generation at 125Hz, independent of your framerate (default 1).\n" );
+	Com_Printf( S_COLOR_CYAN "----- " S_COLOR_MAGENTA "about cl_cmdratecap" S_COLOR_CYAN " -----\n" );
+	Com_Printf( S_COLOR_WHITE "In vanilla JKA the client builds one movement command per rendered frame, so your framerate is\n" );
+	Com_Printf( S_COLOR_WHITE "part of the physics: rounding in the movement code makes jump height, acceleration and strafing\n" );
+	Com_Printf( S_COLOR_WHITE "behave differently at 125 FPS than at 250 or 333, which is why players used to lock com_maxfps\n" );
+	Com_Printf( S_COLOR_WHITE "to specific \"magic\" values. With " S_COLOR_GREEN "cl_cmdratecap 1" S_COLOR_WHITE " the two are decoupled: commands are emitted on a\n" );
+	Com_Printf( S_COLOR_WHITE "fixed 8ms step (125Hz) no matter how fast you render, so you get the movement of a 125 FPS client\n" );
+	Com_Printf( S_COLOR_WHITE "while still drawing as many frames as your monitor and hardware allow. Overshoot is carried across\n" );
+	Com_Printf( S_COLOR_WHITE "frames so the long-run average stays at exactly 125 commands per second, and after a hitch or an\n" );
+	Com_Printf( S_COLOR_WHITE "alt-tab the timer snaps forward instead of firing a burst of catch-up commands. Set it to " S_COLOR_GREEN "0" S_COLOR_WHITE " only\n" );
+	Com_Printf( S_COLOR_WHITE "if you deliberately want the old framerate-dependent movement. Also on the Setup/Network menu as\n" );
+	Com_Printf( S_COLOR_WHITE "\"Command Rate Cap\".\n" );
 	Com_Printf( S_COLOR_CYAN "================================\n" );
 }
 
