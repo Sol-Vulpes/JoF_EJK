@@ -189,3 +189,6 @@ lib/libcurl/
 build64temp/
 
 build32temp/
+
+# Per-machine path override for the Windows build scripts
+build-scripts/gamedata-path.txt

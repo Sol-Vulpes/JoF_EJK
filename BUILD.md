@@ -20,9 +20,11 @@ This guide provides instructions for building JoF EternalJK for different platfo
 ### CMake Path Configuration
 The build scripts support custom CMake installations. You can specify your CMake path in several ways:
 
-1. **cmake-path.txt file**: Edit this file with your CMake executable path
-2. **CMAKE_PATH environment variable**: Set this variable to your CMake path
-3. **PATH**: Add CMake to your system PATH (default behavior)
+1. **`build-scripts/cmake-path.txt`**: put the full path to your `cmake.exe` on the first line
+2. **`CMAKE_PATH` environment variable**: set it to your CMake path
+3. **PATH**: add CMake to your system PATH (default behavior)
+
+See [build-scripts/README.md](build-scripts/README.md) for details, including how to point the scripts at your Jedi Academy install.
 
 ### Linux
 - **CMake 3.1 or later**
@@ -40,15 +42,12 @@ For cross-compiling Windows binaries on Linux:
 
 ### Windows (Visual Studio)
 ```batch
-# Clone the repository
+:: Clone the repository
 git clone https://github.com/Milamber0/JoF_EJK.git
 cd JoF_EJK
 
-# Generate Visual Studio project (64-bit by default)
-cmake -G "Visual Studio 16 2019" -A x64 .
-
-# Build
-cmake --build . --config Release
+:: Build, copy into your Jedi Academy GameData folder, and launch
+sol_one_script.bat
 ```
 
 ### Linux (Native)
@@ -65,38 +64,36 @@ make -j$(nproc)
 
 ## Windows Builds
 
-### Visual Studio (Recommended)
+Everything Windows goes through one script in the repo root. It picks the newest Visual Studio you have installed, configures CMake the first time, and builds Release. Full details in [build-scripts/README.md](build-scripts/README.md).
 
-#### 64-bit Build
 ```batch
-# Automatic detection (recommended)
-.\build-win64.bat
-
-# Manual specification
-cmake -G "Visual Studio 16 2019" -A x64 .
-cmake --build . --config Release
+sol_one_script.bat              :: build + deploy to GameData + launch
+sol_one_script.bat build        :: 64-bit build only -> build64temp\Release\
+sol_one_script.bat build32      :: 32-bit build only -> build32temp\Release\
+sol_one_script.bat deploy       :: copy the build into GameData
+sol_one_script.bat run          :: launch the game
+sol_one_script.bat vs           :: generate a Visual Studio solution in build\
+sol_one_script.bat clean        :: delete the build directories
+sol_one_script.bat help
 ```
 
-#### 32-bit Build
-```batch
-# Automatic detection (recommended)
-.\build-win32.bat
+Builds are incremental: only the sources you changed are recompiled. `clean` forces a fresh CMake configure on the next build.
 
-# Manual specification
-cmake -G "Visual Studio 16 2019" -A Win32 .
-cmake --build . --config Release
-```
-
-### Automated Build Scripts
-
-Use the provided batch scripts in `scripts/builds/`:
+### Manual CMake (if you'd rather not use the script)
 
 ```batch
-# Full build process (generate, build, install, package)
-call scripts\builds\all.bat
+:: 64-bit
+cmake -B build64temp -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release .
+cmake --build build64temp --config Release
+
+:: 32-bit
+cmake -B build32temp -G "Visual Studio 17 2022" -A Win32 -DCMAKE_BUILD_TYPE=Release .
+cmake --build build32temp --config Release
 ```
 
 ### Visual Studio Version Matrix
+
+`sol_one_script.bat` detects and uses the newest of these that's installed.
 
 | Visual Studio Version | Generator | Platform Toolset |
 |----------------------|-----------|------------------|
@@ -104,28 +101,6 @@ call scripts\builds\all.bat
 | 2017 | `"Visual Studio 15 2017"` | v141 |
 | 2019 | `"Visual Studio 16 2019"` | v142 |
 | 2022 | `"Visual Studio 17 2022"` | v143 |
-
-### Easy Architecture Switch Scripts
-
-#### build-win64.bat
-```batch
-@echo off
-if not exist build mkdir build
-cd build
-cmake -G "Visual Studio 16 2019" -A x64 ..
-cmake --build . --config Release
-cd ..
-```
-
-#### build-win32.bat
-```batch
-@echo off
-if not exist build32 mkdir build32
-cd build32
-cmake -G "Visual Studio 16 2019" -A Win32 ..
-cmake --build . --config Release
-cd ..
-```
 
 ## Linux Builds
 

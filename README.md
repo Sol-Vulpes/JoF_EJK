@@ -15,25 +15,26 @@ OpenJK is licensed under GPLv2 as free software. You are free to use, modify and
 
 For detailed build instructions across all platforms (Windows 32/64-bit, Linux, macOS, cross-compilation), see [BUILD.md](BUILD.md).
 
-**Custom CMake Path**: If you use a specific CMake version, see [CMAKE_PATH_README.md](CMAKE_PATH_README.md) for configuration options.
+**Custom CMake Path**: If you use a specific CMake version, see [build-scripts/README.md](build-scripts/README.md) for configuration options.
 
-The code targets the **C++11** standard and requires **CMake 3.10 or later** (our builds are tested with **CMake 3.28** — if you hit generator/configure issues on a much newer CMake, install 3.28 and point the scripts at it via [CMAKE_PATH_README.md](CMAKE_PATH_README.md)).
+The code targets the **C++11** standard and requires **CMake 3.10 or later** (our builds are tested with **CMake 3.28** — if you hit generator/configure issues on a much newer CMake, install 3.28 and point the scripts at it via [build-scripts/README.md](build-scripts/README.md)).
 
 ### Building on Windows (most common)
 
 On Windows you build with **Visual Studio / MSVC** — you do **not** need GCC. You only need:
 
 - **Visual Studio 2022** with the *Desktop development with C++* workload (VS 2015 or later also works)
-- **CMake** (3.10+; if it isn't on your `PATH`, see [CMAKE_PATH_README.md](CMAKE_PATH_README.md))
+- **CMake** (3.10+; if it isn't on your `PATH`, see [build-scripts/README.md](build-scripts/README.md))
 
-Then from the repo root just run the helper script — it auto-detects your newest installed Visual Studio, configures, and builds Release:
+Everything Windows goes through one script in the repo root. It auto-detects your newest installed Visual Studio, configures, builds Release, copies the result into your Jedi Academy `GameData`, and starts the game:
 
 ```batch
-build-win64.bat    :: 64-bit  -> output in build64temp\Release\
-build-win32.bat    :: 32-bit
+sol_one_script.bat            :: build + deploy + launch
+sol_one_script.bat build      :: build only  -> build64temp\Release\
+sol_one_script.bat help       :: all commands
 ```
 
-The script is incremental: if the build directory already exists it skips reconfiguring and just rebuilds (like Visual Studio's Build button). The PowerShell equivalent is `.\build.ps1` (defaults to 64-bit Release). For more options see the [Easy Build Scripts](#easy-build-scripts) section below.
+Builds are incremental — only the sources you actually changed get recompiled, like Visual Studio's Build button. See [build-scripts/README.md](build-scripts/README.md) for the full command list.
 
 ### Linux / macOS compilers
 
@@ -59,31 +60,15 @@ sudo apt-get install gcc-multilib g++-multilib libjpeg-dev:i386 libpng-dev:i386 
 
 ### Easy Build Scripts
 
-Use the provided build scripts for quick setup:
-
-**Windows:**
+**Windows** — one script, documented in [build-scripts/README.md](build-scripts/README.md):
 ```batch
-# Interactive menu (recommended for beginners)
-build-cross-platform.bat
-
-# Direct builds
-build-win64.bat    # 64-bit Windows
-build-win32.bat    # 32-bit Windows
-
-# Advanced configuration
-build-config.bat
-```
-
-**PowerShell (cross-platform):**
-```powershell
-# 64-bit Windows (default)
-.\build.ps1
-
-# 32-bit Windows
-.\build.ps1 -Target win32
-
-# Linux (requires WSL on Windows)
-.\build.ps1 -Target linux
+sol_one_script.bat            :: build + deploy + launch
+sol_one_script.bat build      :: 64-bit build only
+sol_one_script.bat build32    :: 32-bit build only
+sol_one_script.bat deploy     :: copy the build into GameData
+sol_one_script.bat run        :: launch the game
+sol_one_script.bat vs         :: generate a Visual Studio solution
+sol_one_script.bat clean      :: delete the build directories
 ```
 
 **Linux:**
@@ -111,7 +96,7 @@ cmake ..
 make -j$(nproc)
 ```
 
-See [BUILD_SCRIPTS_README.md](BUILD_SCRIPTS_README.md) for detailed script usage.
+See [build-scripts/README.md](build-scripts/README.md) for detailed script usage.
 
 ## For players
 
