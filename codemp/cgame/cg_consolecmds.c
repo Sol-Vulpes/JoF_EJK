@@ -2563,6 +2563,7 @@ static void CG_HelpUsSol_f( void ) {
 	Com_Printf( S_COLOR_GREEN "cg_wowChat " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - WoW-style tabbed chat window (toggle focus with " S_COLOR_GREEN "wowchat_toggle" S_COLOR_WHITE ").\n" );
 	Com_Printf( S_COLOR_GREEN "cg_showClientIDs " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - show client ID numbers on the scoreboard and next to your score on the HUD.\n" );
 	Com_Printf( S_COLOR_GREEN "in_noAltF4 " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - block Alt+F4 from closing the game.\n" );
+	Com_Printf( S_COLOR_GREEN "cg_autoHeal " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - automatically use force heal while alive and at or below 75 health, if you have the power and the force to spend.\n" );
 	Com_Printf( S_COLOR_CYAN "================================\n" );
 }
 

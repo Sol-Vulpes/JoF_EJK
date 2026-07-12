@@ -255,6 +255,8 @@ XCVAR_DEF( cg_drawTriggers,						"0",	NULL,					CVAR_NONE )
 
 XCVAR_DEF( cg_cleanChatbox,						"0",	NULL,					CVAR_ARCHIVE )
 
+XCVAR_DEF( cg_autoHeal,							"0",	NULL,					CVAR_ARCHIVE )
+
 #define _DEBUGTIMENUDGE 1
 #ifdef _DEBUGTIMENUDGE
 //XCVAR_DEF( cg_smoothTimenudge,				"0",							0 )

@@ -26,6 +26,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "cg_local.h"
 #include "game/bg_saga.h"
 
+// force cost table, defined in bg_pmove.c (compiled into cgame)
+extern int forcePowerNeeded[NUM_FORCE_POWER_LEVELS][NUM_FORCE_POWERS];
+
 #define MASK_CAMERACLIP (MASK_SOLID|CONTENTS_PLAYERCLIP)
 #define CAMERA_SIZE	4
 
@@ -3271,6 +3274,30 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 
 	if ( cg_stats.integer ) {
 		trap->Print( "cg.clientFrame:%i\n", cg.clientFrame );
+	}
+
+	// Auto heal check. Only fire when the server would actually honour the power -
+	// the gates below mirror ForceHeal/WP_ForcePowerUsable (w_force.c) - otherwise we
+	// spam the command buffer every 250ms for nothing: while spectating (where snap->ps
+	// is the player we're following, not us), while dead, or with an empty force pool.
+	if ( cg_autoHeal.integer && cg.snap && !cg.demoPlayback ) {
+		playerState_t *ps = &cg.snap->ps;
+		int healLevel = ps->fd.forcePowerLevel[FP_HEAL];
+
+		if ( ps->clientNum == cg.clientNum && !(ps->pm_flags & PMF_FOLLOW) &&
+			ps->pm_type != PM_SPECTATOR && ps->pm_type != PM_DEAD && ps->pm_type != PM_FREEZE &&
+			ps->pm_type != PM_INTERMISSION && ps->pm_type != PM_SPINTERMISSION &&
+			ps->stats[STAT_HEALTH] > 0 && !(ps->eFlags & EF_DEAD) &&
+			ps->stats[STAT_HEALTH] <= 75 && ps->stats[STAT_HEALTH] < ps->stats[STAT_MAX_HEALTH] &&
+			healLevel > FORCE_LEVEL_0 && ps->fd.forcePower >= forcePowerNeeded[healLevel][FP_HEAL] &&
+			!BG_HasYsalamiri( cgs.gametype, ps ) )
+		{
+			static int lastHealTime = 0;
+			if ( cg.time - lastHealTime > 250 ) {
+				lastHealTime = cg.time;
+				trap->SendConsoleCommand( "force_heal\n" );
+			}
+		}
 	}
 }
 
