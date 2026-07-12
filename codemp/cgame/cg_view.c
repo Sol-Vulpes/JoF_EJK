@@ -3276,20 +3276,32 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 		trap->Print( "cg.clientFrame:%i\n", cg.clientFrame );
 	}
 
-	// Auto heal check. Only fire when the server would actually honour the power -
-	// the gates below mirror ForceHeal/WP_ForcePowerUsable (w_force.c) - otherwise we
-	// spam the command buffer every 250ms for nothing: while spectating (where snap->ps
-	// is the player we're following, not us), while dead, or with an empty force pool.
+	// Auto heal check. The gates mirror ForceHeal/WP_ForcePowerUsable (w_force.c) so we
+	// only send the command when the server can honour it, instead of spamming the buffer
+	// every 250ms while spectating (snap->ps is then the player we follow, not us), while
+	// dead, or with an empty force pool.
+	//
+	// We can only test what the server actually networks to us: forcePowerLevel[] is NOT
+	// sent (msg.cpp networks only FP_LEVITATION and FP_SEE levels), so we can neither read
+	// our heal level nor the cost it implies. forcePowersKnown IS sent, and the cheapest
+	// heal across levels bounds the cost from below - so we gate on that and let the server
+	// decline if our level is dearer than we can afford. Erring this way keeps us from
+	// sitting on a heal we could have cast.
 	if ( cg_autoHeal.integer && cg.snap && !cg.demoPlayback ) {
 		playerState_t *ps = &cg.snap->ps;
-		int healLevel = ps->fd.forcePowerLevel[FP_HEAL];
+		int level, healCost = forcePowerNeeded[FORCE_LEVEL_1][FP_HEAL];
+
+		for ( level = FORCE_LEVEL_1; level <= FORCE_LEVEL_3; level++ ) {
+			if ( forcePowerNeeded[level][FP_HEAL] < healCost )
+				healCost = forcePowerNeeded[level][FP_HEAL];
+		}
 
 		if ( ps->clientNum == cg.clientNum && !(ps->pm_flags & PMF_FOLLOW) &&
 			ps->pm_type != PM_SPECTATOR && ps->pm_type != PM_DEAD && ps->pm_type != PM_FREEZE &&
 			ps->pm_type != PM_INTERMISSION && ps->pm_type != PM_SPINTERMISSION &&
 			ps->stats[STAT_HEALTH] > 0 && !(ps->eFlags & EF_DEAD) &&
 			ps->stats[STAT_HEALTH] <= 75 && ps->stats[STAT_HEALTH] < ps->stats[STAT_MAX_HEALTH] &&
-			healLevel > FORCE_LEVEL_0 && ps->fd.forcePower >= forcePowerNeeded[healLevel][FP_HEAL] &&
+			(ps->fd.forcePowersKnown & (1 << FP_HEAL)) && ps->fd.forcePower >= healCost &&
 			!BG_HasYsalamiri( cgs.gametype, ps ) )
 		{
 			static int lastHealTime = 0;
