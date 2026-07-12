@@ -57,6 +57,7 @@ cvar_t *r_allowSoftwareGL;
 // Window cvars
 cvar_t	*r_fullscreen = 0;
 cvar_t	*r_noborder;
+cvar_t	*r_borderlessNoFlip;
 cvar_t	*r_centerWindow;
 cvar_t	*vid_xpos;
 cvar_t	*vid_ypos;
@@ -175,6 +176,81 @@ void GLimp_Alert(void) {
 }
 #endif
 
+/*
+===============
+WIN_UpdateBorderlessRegion
+
+DWM promotes an opaque borderless window to a hardware plane
+(DirectFlip/MPO), bypassing desktop composition. That makes external
+capture (Snipping Tool, PrtScn) see a stale composited frame instead of
+the live game. A window with a window region set is ineligible for that
+promotion, so give borderless windows a region covering their full rect:
+visually a no-op, but the window stays composited and captures correctly.
+Controlled by r_borderlessNoFlip.
+===============
+*/
+static void WIN_UpdateBorderlessRegion( qboolean borderless )
+{
+#ifdef _WIN32
+	SDL_SysWMinfo info;
+	SDL_VERSION( &info.version );
+
+	if ( !screen || !SDL_GetWindowWMInfo( screen, &info ) || info.subsystem != SDL_SYSWM_WINDOWS )
+		return;
+
+	HWND hwnd = info.info.win.window;
+
+	if ( borderless && r_borderlessNoFlip->integer )
+	{
+		int w = 0, h = 0;
+		SDL_GetWindowSize( screen, &w, &h );
+		// SetWindowRgn takes ownership of the HRGN
+		if ( !SetWindowRgn( hwnd, CreateRectRgn( 0, 0, w, h ), TRUE ) )
+			Com_Printf( S_COLOR_YELLOW "WIN_UpdateBorderlessRegion: SetWindowRgn failed\n" );
+		else
+			Com_Printf( "Applied full-window region (%dx%d) to borderless window\n", w, h );
+	}
+	else
+	{
+		SetWindowRgn( hwnd, NULL, TRUE );
+	}
+#endif
+}
+
+/*
+===============
+GL_SwapInterval
+
+r_swapInterval follows the Vulkan renderer's semantics:
+0 = immediate, 1 = vsync (FIFO), 2 = relaxed vsync, 3 = mailbox.
+OpenGL has no mailbox, and raw values > 1 would mean "sync every Nth
+vblank" to SDL_GL_SetSwapInterval, so map: 2 -> adaptive vsync (-1),
+3 -> normal vsync.
+===============
+*/
+static int GL_SwapInterval( void )
+{
+	switch ( r_swapInterval->integer )
+	{
+		case 0:  return 0;
+		case 2:  return -1;
+		default: return 1;
+	}
+}
+
+static void GL_SetSwapInterval( void )
+{
+	int interval = GL_SwapInterval();
+
+	if ( SDL_GL_SetSwapInterval( interval ) == -1 )
+	{
+		// adaptive vsync unsupported, fall back to normal vsync
+		if ( interval == -1 && SDL_GL_SetSwapInterval( 1 ) != -1 )
+			return;
+		Com_DPrintf( "SDL_GL_SetSwapInterval failed: %s\n", SDL_GetError() );
+	}
+}
+
 void WIN_Present( window_t *window )
 {
 	if ( window->api == GRAPHICS_API_OPENGL )
@@ -184,42 +260,79 @@ void WIN_Present( window_t *window )
 		if ( r_swapInterval->modified )
 		{
 			r_swapInterval->modified = qfalse;
-			if ( SDL_GL_SetSwapInterval( r_swapInterval->integer ) == -1 )
-			{
-				Com_DPrintf( "SDL_GL_SetSwapInterval failed: %s\n", SDL_GetError() );
-			}
+			GL_SetSwapInterval();
 		}
 	}
 
 	if ( r_fullscreen->modified )
 	{
-		bool	fullscreen;
-		bool	needToToggle;
-		bool	sdlToggled = qfalse;
-
 		// Find out the current state
-		fullscreen = (SDL_GetWindowFlags( screen ) & SDL_WINDOW_FULLSCREEN) != 0;
+		const Uint32 winFlags = SDL_GetWindowFlags( screen );
+		const bool fullscreen = (winFlags & SDL_WINDOW_FULLSCREEN) != 0;
+		const bool borderless = (winFlags & SDL_WINDOW_BORDERLESS) != 0;
+		bool needRestart = false;
+		bool toggled = false;
 
-		if ( r_fullscreen->integer && Cvar_VariableIntegerValue( "in_nograb" ) )
+		if ( r_fullscreen->integer == 1 && Cvar_VariableIntegerValue( "in_nograb" ) )
 		{
 			Com_Printf( "Fullscreen not allowed with in_nograb 1\n" );
 			Cvar_Set( "r_fullscreen", "0" );
-			r_fullscreen->modified = qfalse;
 		}
 
-		// Is the state we want different from the current state?
-		needToToggle = !!r_fullscreen->integer != fullscreen;
-
-		if ( needToToggle )
+		switch ( r_fullscreen->integer )
 		{
-			sdlToggled = SDL_SetWindowFullscreen( screen, r_fullscreen->integer ) >= 0;
+			case 1: // exclusive fullscreen
+				if ( !fullscreen )
+				{
+					WIN_UpdateBorderlessRegion( qfalse );
+					if ( SDL_SetWindowFullscreen( screen, SDL_WINDOW_FULLSCREEN ) < 0 )
+						needRestart = true;
+					toggled = true;
+				}
+				break;
 
-			// SDL_WM_ToggleFullScreen didn't work, so do it the slow way
-			if ( !sdlToggled )
-				Cbuf_AddText( "vid_restart\n" );
+			case 2: // borderless window, always centered on the display
+				if ( fullscreen && SDL_SetWindowFullscreen( screen, 0 ) < 0 )
+				{
+					needRestart = true;
+					toggled = true;
+					break;
+				}
+				SDL_SetWindowBordered( screen, SDL_FALSE );
+				{
+					int display = SDL_GetWindowDisplayIndex( screen );
+					if ( display < 0 )
+						display = 0;
+					SDL_SetWindowPosition( screen,
+						SDL_WINDOWPOS_CENTERED_DISPLAY( display ),
+						SDL_WINDOWPOS_CENTERED_DISPLAY( display ) );
+				}
+				WIN_UpdateBorderlessRegion( qtrue );
+				toggled = ( fullscreen || !borderless );
+				break;
 
-			IN_Restart();
+			default: // regular window
+				if ( fullscreen )
+				{
+					if ( SDL_SetWindowFullscreen( screen, 0 ) < 0 )
+						needRestart = true;
+					toggled = true;
+				}
+				if ( borderless && !r_noborder->integer )
+				{
+					SDL_SetWindowBordered( screen, SDL_TRUE );
+					toggled = true;
+				}
+				WIN_UpdateBorderlessRegion( (qboolean)!!r_noborder->integer );
+				break;
 		}
+
+		// SDL_SetWindowFullscreen didn't work, so do it the slow way
+		if ( needRestart )
+			Cbuf_AddText( "vid_restart\n" );
+
+		if ( toggled )
+			IN_Restart();
 
 		r_fullscreen->modified = qfalse;
 	}
@@ -573,10 +686,7 @@ static rserr_t GLimp_CreateOpenGLWindow(
 				continue;
 			}
 
-			if ( SDL_GL_SetSwapInterval( r_swapInterval->integer ) == -1 )
-			{
-				Com_DPrintf( "SDL_GL_SetSwapInterval failed: %s\n", SDL_GetError() );
-			}
+			GL_SetSwapInterval();
 		}
 
 		glConfig->colorBits = testColorBits;
@@ -602,12 +712,13 @@ static rserr_t GLimp_CreateOpenGLWindow(
 GLimp_SetMode
 ===============
 */
+// fullscreen: 0 = windowed, 1 = exclusive fullscreen, 2 = borderless window (always centered)
 static rserr_t GLimp_SetMode(
 	glconfig_t *glConfig,
 	const windowDesc_t *windowDesc,
 	const char *windowTitle,
 	int mode,
-	qboolean fullscreen,
+	int fullscreen,
 	qboolean noborder)
 {
 	SDL_Surface *icon = NULL;
@@ -696,7 +807,14 @@ static rserr_t GLimp_SetMode(
 	Com_Printf( " %d %d\n", glConfig->vidWidth, glConfig->vidHeight);
 
 	// Center window
-	if( r_centerWindow->integer && !fullscreen )
+	if( fullscreen == 2 )
+	{
+		// Borderless window mode: let SDL center it on the display,
+		// ignoring vid_xpos/vid_ypos entirely.
+		x = SDL_WINDOWPOS_CENTERED_DISPLAY( display );
+		y = SDL_WINDOWPOS_CENTERED_DISPLAY( display );
+	}
+	else if( r_centerWindow->integer && !fullscreen )
 	{
 		x = ( desktopMode.w / 2 ) - ( glConfig->vidWidth / 2 );
 		y = ( desktopMode.h / 2 ) - ( glConfig->vidHeight / 2 );
@@ -714,13 +832,20 @@ static rserr_t GLimp_SetMode(
 
 	if( screen != NULL )
 	{
-		SDL_GetWindowPosition( screen, &x, &y );
-		Com_DPrintf( "Existing window at %dx%d before being destroyed\n", x, y );
+		int oldX = 0, oldY = 0;
+		SDL_GetWindowPosition( screen, &oldX, &oldY );
+		Com_DPrintf( "Existing window at %dx%d before being destroyed\n", oldX, oldY );
+		// Borderless window mode must stay centered; don't inherit the old position.
+		if( fullscreen != 2 )
+		{
+			x = oldX;
+			y = oldY;
+		}
 		SDL_DestroyWindow( screen );
 		screen = NULL;
 	}
 
-	if( fullscreen )
+	if( fullscreen == 1 )
 	{
 #ifdef MACOS_X
 		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -731,7 +856,7 @@ static rserr_t GLimp_SetMode(
 	}
 	else
 	{
-		if( noborder )
+		if( fullscreen == 2 || noborder )
 			flags |= SDL_WINDOW_BORDERLESS;
 
 		glConfig->isFullscreen = qfalse;
@@ -796,6 +921,9 @@ static rserr_t GLimp_SetMode(
 
 	SDL_FreeSurface( icon );
 
+	// Keep borderless windows composited so external capture stays live
+	WIN_UpdateBorderlessRegion( (qboolean)( fullscreen != 1 && ( fullscreen == 2 || noborder ) ) );
+
 	if (!GLimp_DetectAvailableModes())
 	{
 		return RSERR_UNKNOWN;
@@ -819,7 +947,7 @@ static qboolean GLimp_StartDriverAndSetMode(
 	glconfig_t *glConfig,
 	const windowDesc_t *windowDesc,
 	int mode,
-	qboolean fullscreen,
+	int fullscreen,
 	qboolean noborder)
 {
 	rserr_t err;
@@ -851,12 +979,12 @@ static qboolean GLimp_StartDriverAndSetMode(
 		Com_Error( ERR_FATAL, "SDL_GetNumVideoDisplays() FAILED (%s)", SDL_GetError() );
 	}
 
-	if (fullscreen && Cvar_VariableIntegerValue( "in_nograb" ) )
+	if (fullscreen == 1 && Cvar_VariableIntegerValue( "in_nograb" ) )
 	{
 		Com_Printf( "Fullscreen not allowed with in_nograb 1\n");
 		Cvar_Set( "r_fullscreen", "0" );
 		r_fullscreen->modified = qfalse;
-		fullscreen = qfalse;
+		fullscreen = 0;
 	}
 
 	err = GLimp_SetMode(glConfig, windowDesc, CLIENT_WINDOW_TITLE, mode, fullscreen, noborder);
@@ -889,13 +1017,19 @@ window_t WIN_Init( const windowDesc_t *windowDesc, glconfig_t *glConfig )
 
 	// Window cvars
 	r_fullscreen		= Cvar_Get( "r_fullscreen",			"1",		CVAR_ARCHIVE );
+	Cvar_CheckRange( r_fullscreen, 0, 2, qtrue ); // 0 = windowed, 1 = fullscreen, 2 = borderless window (centered)
 	r_noborder			= Cvar_Get( "r_noborder",			"0",		CVAR_ARCHIVE|CVAR_LATCH );
+	r_borderlessNoFlip	= Cvar_Get( "r_borderlessNoFlip",	"0",		CVAR_ARCHIVE_ND ); // block DWM plane promotion of borderless windows via a window region
 	r_centerWindow		= Cvar_Get( "r_centerWindow",		"2",		CVAR_ARCHIVE_ND|CVAR_LATCH );
 	vid_xpos			= Cvar_Get( "vid_xpos",				"12",		CVAR_ARCHIVE_ND|CVAR_LATCH );
 	vid_ypos			= Cvar_Get( "vid_ypos",				"36",		CVAR_ARCHIVE_ND|CVAR_LATCH );
 	r_customwidth		= Cvar_Get( "r_customwidth",		"1920",		CVAR_ARCHIVE|CVAR_LATCH );
 	r_customheight		= Cvar_Get( "r_customheight",		"1080",		CVAR_ARCHIVE|CVAR_LATCH );
-	r_swapInterval		= Cvar_Get( "r_swapInterval",		"0",		CVAR_ARCHIVE_ND );
+	// 0 = immediate, 1 = vsync, 2 = relaxed vsync, 3 = mailbox (Vulkan; vsync on GL).
+	// Default mailbox: immediate present (0) bypasses the desktop compositor on
+	// NVIDIA, which breaks external capture (stale screenshots); mailbox keeps
+	// uncapped fps without tearing and stays capture-safe.
+	r_swapInterval		= Cvar_Get( "r_swapInterval",		"3",		CVAR_ARCHIVE_ND );
 	r_stereo			= Cvar_Get( "r_stereo",				"0",		CVAR_ARCHIVE_ND|CVAR_LATCH );
 	r_mode				= Cvar_Get( "r_mode",				"-2",		CVAR_ARCHIVE|CVAR_LATCH );
 	r_displayRefresh	= Cvar_Get( "r_displayRefresh",		"0",		CVAR_LATCH );
@@ -913,7 +1047,7 @@ window_t WIN_Init( const windowDesc_t *windowDesc, glconfig_t *glConfig )
 
 	// Create the window and set up the context
 	if(!GLimp_StartDriverAndSetMode( glConfig, windowDesc, r_mode->integer,
-										(qboolean)r_fullscreen->integer, (qboolean)r_noborder->integer ))
+										r_fullscreen->integer, (qboolean)r_noborder->integer ))
 	{
 		if( r_mode->integer != R_MODE_FALLBACK )
 		{
