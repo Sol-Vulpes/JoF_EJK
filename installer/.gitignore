@@ -1,0 +1,5 @@
+# Build artifacts produced by build_installer.bat / CI
+install.exe
+install.obj
+install.res
+*.pdb

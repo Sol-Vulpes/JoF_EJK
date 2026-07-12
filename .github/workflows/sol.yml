@@ -92,6 +92,19 @@ jobs:
         shell: bash
         run: cmake --install . --config Release
 
+      - name: Set up MSVC (for installer)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch == 'x86' && 'x86' || 'x64' }}
+
+      - name: Build install.exe
+        shell: cmd
+        working-directory: installer
+        run: |
+          rc /nologo /fo install.res install.rc || exit /b 1
+          cl /nologo /O1 /GS- /W3 install.c install.res /Fe:install.exe /link /SUBSYSTEM:WINDOWS user32.lib shell32.lib ole32.lib shlwapi.lib || exit /b 1
+          copy /Y install.exe "%GITHUB_WORKSPACE%\build\bin\install.exe" || exit /b 1
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

@@ -135,6 +135,19 @@ jobs:
           curl -L -o build/bin/GameData/base/JoF_AssetsExtra.pk3 \
             https://jofhub.eu/apps/cloud/repository/assets/JoF_AssetsExtra.pk3
 
+      - name: Set up MSVC (for installer)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch == 'x86' && 'x86' || 'x64' }}
+
+      - name: Build install.exe
+        shell: cmd
+        working-directory: installer
+        run: |
+          rc /nologo /fo install.res install.rc || exit /b 1
+          cl /nologo /O1 /GS- /W3 install.c install.res /Fe:install.exe /link /SUBSYSTEM:WINDOWS user32.lib shell32.lib ole32.lib shlwapi.lib || exit /b 1
+          copy /Y install.exe "%GITHUB_WORKSPACE%\build\bin\install.exe" || exit /b 1
+
       - name: Upload Beta Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -494,6 +507,19 @@ jobs:
             https://jofhub.eu/apps/cloud/repository/assets/JoF_Animations.pk3
           curl -L -o build/bin/GameData/base/JoF_AssetsExtra.pk3 \
             https://jofhub.eu/apps/cloud/repository/assets/JoF_AssetsExtra.pk3
+
+      - name: Set up MSVC (for installer)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch == 'x86' && 'x86' || 'x64' }}
+
+      - name: Build install.exe
+        shell: cmd
+        working-directory: installer
+        run: |
+          rc /nologo /fo install.res install.rc || exit /b 1
+          cl /nologo /O1 /GS- /W3 install.c install.res /Fe:install.exe /link /SUBSYSTEM:WINDOWS user32.lib shell32.lib ole32.lib shlwapi.lib || exit /b 1
+          copy /Y install.exe "%GITHUB_WORKSPACE%\build\bin\install.exe" || exit /b 1
 
       - name: Upload Alpha Artifact
         uses: actions/upload-artifact@v4
@@ -899,6 +925,19 @@ jobs:
             https://jofhub.eu/apps/cloud/repository/assets/JoF_Animations.pk3
           curl -L -o build/bin/GameData/base/JoF_AssetsExtra.pk3 \
             https://jofhub.eu/apps/cloud/repository/assets/JoF_AssetsExtra.pk3
+
+      - name: Set up MSVC (for installer)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch == 'x86' && 'x86' || 'x64' }}
+
+      - name: Build install.exe
+        shell: cmd
+        working-directory: installer
+        run: |
+          rc /nologo /fo install.res install.rc || exit /b 1
+          cl /nologo /O1 /GS- /W3 install.c install.res /Fe:install.exe /link /SUBSYSTEM:WINDOWS user32.lib shell32.lib ole32.lib shlwapi.lib || exit /b 1
+          copy /Y install.exe "%GITHUB_WORKSPACE%\build\bin\install.exe" || exit /b 1
 
       - name: Upload Master Artifact
         uses: actions/upload-artifact@v4
