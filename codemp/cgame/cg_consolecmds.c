@@ -2565,6 +2565,18 @@ static void CG_HelpUsSol_f( void ) {
 	Com_Printf( S_COLOR_GREEN "in_noAltF4 " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - block Alt+F4 from closing the game.\n" );
 	Com_Printf( S_COLOR_GREEN "cg_autoHeal " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - automatically use force heal while alive and at or below 75 health, if you have the power and the force to spend.\n" );
 	Com_Printf( S_COLOR_GREEN "cl_cmdratecap " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - cap movement command generation at 125Hz, independent of your framerate (default 1).\n" );
+	Com_Printf( S_COLOR_GREEN "r_swapInterval " S_COLOR_YELLOW "0|1|2|3" S_COLOR_WHITE " - how finished frames reach the monitor: 0 vsync off, 1 vsync, 2 adaptive vsync, 3 mailbox (default 3).\n" );
+	Com_Printf( S_COLOR_CYAN "----- " S_COLOR_MAGENTA "about r_swapInterval" S_COLOR_CYAN " -----\n" );
+	Com_Printf( S_COLOR_WHITE "With " S_COLOR_GREEN "0" S_COLOR_WHITE " the driver throws every frame at the screen the instant it is done: maximum FPS and lowest\n" );
+	Com_Printf( S_COLOR_WHITE "latency, but it tears, and on NVIDIA this path goes behind the Windows compositor's back - screen\n" );
+	Com_Printf( S_COLOR_WHITE "capture (Win+Shift+S, OBS display capture) then sees a stale, frozen copy of the game instead of\n" );
+	Com_Printf( S_COLOR_WHITE "what you see. " S_COLOR_GREEN "1" S_COLOR_WHITE " is classic vsync: no tearing, capture works, but FPS is capped at your refresh\n" );
+	Com_Printf( S_COLOR_WHITE "rate and input lag rises. " S_COLOR_GREEN "2" S_COLOR_WHITE " is vsync that tears only when you drop below refresh rate. The\n" );
+	Com_Printf( S_COLOR_WHITE "default " S_COLOR_GREEN "3" S_COLOR_WHITE " (mailbox, Vulkan renderer) renders uncapped like 0 while the monitor grabs the newest\n" );
+	Com_Printf( S_COLOR_WHITE "finished frame each refresh: no tearing, near-lowest latency, and screenshots/capture stay live.\n" );
+	Com_Printf( S_COLOR_WHITE "It is the best all-round choice, which is why it is the default. On the OpenGL renderer, which has\n" );
+	Com_Printf( S_COLOR_WHITE "no mailbox mode, 3 falls back to normal vsync and 2 to adaptive vsync. Needs " S_COLOR_GREEN "vid_restart" S_COLOR_WHITE " to\n" );
+	Com_Printf( S_COLOR_WHITE "apply on Vulkan.\n" );
 	Com_Printf( S_COLOR_CYAN "----- " S_COLOR_MAGENTA "about cl_cmdratecap" S_COLOR_CYAN " -----\n" );
 	Com_Printf( S_COLOR_WHITE "In vanilla JKA the client builds one movement command per rendered frame, so your framerate is\n" );
 	Com_Printf( S_COLOR_WHITE "part of the physics: rounding in the movement code makes jump height, acceleration and strafing\n" );
