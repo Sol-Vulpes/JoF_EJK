@@ -9,6 +9,7 @@ from the model picker in the menus. **NPCs keep using it normally.**
 
 - Commit: [`41eac85`](https://github.com/Sol-Vulpes/JoF_EJK/commit/41eac85584f8dd3cbc6dd840f27cc83b8fee9a24)
 - Trello: [Create a blacklist for Playermodels](https://trello.com/c/rW73mB5L/168-create-a-blacklist-for-playermodels-let-us-turn-specific-models-of-our-choice-into-kyle-default-model)
+- Same doc as a rendered page: [`playermodel-blacklist.html`](playermodel-blacklist.html) (open it locally — GitHub shows HTML as source)
 
 ## The three ways to blacklist a model
 
