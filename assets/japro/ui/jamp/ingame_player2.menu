@@ -813,15 +813,15 @@
 				hide			backButton
 			}
 			  	  
-			action 
-			{ 
-				play			"sound/interface/esc.wav" ; 
+			action
+			{
+				play			"sound/interface/esc.wav" ;
 				close			ingame_player2 ;
 				open			ingame_player ;
 			}
 
 		}
-		
+
 //---------------------------------------------
 //	APPLY BUTTON
 //---------------------------------------------
