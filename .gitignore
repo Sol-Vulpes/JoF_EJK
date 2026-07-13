@@ -192,3 +192,8 @@ build32temp/
 
 # Per-machine path override for the Windows build scripts
 build-scripts/gamedata-path.txt
+
+# Cosmetics art. Deliberately kept out of the repo and distributed as a pk3
+# instead - see dist-assets/README.md. The cosmetics *code* and *menus* are in
+# git as normal; only the models and textures live here.
+dist-assets/
