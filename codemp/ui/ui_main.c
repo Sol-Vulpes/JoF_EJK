@@ -10469,11 +10469,15 @@ static void UI_SetCosmetic( const char *cvarName, const char *cosmeticName )
 		trap->Cvar_Set( cvarName, va( "%d", atoi( value ) ) );
 }
 
+static void UI_HighlightWornCosmetics( void );
+
 void UI_ClearCosmetics( void )
 {
 	UI_SetCosmetic( "color1", NULL );
 	UI_SetCosmetic( "color2", NULL );
 	uiInfo.hat[0] = uiInfo.cape[0] = '\0';
+
+	UI_HighlightWornCosmetics();	//nothing worn now, so drop both highlights
 }
 
 /*
@@ -10496,13 +10500,21 @@ void UI_UpdateCosmeticsCharacter( void )
 	char		*parts, *skin;
 	int			animRunLength;
 
-	menu = Menu_GetFocused();
+	//look the menu up by name rather than by focus - a silent miss here just leaves the
+	//preview empty, which is maddening to diagnose from the outside
+	menu = Menus_FindByName( "ingame_cosmetics" );
 	if ( !menu )
+	{
+		Com_Printf( S_COLOR_YELLOW "WARNING: cosmetics preview: menu (ingame_cosmetics) not loaded.\n" );
 		return;
+	}
 
 	item = (itemDef_t *)Menu_FindItemByName( menu, "character" );
 	if ( !item )
+	{
+		Com_Printf( S_COLOR_YELLOW "WARNING: cosmetics preview: no item named (character) in the menu.\n" );
 		return;
+	}
 
 	trap->Cvar_VariableStringBuffer( "model", model, sizeof( model ) );
 	if ( !model[0] )
@@ -10534,6 +10546,51 @@ void UI_UpdateCosmeticsCharacter( void )
 	//asset_model_go re-applies the anim the .menu asked for, so no need to set it again here
 	ItemParse_asset_model_go( item, modelPath, &animRunLength );
 	ItemParse_model_g2skin_go( item, skinPath );
+
+	//asset_model_go swallows a failed load (its Com_Error is commented out), which would leave
+	//us staring at an empty box with no idea why
+	if ( !item->ghoul2 )
+	{
+		Com_Printf( S_COLOR_YELLOW "WARNING: cosmetics preview: could not load %s\n", modelPath );
+	}
+}
+
+//The listbox draws a filled bar behind the row in item->cursorPos (see Item_ListBox_Paint),
+//so parking the cursor on what the player is already wearing is what makes the menu show it.
+//-1 means nothing worn, and so nothing highlighted.
+static void UI_HighlightWornCosmetic( const char *itemName, const uiCosmeticItem_t *items, int total, const char *worn )
+{
+	menuDef_t	*menu;
+	itemDef_t	*item;
+	int			i;
+
+	menu = Menus_FindByName( "ingame_cosmetics" );
+	if ( !menu )
+		return;
+
+	item = (itemDef_t *)Menu_FindItemByName( menu, itemName );
+	if ( !item )
+		return;
+
+	item->cursorPos = -1;
+
+	if ( !worn[0] )
+		return;
+
+	for ( i = 0; i < total; i++ )
+	{
+		if ( !Q_stricmp( items[i].name, worn ) )
+		{
+			item->cursorPos = i;
+			return;
+		}
+	}
+}
+
+static void UI_HighlightWornCosmetics( void )
+{
+	UI_HighlightWornCosmetic( "hatlist", uiInfo.hats, uiInfo.totalHats, uiInfo.hat );
+	UI_HighlightWornCosmetic( "capelist", uiInfo.capes, uiInfo.totalCapes, uiInfo.cape );
 }
 
 //color1/color2 are the source of truth - the console command writes them too, so read them
@@ -10547,6 +10604,8 @@ void UI_GetCosmeticCvars( void )
 
 	trap->Cvar_VariableStringBuffer( "color2", value, sizeof( value ) );
 	Q_StripDigits( value, uiInfo.cape, sizeof( uiInfo.cape ), REMOVE_DIGITS_INITIAL );
+
+	UI_HighlightWornCosmetics();
 }
 
 /*
@@ -11750,6 +11809,12 @@ qboolean UI_FeederSelection(float feederFloat, int index, itemDef_t *item)
 		{
 			worn[0] = '\0';
 			UI_SetCosmetic(cvarName, NULL);
+
+			//the listbox has already parked its cursor on the row we just clicked; move it off
+			//so nothing shows as selected. Returning qfalse would instead restore the previous
+			//row, which is not what "took it off" should look like.
+			if (item)
+				item->cursorPos = -1;
 		}
 		else
 		{

@@ -101,18 +101,19 @@
 			group				none
 			type				ITEM_TYPE_LISTBOX
 			style				WINDOW_STYLE_FILLED
-			elementwidth		200
-			elementheight		14
-			elementtype			0			//LISTBOX_TEXT
+			elementwidth		215
+			elementheight		16
+			elementtype			LISTBOX_TEXT
 			feeder				46			//FEEDER_COSMETIC_HATS
 			border			1
 			bordersize			1
 			backcolor			.66 .66 1 .25
 			bordercolor			.66 .66 1 1
 			forecolor			1 1 1 1
-			rect				15 65 215 120
-			textscale			.8
-			textalignx			5
+			outlinecolor		.66 .66 1 .6		// fills the row you are wearing
+			rect				15 65 215 128
+			textscale			.9
+			textaligny			13					// the list paints a row high without this
 			descText			"Click to wear, click again to take off"
 			visible			1
 			action
@@ -144,18 +145,19 @@
 			group				none
 			type				ITEM_TYPE_LISTBOX
 			style				WINDOW_STYLE_FILLED
-			elementwidth		200
-			elementheight		14
-			elementtype			0			//LISTBOX_TEXT
+			elementwidth		215
+			elementheight		16
+			elementtype			LISTBOX_TEXT
 			feeder				47			//FEEDER_COSMETIC_CAPES
 			border			1
 			bordersize			1
 			backcolor			.66 .66 1 .25
 			bordercolor			.66 .66 1 1
 			forecolor			1 1 1 1
-			rect				15 215 215 105
-			textscale			.8
-			textalignx			5
+			outlinecolor		.66 .66 1 .6		// fills the row you are wearing
+			rect				15 215 215 112
+			textscale			.9
+			textaligny			13					// the list paints a row high without this
 			descText			"Click to wear, click again to take off"
 			visible			1
 			action
@@ -181,7 +183,7 @@
 		{
 			name				clearcosmetics
 			group				none
-			text				"CLEAR"
+			text				"REMOVE ALL"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
 			rect				20 345 110 32
@@ -225,7 +227,8 @@
 		{
 			name				backcosmetics
 			group				none
-			text				@MENUS_BACK
+			text				@MENUS_APPLY
+			descText			"Return to the player menu"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
 			rect				290 345 110 32
@@ -238,7 +241,7 @@
 			visible			1
 			action
 			{
-				play			"sound/interface/esc.wav"
+				play			"sound/interface/button1"
 				close			ingame_cosmetics
 				open			ingame_player
 			}
