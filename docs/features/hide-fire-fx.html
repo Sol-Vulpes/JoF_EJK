@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hide fire FX — JoF EternalJK</title>
+<style>
+  :root {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --step--1: clamp(0.80rem, 0.78rem + 0.1vw, 0.86rem);
+    --step-0:  clamp(1.00rem, 0.97rem + 0.15vw, 1.08rem);
+    --step-1:  clamp(1.20rem, 1.14rem + 0.3vw, 1.35rem);
+    --step-2:  clamp(1.50rem, 1.38rem + 0.6vw, 1.85rem);
+    --step-3:  clamp(2.10rem, 1.80rem + 1.5vw, 3.10rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #17140F;
+      --paper-sunk: #100E0A;
+      --card:       #201C16;
+      --ink:        #EFE9E0;
+      --ink-soft:   #C8BFB2;
+      --stone:      #948A7C;
+      --rule:       #362F26;
+      --ember:      #E1833E;
+      --ember-wash: #2A1D12;
+      --pine:       #6FB3A3;
+      --pine-wash:  #1A2A26;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #17140F;
+    --paper-sunk: #100E0A;
+    --card:       #201C16;
+    --ink:        #EFE9E0;
+    --ink-soft:   #C8BFB2;
+    --stone:      #948A7C;
+    --rule:       #362F26;
+    --ember:      #E1833E;
+    --ember-wash: #2A1D12;
+    --pine:       #6FB3A3;
+    --pine-wash:  #1A2A26;
+  }
+  :root[data-theme="light"] {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    max-width: 92rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+  }
+  @media (min-width: 62rem) {
+    .page {
+      grid-template-columns: 15rem minmax(0, 1fr);
+      padding: 4.5rem 3rem 8rem;
+      gap: 4.5rem;
+    }
+  }
+
+  /* ---- section rail ---- */
+  .rail { display: none; }
+  @media (min-width: 62rem) {
+    .rail {
+      display: block;
+      position: sticky;
+      top: 4.5rem;
+      align-self: start;
+      font-size: var(--step--1);
+    }
+  }
+  .rail__label {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.68rem;
+    color: var(--stone);
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 0.9rem;
+  }
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .rail a {
+    color: var(--stone);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    padding-left: 0.75rem;
+    display: block;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .rail a:hover,
+  .rail a:focus-visible { color: var(--ember); border-left-color: var(--ember); }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 1px solid var(--rule); padding-bottom: 2.5rem; margin-bottom: 3rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ember);
+    margin: 0 0 1.1rem;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-3);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-family: var(--display);
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0 0 2rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 2rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    margin: 0;
+  }
+  .meta div { display: flex; gap: 0.5rem; }
+  .meta dt { color: var(--stone); }
+  .meta dd { margin: 0; }
+  a { color: var(--ember); text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---- prose ---- */
+  main { min-width: 0; }
+  section { margin-bottom: 4rem; scroll-margin-top: 2rem; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-2);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 1.25rem;
+  }
+  h3 {
+    font-family: var(--body);
+    font-weight: 650;
+    font-size: var(--step-0);
+    margin: 0 0 0.5rem;
+  }
+  p, ul, ol { max-width: var(--measure); }
+  p { margin: 0 0 1.15rem; text-wrap: pretty; }
+  ul { padding-left: 1.1rem; margin: 0 0 1.15rem; }
+  li { margin-bottom: 0.5rem; }
+  li::marker { color: var(--stone); }
+  strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.08em 0.35em;
+    word-break: break-word;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.6;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--ember);
+    border-radius: 3px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1.15rem;
+    overflow-x: auto;
+  }
+  pre .c { color: var(--stone); }
+
+  /* ---- callouts ---- */
+  .keeps {
+    border-left: 2px solid var(--pine);
+    background: var(--pine-wash);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.5rem;
+    max-width: var(--measure);
+    border-radius: 0 3px 3px 0;
+  }
+  .keeps p { margin: 0; }
+  .keeps strong { color: var(--pine); }
+
+  /* ---- table ---- */
+  .table-wrap { overflow-x: auto; margin: 0 0 1.15rem; border: 1px solid var(--rule); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: var(--step--1); background: var(--card); }
+  th, td { text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    background: var(--paper-sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink-soft); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    max-width: var(--measure);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="rail" aria-label="Sections">
+    <div class="rail__label">On this page</div>
+    <ol>
+      <li><a href="#use">How to use</a></li>
+      <li><a href="#hides">What it hides</a></li>
+      <li><a href="#where">Where it lives</a></li>
+      <li><a href="#limits">Known limits</a></li>
+      <li><a href="#testing">Testing notes</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="masthead">
+      <p class="eyebrow">JoF EternalJK · cgame</p>
+      <h1>Hide fire FX</h1>
+      <p class="standfirst">
+        Some maps pack in dozens of fire <code>fx_runner</code>s — torches, campfires, braziers,
+        lava — which add visual clutter and rendering cost. The only prior off switch was
+        <code>cg_noFX</code>, which kills <em>every</em> effect and speaker on the map. This is the
+        scalpel for fire alone.
+      </p>
+      <dl class="meta">
+        <div>
+          <dt>Commit</dt>
+          <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/1c6b89aac8352cfb75d4470dd1519aee81b54006"><code>1c6b89a</code></a></dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="keeps">
+      <p><code>cg_hideFireFX</code> is <strong>archived and defaults to off</strong>, so maps keep
+      their intended look unless you opt in. It's listed in <code>helpUsSol</code> next to
+      <code>cg_hideForcePushFX</code>.</p>
+    </div>
+
+    <section id="use">
+      <h2>How to use</h2>
+      <pre>/cg_hideFireFX 0    <span class="c">// default — fire effects play normally</span>
+/cg_hideFireFX 1    <span class="c">// hide map fire/flame effects</span></pre>
+      <p>Client-side display setting: takes effect on the next frame, needs no reconnect, and is saved
+      to the config.</p>
+    </section>
+
+    <section id="hides">
+      <h2>What it hides</h2>
+      <p>Map ambient effects are <code>fx_runner</code> entities that reach the client as
+      <code>ET_FX</code> and play through <code>CG_FX</code> (<code>cg_ents.c</code>). Each one names an
+      effect file via the <code>CS_EFFECTS</code> configstring. With the cvar on, <code>CG_FX</code>
+      looks up that name and returns early if it contains <strong>"fire"</strong> or
+      <strong>"flame"</strong> (case-insensitive) — so <code>env/fire</code>,
+      <code>env/small_fire</code>, <code>env/fire_column</code>, a custom
+      <code>maps/foo/torch_flame</code>, and the like are all skipped.</p>
+      <p>Because the flame's looping sound is usually bundled <em>inside</em> the same
+      <code>.efx</code>, skipping the effect drops that sound with it.</p>
+    </section>
+
+    <section id="where">
+      <h2>Where it lives</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">File</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>codemp/cgame/cg_xcvar.h</td>
+              <td>Declares <code>cg_hideFireFX</code>, <code>CVAR_ARCHIVE</code>, default <code>"0"</code>.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_ents.c</td>
+              <td>Guard at the top of <code>CG_FX</code>: resolves the <code>CS_EFFECTS</code> name and
+              returns early on a <code>fire</code>/<code>flame</code> substring match.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_consolecmds.c</td>
+              <td>Listed in <code>helpUsSol</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The guard sits after the "fx not active" check and before the effect is registered/played, so
+      it costs a cheap configstring pointer lookup and a substring test only while the cvar is on.</p>
+    </section>
+
+    <section id="limits">
+      <h2>Known limits</h2>
+      <ul>
+        <li><strong>Name-based heuristic.</strong> It matches on the effect <em>name</em> containing
+        <code>fire</code>/<code>flame</code>. An effect that is visually fire but named something else
+        (<code>env/torch</code>, <code>volcano/lava_spurt</code>) slips through; a non-fire effect that
+        happens to contain the substring (a hypothetical <code>firework</code>) would be caught. In
+        practice JKA and community maps put the word in the name, so this covers the overwhelming
+        majority — and a straggler name can always be added.</li>
+        <li><strong>Effects only, not shaders or speakers.</strong> Fire painted with an animated
+        <em>shader</em> (a flame texture on a surface) is world geometry, not an <code>fx_runner</code>,
+        and is untouched — as is a fire <em>sound</em> coming from a separate
+        <code>target_speaker</code> rather than the effect itself. For those, the blunt
+        <code>cg_noFX</code> (<code>2</code> also silences speakers) remains the only lever.</li>
+        <li><strong>Client-side and cosmetic.</strong> It changes only what you see and hear locally;
+        gameplay — fire that actually damages, e.g. a <code>trigger_hurt</code> — is unaffected.</li>
+      </ul>
+    </section>
+
+    <section id="testing">
+      <h2>Testing notes</h2>
+      <ul>
+        <li>Load a fire-heavy map (or drop an <code>fx_runner</code> pointing at <code>env/fire</code>
+        with <code>sv_pure 0</code>), toggle <code>cg_hideFireFX 1</code>, and the flames — and their
+        crackle — should vanish on the next frame; back to <code>0</code> restores them.</li>
+        <li>Headless mode (<code>com_headless 1</code>) can't load a map, so verify in a real windowed
+        client.</li>
+      </ul>
+    </section>
+
+    <footer>
+      Sol branch documentation · the feature commit itself carries no docs, so alpha and beta stay clean.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
