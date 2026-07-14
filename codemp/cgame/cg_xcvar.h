@@ -170,6 +170,10 @@ XCVAR_DEF( cg_holsteredSaberAng2,				"0 0 270",	NULL,				CVAR_ROM )
 XCVAR_DEF( cg_drawPlayerNames,					"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawPlayerNamesScale,				"0.5",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_hideDuelerNames,					"0",	NULL,					CVAR_ARCHIVE )
+// Suppress the force push/pull "cloud"/refraction effect on players. Default on because
+// admin /amempower spam produces so many of these passes that it breaks map rendering
+// (trees/models flicker or vanish). Set to 0 to see the vanilla push/pull FX again.
+XCVAR_DEF( cg_hideForcePushFX,					"1",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawInventory,					"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawPowerUpIcons,					"1",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_autoScreenshot,					"0",	NULL,					CVAR_ARCHIVE )

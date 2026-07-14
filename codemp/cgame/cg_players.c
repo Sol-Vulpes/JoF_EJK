@@ -12323,8 +12323,10 @@ skipTrail:
 				}
 
 	//fullbody push effect - don't render it for anyone while the local player is zoomed (keeps the scope view clean)
+	//also skippable via cg_hideForcePushFX (default on) since /amempower spam overloads the renderer with these
 	if ((cent->currentState.eFlags & EF_BODYPUSH) &&
 		forceFXVisible &&
+		!cg_hideForcePushFX.integer &&
 		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.predictedPlayerState.clientNum))
 	{
 		CG_ForcePushBodyBlur(cent);
@@ -12508,7 +12510,7 @@ skipTrail:
 			}
 			*/
 		}
-		else if (!(cent->currentState.forcePowersActive & (1 << FP_GRIP)) && forceFXVisible)
+		else if (!(cent->currentState.forcePowersActive & (1 << FP_GRIP)) && forceFXVisible && !cg_hideForcePushFX.integer)
 		{
 			//use refractive effect
 			CG_ForcePushBlur( efOrg, cent );
