@@ -2690,6 +2690,8 @@ static void CG_HelpUsSol_f( void ) {
 	Com_Printf( S_COLOR_GREEN "cg_showClientIDs " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - show client ID numbers on the scoreboard and next to your score on the HUD.\n" );
 	Com_Printf( S_COLOR_GREEN "in_noAltF4 " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - block Alt+F4 from closing the game.\n" );
 	Com_Printf( S_COLOR_GREEN "cg_autoHeal " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - automatically use force heal while alive and at or below 75 health, if you have the power and the force to spend.\n" );
+	Com_Printf( S_COLOR_GREEN "cg_hideForcePushFX " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - hide the force push/pull cloud FX on players; on by default because /amempower spam of it breaks map rendering.\n" );
+	Com_Printf( S_COLOR_GREEN "cg_hideFireFX " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - hide map-placed fire/flame effects (and their bundled sound); off by default.\n" );
 	Com_Printf( S_COLOR_GREEN "cl_cmdratecap " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - cap movement command generation at 125Hz, independent of your framerate (default 1).\n" );
 	Com_Printf( S_COLOR_GREEN "r_swapInterval " S_COLOR_YELLOW "0|1|2|3" S_COLOR_WHITE " - how finished frames reach the monitor: 0 vsync off, 1 vsync, 2 adaptive vsync, 3 mailbox (default 3).\n" );
 	Com_Printf( S_COLOR_CYAN "----- " S_COLOR_MAGENTA "about r_swapInterval" S_COLOR_CYAN " -----\n" );

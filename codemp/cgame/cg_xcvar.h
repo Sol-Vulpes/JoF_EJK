@@ -174,6 +174,10 @@ XCVAR_DEF( cg_hideDuelerNames,					"0",	NULL,					CVAR_ARCHIVE )
 // admin /amempower spam produces so many of these passes that it breaks map rendering
 // (trees/models flicker or vanish). Set to 0 to see the vanilla push/pull FX again.
 XCVAR_DEF( cg_hideForcePushFX,					"1",	NULL,					CVAR_ARCHIVE )
+// Suppress map-placed fire/flame effects (fx_runner ET_FX whose effect name contains
+// "fire" or "flame"), and the sound bundled in those effects with them. Off by default so
+// maps keep their intended look; set to 1 to kill torch/campfire/flame FX for clutter or perf.
+XCVAR_DEF( cg_hideFireFX,						"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawInventory,					"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawPowerUpIcons,					"1",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_autoScreenshot,					"0",	NULL,					CVAR_ARCHIVE )

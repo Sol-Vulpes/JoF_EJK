@@ -3734,6 +3734,15 @@ static void CG_FX( centity_t *cent )
 		return;
 	}
 
+	if (cg_hideFireFX.integer)
+	{	// skip map fire/flame fx_runners (and the sound bundled in the effect) on request
+		const char *fxName = CG_ConfigString( CS_EFFECTS + s1->modelindex );
+		if (fxName && (Q_stristr( fxName, "fire" ) || Q_stristr( fxName, "flame" )))
+		{
+			return;
+		}
+	}
+
 	if (s1->modelindex2 < FX_STATE_ONE_SHOT_LIMIT)
 	{	// fx is single shot
 		if (cent->muzzleFlashTime == s1->modelindex2)
