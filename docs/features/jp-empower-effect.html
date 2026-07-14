@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jp_empowerEffect — JoF EternalJK</title>
+<style>
+  :root {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --step--1: clamp(0.80rem, 0.78rem + 0.1vw, 0.86rem);
+    --step-0:  clamp(1.00rem, 0.97rem + 0.15vw, 1.08rem);
+    --step-1:  clamp(1.20rem, 1.14rem + 0.3vw, 1.35rem);
+    --step-2:  clamp(1.50rem, 1.38rem + 0.6vw, 1.85rem);
+    --step-3:  clamp(2.10rem, 1.80rem + 1.5vw, 3.10rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #17140F;
+      --paper-sunk: #100E0A;
+      --card:       #201C16;
+      --ink:        #EFE9E0;
+      --ink-soft:   #C8BFB2;
+      --stone:      #948A7C;
+      --rule:       #362F26;
+      --ember:      #E1833E;
+      --ember-wash: #2A1D12;
+      --pine:       #6FB3A3;
+      --pine-wash:  #1A2A26;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #17140F;
+    --paper-sunk: #100E0A;
+    --card:       #201C16;
+    --ink:        #EFE9E0;
+    --ink-soft:   #C8BFB2;
+    --stone:      #948A7C;
+    --rule:       #362F26;
+    --ember:      #E1833E;
+    --ember-wash: #2A1D12;
+    --pine:       #6FB3A3;
+    --pine-wash:  #1A2A26;
+  }
+  :root[data-theme="light"] {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    max-width: 92rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+  }
+  @media (min-width: 62rem) {
+    .page {
+      grid-template-columns: 15rem minmax(0, 1fr);
+      padding: 4.5rem 3rem 8rem;
+      gap: 4.5rem;
+    }
+  }
+
+  /* ---- section rail ---- */
+  .rail { display: none; }
+  @media (min-width: 62rem) {
+    .rail {
+      display: block;
+      position: sticky;
+      top: 4.5rem;
+      align-self: start;
+      font-size: var(--step--1);
+    }
+  }
+  .rail__label {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.68rem;
+    color: var(--stone);
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 0.9rem;
+  }
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .rail a {
+    color: var(--stone);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    padding-left: 0.75rem;
+    display: block;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .rail a:hover,
+  .rail a:focus-visible { color: var(--ember); border-left-color: var(--ember); }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 1px solid var(--rule); padding-bottom: 2.5rem; margin-bottom: 3rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ember);
+    margin: 0 0 1.1rem;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-3);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-family: var(--display);
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0 0 2rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 2rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    margin: 0;
+  }
+  .meta div { display: flex; gap: 0.5rem; }
+  .meta dt { color: var(--stone); }
+  .meta dd { margin: 0; }
+  a { color: var(--ember); text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---- prose ---- */
+  main { min-width: 0; }
+  section { margin-bottom: 4rem; scroll-margin-top: 2rem; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-2);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 1.25rem;
+  }
+  h3 {
+    font-family: var(--body);
+    font-weight: 650;
+    font-size: var(--step-0);
+    margin: 0 0 0.5rem;
+  }
+  p, ul, ol { max-width: var(--measure); }
+  p { margin: 0 0 1.15rem; text-wrap: pretty; }
+  ul, ol { padding-left: 1.1rem; margin: 0 0 1.15rem; }
+  li { margin-bottom: 0.5rem; }
+  li::marker { color: var(--stone); }
+  strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.08em 0.35em;
+    word-break: break-word;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.6;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--ember);
+    border-radius: 3px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1.15rem;
+    overflow-x: auto;
+  }
+  pre .c { color: var(--stone); }
+
+  /* ---- callouts ---- */
+  .keeps {
+    border-left: 2px solid var(--pine);
+    background: var(--pine-wash);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.5rem;
+    max-width: var(--measure);
+    border-radius: 0 3px 3px 0;
+  }
+  .keeps p { margin: 0; }
+  .keeps strong { color: var(--pine); }
+
+  /* ---- table ---- */
+  .table-wrap { overflow-x: auto; margin: 0 0 1.15rem; border: 1px solid var(--rule); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: var(--step--1); background: var(--card); }
+  th, td { text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    background: var(--paper-sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink-soft); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    max-width: var(--measure);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="rail" aria-label="Sections">
+    <div class="rail__label">On this page</div>
+    <ol>
+      <li><a href="#use">How to use</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#where">Where it lives</a></li>
+      <li><a href="#compat">Backwards compatibility</a></li>
+      <li><a href="#limits">Known limits</a></li>
+      <li><a href="#testing">Testing notes</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="masthead">
+      <p class="eyebrow">JoF EternalJK · cgame</p>
+      <h1>jp_empowerEffect — trim the empower glow</h1>
+      <p class="standfirst">
+        An empowered player lights up with the same 8-orb body-blur as someone being force-pushed —
+        because JA+ reused the <code>EF_BODYPUSH</code> flag for both, they are literally the same
+        clientside code path. A new <code>EF_EMPOWERED</code> flag lets a patched client finally tell
+        them apart and draw a lighter empower glow while leaving force push untouched.
+      </p>
+      <dl class="meta">
+        <div>
+          <dt>Commit</dt>
+          <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/265161c13e057e4f259108ab97b889196e17ef45"><code>265161c</code></a></dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="keeps">
+      <p><code>jp_empowerEffect</code> is a <strong>server</strong> cvar. The server sets
+      <code>EF_EMPOWERED</code> alongside <code>EF_BODYPUSH</code> while empowered and ships the value
+      in serverinfo; patched clients draw the reduced bone set. <strong>Force push is never
+      affected</strong> — it always draws the full 8.</p>
+    </div>
+
+    <section id="use">
+      <h2>How to use</h2>
+      <p><code>jp_empowerEffect</code> is a <code>CVAR_SERVERINFO</code> cvar. Set it on the server;
+      every patched client reading that server's serverinfo picks it up.</p>
+      <pre>jp_empowerEffect 0    <span class="c">// default — full 8-orb glow, identical to today</span>
+jp_empowerEffect 1    <span class="c">// arms only: both hands + both forearms (4 orbs)</span>
+jp_empowerEffect 2    <span class="c">// hands only: one bolt per hand (2 orbs)</span></pre>
+      <p>No client reconnect is needed — the value arrives in the serverinfo configstring and the next
+      frame draws the new bone set.</p>
+    </section>
+
+    <section id="how">
+      <h2>How it works</h2>
+      <p>The empower/push glow is drawn entirely clientside. <code>CG_ForcePushBodyBlur</code> loops a
+      hardcoded bone list (<code>cg_pushBoneNames[]</code>) and spawns a blur sprite on each bolt —
+      head, belly, both hands, both forearms, both shins. That is the "8 orbs."</p>
+      <p>Because empower and push both raise <code>EF_BODYPUSH</code>, the client had no way to draw one
+      differently from the other. The fix adds a second flag:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Flag</th><th scope="col">Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>EF_BODYPUSH</code> (bit 19)</td>
+              <td>Set while being force-pushed <strong>and</strong> while empowered (unchanged).</td>
+            </tr>
+            <tr>
+              <td><code>EF_EMPOWERED</code> (bit 18)</td>
+              <td><strong>New.</strong> Set <em>in addition to</em> <code>EF_BODYPUSH</code> while empowered.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Empower therefore sets <strong>both</strong> bits. The client checks <code>EF_EMPOWERED</code>
+      first: if it is set, the player is empowered and draws the <code>jp_empowerEffect</code> bone set;
+      otherwise a raised <code>EF_BODYPUSH</code> means a genuine push and draws the full set. The two
+      are mutually exclusive, so the effects never stack.</p>
+    </section>
+
+    <section id="where">
+      <h2>Where it lives</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">File</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>codemp/game/bg_public.h</td>
+              <td>Claims the free bit 18 as <code>EF_EMPOWERED</code> (was <code>EF_NOT_USED_4</code>).
+              Must stay <code>1&lt;&lt;18</code> — the server patch hardcodes it.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_local.h</td>
+              <td>Adds <code>cgs.empowerEffect</code>.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_servercmds.c</td>
+              <td><code>CG_ParseServerinfo</code> reads <code>jp_empowerEffect</code> into <code>cgs.empowerEffect</code>.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_players.c</td>
+              <td>Two extra bone lists; <code>CG_ForcePushBodyBlur</code> factored into
+              <code>CG_ForcePushBodyBlurBones(cent, boneNames)</code>; new <code>CG_EmpowerBodyBlur</code>
+              picks the list from the cvar; the <code>CG_Player</code> call site branches on
+              <code>EF_EMPOWERED</code> first.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>CG_Player</code> empower branch sits <em>inside</em> the existing
+      <code>cg_hideForcePushFX</code> / zoom / third-person guards, so empower obeys the same FX-hide
+      toggle as push — empower spam is exactly what overloads the renderer, so hiding push FX hides
+      empower FX too.</p>
+    </section>
+
+    <section id="compat">
+      <h2>Backwards compatibility</h2>
+      <p>The server sets <strong>both</strong> flags rather than swapping one for the other, which is
+      what keeps old clients working:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Client</th><th scope="col">Sees</th><th scope="col">Result</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Old / vanilla JA+ / unpatched JoF</td>
+              <td><code>EF_BODYPUSH</code> only (bit 18 is meaningless to it)</td>
+              <td>Renders the full 8 orbs — exactly today's behavior. <code>jp_empowerEffect</code> is silently ignored.</td>
+            </tr>
+            <tr>
+              <td>Patched JoF</td>
+              <td><code>EF_BODYPUSH</code> + <code>EF_EMPOWERED</code></td>
+              <td>The <code>EF_EMPOWERED</code> branch wins and draws the <code>jp_empowerEffect</code> bone set.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The server can be deployed on its own; clients update on their own schedule. The cvar simply
+      has no visible effect until a player is on a patched client.</p>
+    </section>
+
+    <section id="limits">
+      <h2>Known limits</h2>
+      <ul>
+        <li><strong>The mutual exclusivity is load-bearing.</strong> Empower raises <code>EF_BODYPUSH</code>
+        too, so if the client ran both branches an empowered player would draw the trimmed set <em>on top
+        of</em> the full push set and you'd see all 8 regardless of the cvar. The empower branch checks
+        <code>EF_EMPOWERED</code> first and the push branch is the <code>else</code>, so exactly one runs.</li>
+        <li><strong>Empowered <em>and</em> pushed at the same time:</strong> the empower branch wins, so
+        you see the trimmed set for the duration of the push. Reversing that is a one-line swap — a
+        cosmetic call with no correctness impact.</li>
+        <li><strong><code>EF_EMPOWERED</code> must stay <code>1&lt;&lt;18</code>.</strong> The server
+        patch flips exactly that bit. Renumber it and empower renders as a plain push on new clients.</li>
+        <li><strong>No netcode change.</strong> <code>eFlags</code> is already networked in
+        <code>entityState_t</code> — the existing <code>EF_BODYPUSH</code> check reads
+        <code>cent-&gt;currentState.eFlags</code>. Nothing new crosses the wire.</li>
+        <li>Non-humanoid models (<code>cent-&gt;localAnimIndex &gt; 1</code>) already bail out of the blur; unchanged.</li>
+        <li><code>cgs.empowerEffect</code> defaults to <code>0</code> when the key is absent (e.g. a
+        non-JoF server), which is the current look — a safe fallback.</li>
+      </ul>
+    </section>
+
+    <section id="testing">
+      <h2>Testing notes</h2>
+      <ol>
+        <li><code>jp_empowerEffect 0</code> → <code>/amempower</code> → 8 orbs, identical to today.</li>
+        <li><code>jp_empowerEffect 1</code> → 4 orbs: both hands + both forearms.</li>
+        <li><code>jp_empowerEffect 2</code> → 2 orbs: hands only.</li>
+        <li><strong>Regression — push:</strong> with the cvar at <code>1</code> or <code>2</code>,
+        force-push someone who is <strong>not</strong> empowered → must still show the full 8. If push
+        changed, the branches got crossed.</li>
+        <li><strong>Regression — old client:</strong> connect an unpatched client to the patched server
+        with the cvar at <code>1</code> or <code>2</code> and look at an empowered player → must show
+        the full 8 (it can't see bit 18).</li>
+        <li><strong>Stacking:</strong> on a patched client, empower a player <em>and</em> push them →
+        exactly one effect (the trimmed empower set), never both overlaid.</li>
+      </ol>
+      <p>Headless mode (<code>com_headless 1</code>) can't load a map, so verify in a real windowed client.</p>
+    </section>
+
+    <footer>
+      Sol branch documentation · the feature commit itself carries no docs, so alpha and beta stay clean.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
