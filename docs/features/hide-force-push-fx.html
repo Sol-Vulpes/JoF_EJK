@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hide force push/pull FX — JoF EternalJK</title>
+<style>
+  :root {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --step--1: clamp(0.80rem, 0.78rem + 0.1vw, 0.86rem);
+    --step-0:  clamp(1.00rem, 0.97rem + 0.15vw, 1.08rem);
+    --step-1:  clamp(1.20rem, 1.14rem + 0.3vw, 1.35rem);
+    --step-2:  clamp(1.50rem, 1.38rem + 0.6vw, 1.85rem);
+    --step-3:  clamp(2.10rem, 1.80rem + 1.5vw, 3.10rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #17140F;
+      --paper-sunk: #100E0A;
+      --card:       #201C16;
+      --ink:        #EFE9E0;
+      --ink-soft:   #C8BFB2;
+      --stone:      #948A7C;
+      --rule:       #362F26;
+      --ember:      #E1833E;
+      --ember-wash: #2A1D12;
+      --pine:       #6FB3A3;
+      --pine-wash:  #1A2A26;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #17140F;
+    --paper-sunk: #100E0A;
+    --card:       #201C16;
+    --ink:        #EFE9E0;
+    --ink-soft:   #C8BFB2;
+    --stone:      #948A7C;
+    --rule:       #362F26;
+    --ember:      #E1833E;
+    --ember-wash: #2A1D12;
+    --pine:       #6FB3A3;
+    --pine-wash:  #1A2A26;
+  }
+  :root[data-theme="light"] {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    max-width: 92rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+  }
+  @media (min-width: 62rem) {
+    .page {
+      grid-template-columns: 15rem minmax(0, 1fr);
+      padding: 4.5rem 3rem 8rem;
+      gap: 4.5rem;
+    }
+  }
+
+  /* ---- section rail ---- */
+  .rail { display: none; }
+  @media (min-width: 62rem) {
+    .rail {
+      display: block;
+      position: sticky;
+      top: 4.5rem;
+      align-self: start;
+      font-size: var(--step--1);
+    }
+  }
+  .rail__label {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.68rem;
+    color: var(--stone);
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 0.9rem;
+  }
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .rail a {
+    color: var(--stone);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    padding-left: 0.75rem;
+    display: block;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .rail a:hover,
+  .rail a:focus-visible { color: var(--ember); border-left-color: var(--ember); }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 1px solid var(--rule); padding-bottom: 2.5rem; margin-bottom: 3rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ember);
+    margin: 0 0 1.1rem;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-3);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-family: var(--display);
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0 0 2rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 2rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    margin: 0;
+  }
+  .meta div { display: flex; gap: 0.5rem; }
+  .meta dt { color: var(--stone); }
+  .meta dd { margin: 0; }
+  a { color: var(--ember); text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---- prose ---- */
+  main { min-width: 0; }
+  section { margin-bottom: 4rem; scroll-margin-top: 2rem; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-2);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 1.25rem;
+  }
+  h3 {
+    font-family: var(--body);
+    font-weight: 650;
+    font-size: var(--step-0);
+    margin: 0 0 0.5rem;
+  }
+  p, ul, ol { max-width: var(--measure); }
+  p { margin: 0 0 1.15rem; text-wrap: pretty; }
+  ul { padding-left: 1.1rem; margin: 0 0 1.15rem; }
+  li { margin-bottom: 0.5rem; }
+  li::marker { color: var(--stone); }
+  strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.08em 0.35em;
+    word-break: break-word;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.6;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--ember);
+    border-radius: 3px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1.15rem;
+    overflow-x: auto;
+  }
+  pre .c { color: var(--stone); }
+
+  /* ---- callouts ---- */
+  .keeps {
+    border-left: 2px solid var(--pine);
+    background: var(--pine-wash);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.5rem;
+    max-width: var(--measure);
+    border-radius: 0 3px 3px 0;
+  }
+  .keeps p { margin: 0; }
+  .keeps strong { color: var(--pine); }
+
+  /* ---- table ---- */
+  .table-wrap { overflow-x: auto; margin: 0 0 1.15rem; border: 1px solid var(--rule); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: var(--step--1); background: var(--card); }
+  th, td { text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    background: var(--paper-sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink-soft); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    max-width: var(--measure);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="rail" aria-label="Sections">
+    <div class="rail__label">On this page</div>
+    <ol>
+      <li><a href="#use">How to use</a></li>
+      <li><a href="#hides">What it hides</a></li>
+      <li><a href="#where">Where it lives</a></li>
+      <li><a href="#limits">Known limits</a></li>
+      <li><a href="#testing">Testing notes</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="masthead">
+      <p class="eyebrow">JoF EternalJK · cgame</p>
+      <h1>Hide force push/pull FX</h1>
+      <p class="standfirst">
+        Admins handing out force powers with <code>/amempower</code> let people spam force push/pull,
+        and every hit spawns a cluster of puff sprites plus a refractive body pass. With several
+        empowered players going at once these stack into enough extra render passes that the renderer
+        starts dropping world surfaces — on tree-heavy maps, models flicker or stop drawing entirely.
+      </p>
+      <dl class="meta">
+        <div>
+          <dt>Commit</dt>
+          <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/ce9128d88b53e31ef7eef2abd01a15dfdc76023e"><code>ce9128d</code></a></dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="keeps">
+      <p><code>cg_hideForcePushFX</code> is <strong>archived and defaults to on</strong>, so the
+      push/pull cloud is hidden out of the box. It only removes the visual — the push/pull mechanic
+      itself is untouched.</p>
+    </div>
+
+    <section id="use">
+      <h2>How to use</h2>
+      <pre>/cg_hideForcePushFX 1    <span class="c">// default — push/pull cloud FX not drawn</span>
+/cg_hideForcePushFX 0    <span class="c">// restore the vanilla push/pull FX</span></pre>
+      <p>It is a client-side display setting: it takes effect on the next frame, needs no reconnect,
+      and the value is saved to the config.</p>
+    </section>
+
+    <section id="hides">
+      <h2>What it hides</h2>
+      <p>Force push and force pull both flag their <em>targets</em> with <code>EF_BODYPUSH</code> for
+      600&nbsp;ms (<code>w_force.c</code>, <code>push_list[x]-&gt;client-&gt;pushEffectTime</code>), and
+      the caster's hand carries a refractive blur. Two render paths draw from that, and the cvar gates
+      both:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Effect</th><th scope="col">Trigger</th><th scope="col">Renderer</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Full-body puff "cloud" on everyone caught in a push/pull</td>
+              <td><code>EF_BODYPUSH</code> eFlag</td>
+              <td><code>CG_ForcePushBodyBlur</code> → <code>CG_ForcePushBlur</code> per push bone</td>
+            </tr>
+            <tr>
+              <td>Refractive blur on the caster's hand</td>
+              <td><code>PW_DISINT_4</code> powerup, not gripping</td>
+              <td><code>CG_ForcePushBlur( efOrg, cent )</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Because the target flag is shared between push and pull, hiding it covers both.</p>
+    </section>
+
+    <section id="where">
+      <h2>Where it lives</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">File</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>codemp/cgame/cg_xcvar.h</td>
+              <td>Declares <code>cg_hideForcePushFX</code>, <code>CVAR_ARCHIVE</code>, default <code>"1"</code>.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_players.c</td>
+              <td>Two guards added in <code>CG_Player</code>: one on the <code>EF_BODYPUSH</code> body-blur
+              block, one on the <code>else</code> branch that calls <code>CG_ForcePushBlur</code> for the hand.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Both guards sit <em>alongside</em> the existing <code>forceFXVisible</code> and zoom checks, so the
+      cvar only ever removes work — it never changes any other condition.</p>
+    </section>
+
+    <section id="limits">
+      <h2>Known limits</h2>
+      <ul>
+        <li>It hides the push/pull FX for <strong>everyone</strong>, including yourself and legitimate force
+        users — a blunt display toggle, not an "only when <code>/amempower</code> is abused" filter. There is
+        no reliable client-side signal that separates an empowered player from any other force user, so the
+        effect is keyed off the push/pull state itself.</li>
+        <li>It does not touch the push/pull <em>gameplay</em> — knockback, damage, sounds are unchanged. Only
+        the visual sprite/refraction passes go away.</li>
+        <li>Other force-power visuals (rage electric body, protect/absorb shells, force sight aura, grip) are
+        deliberately left alone — this cvar is scoped to the push/pull cloud only.</li>
+      </ul>
+    </section>
+
+    <section id="testing">
+      <h2>Testing notes</h2>
+      <ul>
+        <li>Set <code>cg_hideForcePushFX 0</code>, have someone force-push a group of players near heavy
+        foliage, and watch the puff clouds and the world flicker; set it back to <code>1</code> and the clouds
+        — and the flickering — are gone.</li>
+        <li><code>sv_pure 0</code> is only relevant if you're loading loose test assets.</li>
+        <li>Headless mode (<code>com_headless 1</code>) can't load a map, so verify in a real windowed
+        client.</li>
+      </ul>
+    </section>
+
+    <footer>
+      Sol branch documentation · the feature commit itself carries no docs, so alpha and beta stay clean.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
