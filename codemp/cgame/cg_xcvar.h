@@ -64,6 +64,7 @@ XCVAR_DEF( cg_drawScoreboardIcons,			"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawScoreboardPlayerCount,	"1",	NULL,					CVAR_ARCHIVE )
 
 XCVAR_DEF( cg_scoreDeaths,			"1",	NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_showClientIDs,		"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_killMessage,			"1",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_newFont,				"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_chatBox,				"10000",NULL,					CVAR_ARCHIVE )
