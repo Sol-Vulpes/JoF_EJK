@@ -12028,7 +12028,10 @@ skipTrail:
 	}
 
 
-	if (cent->currentState.legsAnim == BOTH_CHOKE3 && !(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT))
+	if (cent->currentState.legsAnim == BOTH_CHOKE3 &&
+		!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT) &&
+		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.
+			predictedPlayerState.clientNum))
 	{
 		vec3_t efOrg;
 		vec3_t chokeFwd;
