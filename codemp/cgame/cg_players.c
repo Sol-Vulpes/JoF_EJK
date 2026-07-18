@@ -5724,7 +5724,7 @@ static void CG_RunTimedForceAnimFX( centity_t *cent, clientInfo_t *ci )
 		return;
 	}
 
-	if (fxType == 3)
+	if (fxType == 3 && !(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT))
 	{
 		mdxaBone_t lHandMatrix;
 		int lHandBolt = -1;
@@ -5791,11 +5791,11 @@ static void CG_RunTimedForceAnimFX( centity_t *cent, clientInfo_t *ci )
 		}
 	}
 
-	if (fxType == 1)
+	if (fxType == 1 && !(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT))
 	{
 		trap->FX_PlayEffectID(cgs.effects.rageFX, pos, dir, -1, -1, qfalse);
 	}
-	else
+	else if(!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT))
 	{
 		trap->FX_PlayEffectID(cgs.effects.heal2FX, pos, dir, -1, -1, qfalse);
 	}
@@ -12110,7 +12110,9 @@ skipTrail:
 
 
 	if (cent->currentState.legsAnim == BOTH_CHOKE3 &&
-		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.predictedPlayerState.clientNum))
+		!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT) &&
+		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.
+			predictedPlayerState.clientNum))
 	{
 		vec3_t efOrg;
 		vec3_t chokeFwd;
@@ -13769,7 +13771,8 @@ stillDoSaber:
 		((((cgs.serverMod != SVMOD_BASEENHANCED) &&
 			(cent->currentState.forcePowersActive & (1 << FP_ABSORB))) ||
 			(cent->teamPowerEffectTime > cg.time && cent->teamPowerType == 3)) &&
-			(cent->currentState.forcePowersActive & (1 << FP_PROTECT))))
+			(cent->currentState.forcePowersActive & (1 << FP_PROTECT))) && 
+			!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT))
 
 	{ //absorb + protect is represented by cyan..
 
