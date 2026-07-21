@@ -981,7 +981,6 @@ void CL_Disconnect( qboolean showMainMenu ) {
 		);
 
 		ospath[strlen(ospath) - 1] = '\0';
-		Com_Printf("Removing: %s\n", ospath); //just for debug purposes, delete if neccesary.
 		FS_Remove(ospath);
 	}
 
