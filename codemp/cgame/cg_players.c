@@ -2014,6 +2014,15 @@ static void CG_LoadCosmeticOffsets( const char *settingsPath, const cosmeticItem
 	cJSON_Delete( json );
 }
 
+//A model is off limits to players if it declares "notInMP 1" in its settings.txt,
+//or if the user has listed it in cg_modelBlacklist. NPCs are never affected.
+qboolean CG_ModelIsBlacklisted( const char *modelName ) {
+	if ( BG_ModelIsNPCOnly( modelName ) )
+		return qtrue;
+
+	return BG_ModelInList( modelName, cg_modelBlacklist.string );
+}
+
 void CG_NewClientInfo( int clientNum, qboolean entitiesInitialized ) {
 	clientInfo_t *ci;
 	clientInfo_t newInfo;
@@ -2269,6 +2278,14 @@ void CG_NewClientInfo( int clientNum, qboolean entitiesInitialized ) {
 				*slash = 0;
 			}
 		}
+	}
+
+	//blacklisted models are not usable by players, no matter how they got here
+	//(own model, forceModel, forceAlly/EnemyModel) - fall back to the default model
+	if ( CG_ModelIsBlacklisted( newInfo.modelName ) ) {
+		Q_strncpyz( newInfo.modelName, DEFAULT_MODEL, sizeof( newInfo.modelName ) );
+		Q_strncpyz( newInfo.skinName, "default", sizeof( newInfo.skinName ) );
+		v = newInfo.modelName;
 	}
 
 	ci->useAlternateStandAnim = qfalse;
@@ -3892,6 +3909,17 @@ static void CG_RunLerpFrame( centity_t *cent, clientInfo_t *ci, lerpFrame_t *lf,
 	}
 	else
 	{
+		if ( lf->lastForcedFrame != -1 )
+		{//we were force-frozen last frame and just came out of it - the freeze
+		 //above unconditionally overrode these 3 bones regardless of whether
+		 //this entity actually has them (noLumbar/localAnimIndex), but the
+		 //normal animation path below respects those gates, so it can't be
+		 //relied on to always release the override. Explicitly release it.
+			trap->G2API_RemoveBone(cent->ghoul2, "lower_lumbar", 0);
+			trap->G2API_RemoveBone(cent->ghoul2, "model_root", 0);
+			trap->G2API_RemoveBone(cent->ghoul2, "Motion", 0);
+		}
+
 		lf->lastForcedFrame = -1;
 
 		if ( (newAnimation != lf->animationNumber || cent->currentState.brokenLimbs != ci->brokenLimbs || lf->lastFlip != flipState || !lf->animation) || (CG_FirstAnimFrame(lf, torsoOnly, speedScale)) )
@@ -5760,6 +5788,24 @@ static const char *cg_pushBoneNames[] =
 	NULL
 };
 
+// JoF - jp_empowerEffect 1: arms only (two per arm)
+static const char *cg_empowerArmBoneNames[] =
+{
+	"rhand",
+	"lhand",
+	"lradius",
+	"rradius",
+	NULL
+};
+
+// JoF - jp_empowerEffect 2: only the bolt nearest each hand
+static const char *cg_empowerHandBoneNames[] =
+{
+	"rhand",
+	"lhand",
+	NULL
+};
+
 void CG_ForceGripped( const vec3_t org, qboolean darkSide )
 {
 	localEntity_t	*ex;
@@ -5816,12 +5862,17 @@ void CG_ForceGripped( const vec3_t org, qboolean darkSide )
 	ex->refEntity.customShader = trap->R_RegisterShader( "gfx/effects/forcePush" );
 }
 
-static void CG_ForcePushBodyBlur( centity_t *cent )
+static void CG_ForcePushBodyBlurBones( centity_t *cent, const char **boneNames )
 {
 	vec3_t fxOrg;
 	mdxaBone_t	boltMatrix;
 	int bolt;
 	int i;
+
+	if (!boneNames || !boneNames[0])
+	{ //nothing to draw
+		return;
+	}
 
 	if (cent->localAnimIndex > 1)
 	{ //Sorry, the humanoid IS IN ANOTHER CASTLE.
@@ -5840,13 +5891,13 @@ static void CG_ForcePushBodyBlur( centity_t *cent )
 
 	assert(cent->ghoul2);
 
-	for (i = 0; cg_pushBoneNames[i]; i++)
+	for (i = 0; boneNames[i]; i++)
 	{ //go through all the bones we want to put a blur effect on
-		bolt = trap->G2API_AddBolt(cent->ghoul2, 0, cg_pushBoneNames[i]);
+		bolt = trap->G2API_AddBolt(cent->ghoul2, 0, boneNames[i]);
 
 		if (bolt == -1)
 		{
-			assert(!"You've got an invalid bone/bolt name in cg_pushBoneNames");
+			assert(!"You've got an invalid bone/bolt name in the blur bone list");
 			continue;
 		}
 
@@ -5856,6 +5907,33 @@ static void CG_ForcePushBodyBlur( centity_t *cent )
 		//standard effect, don't be refractive (for now)
 		CG_ForcePushBlur(fxOrg, NULL);
 	}
+}
+
+static void CG_ForcePushBodyBlur( centity_t *cent )
+{ //being force-pushed: always the full bone set, unaffected by jp_empowerEffect
+	CG_ForcePushBodyBlurBones(cent, cg_pushBoneNames);
+}
+
+// JoF - empower glow. Bone set selected by the server's jp_empowerEffect.
+static void CG_EmpowerBodyBlur( centity_t *cent )
+{
+	const char **boneNames;
+
+	switch (cgs.empowerEffect)
+	{
+	case 1:
+		boneNames = cg_empowerArmBoneNames;
+		break;
+	case 2:
+		boneNames = cg_empowerHandBoneNames;
+		break;
+	case 0:
+	default:
+		boneNames = cg_pushBoneNames;
+		break;
+	}
+
+	CG_ForcePushBodyBlurBones(cent, boneNames);
 }
 
 static int cg_forceAnimFxNextTime[MAX_GENTITIES];
@@ -5909,7 +5987,7 @@ static void CG_RunTimedForceAnimFX( centity_t *cent, clientInfo_t *ci )
 		return;
 	}
 
-	if (fxType == 3)
+	if (fxType == 3 && !(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT))
 	{
 		mdxaBone_t lHandMatrix;
 		int lHandBolt = -1;
@@ -5976,11 +6054,11 @@ static void CG_RunTimedForceAnimFX( centity_t *cent, clientInfo_t *ci )
 		}
 	}
 
-	if (fxType == 1)
+	if (fxType == 1 && !(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT))
 	{
 		trap->FX_PlayEffectID(cgs.effects.rageFX, pos, dir, -1, -1, qfalse);
 	}
-	else
+	else if(!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT))
 	{
 		trap->FX_PlayEffectID(cgs.effects.heal2FX, pos, dir, -1, -1, qfalse);
 	}
@@ -12201,9 +12279,9 @@ skipTrail:
 		{//arc
 			//trap->FX_PlayEffectID( cgs.effects.forceLightningWide, efOrg, fxDir );
 			//trap->FX_PlayEntityEffectID(cgs.effects.forceDrainWide, efOrg, axis, cent->boltInfo, cent->currentState.number, -1, -1);
-			if (cg_drainFX.integer == 2)
+			if (cp_pluginDisable.integer & JAPRO_PLUGIN_NEWDRAINEFX) // No matter the cg_drainfx value, we use the japro fx if plugin is enabled
 				trap->FX_PlayEntityEffectID(cgs.effects.forceDrainWideJaPRO, efOrg, axis, -1, -1, -1, -1);
-			else if (cg_drainFX.integer == 1)
+			else if (cg_drainFX.integer == 1 && !(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWDRAINEFX))
 				trap->FX_PlayEntityEffectID(cgs.effects.forceDrainWide, efOrg, axis, -1, -1, -1, -1);
 		}
 		else
@@ -12306,16 +12384,28 @@ skipTrail:
 				}
 
 	//fullbody push effect - don't render it for anyone while the local player is zoomed (keeps the scope view clean)
+	//JoF - empower sets EF_BODYPUSH *and* EF_EMPOWERED (so old clients still see a
+	//glow). Check EF_EMPOWERED first and draw the jp_empowerEffect bone set; otherwise
+	//an empowered player would draw both the trimmed set and the full push set.
 	if ((cent->currentState.eFlags & EF_BODYPUSH) &&
 		forceFXVisible &&
 		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.predictedPlayerState.clientNum))
 	{
-		CG_ForcePushBodyBlur(cent);
+		if (cent->currentState.eFlags & EF_EMPOWERED)
+		{
+			CG_EmpowerBodyBlur(cent);
+		}
+		else
+		{
+			CG_ForcePushBodyBlur(cent);
+		}
 	}
 
 
 	if (cent->currentState.legsAnim == BOTH_CHOKE3 &&
-		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.predictedPlayerState.clientNum))
+		!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT) &&
+		!((cg.predictedPlayerState.zoomMode || !cg.renderingThirdPerson) && cent->currentState.number == cg.
+			predictedPlayerState.clientNum))
 	{
 		vec3_t efOrg;
 		vec3_t chokeFwd;
@@ -13988,7 +14078,8 @@ stillDoSaber:
 		((((cgs.serverMod != SVMOD_BASEENHANCED) &&
 			(cent->currentState.forcePowersActive & (1 << FP_ABSORB))) ||
 			(cent->teamPowerEffectTime > cg.time && cent->teamPowerType == 3)) &&
-			(cent->currentState.forcePowersActive & (1 << FP_PROTECT))))
+			(cent->currentState.forcePowersActive & (1 << FP_PROTECT))) && 
+			!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWFORCEEFFECT))
 
 	{ //absorb + protect is represented by cyan..
 
