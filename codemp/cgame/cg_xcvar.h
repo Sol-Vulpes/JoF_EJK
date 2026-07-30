@@ -178,6 +178,9 @@ XCVAR_DEF( cg_hideForcePushFX,					"1",	NULL,					CVAR_ARCHIVE )
 // "fire" or "flame"), and the sound bundled in those effects with them. Off by default so
 // maps keep their intended look; set to 1 to kill torch/campfire/flame FX for clutter or perf.
 XCVAR_DEF( cg_hideFireFX,						"0",	NULL,					CVAR_ARCHIVE )
+// Print the eFlags/selectable state behind "weapon westar" every time it runs, to work out
+// where westar selection is failing (bit never arrived vs. eaten client-side). Not archived.
+XCVAR_DEF( cg_westarDebug,						"0",	NULL,					CVAR_TEMP )
 XCVAR_DEF( cg_drawInventory,					"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawPowerUpIcons,					"1",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_autoScreenshot,					"0",	NULL,					CVAR_ARCHIVE )
