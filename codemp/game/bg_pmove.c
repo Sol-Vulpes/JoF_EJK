@@ -61,6 +61,19 @@ pml_t		pml;
 bgEntity_t *pm_entSelf = NULL;
 bgEntity_t *pm_entVeh = NULL;
 
+// Which weapon's animations to play. A westar-wielding player carries ps->weapon ==
+// WP_BRYAR_PISTOL (the server substitutes it so vanilla clients cope), so the anim tables
+// have to be indexed by the real weapon or prediction plays pistol anims over the dual-pistol
+// ones the server sends - the two then fight every snapshot and the anim never runs.
+static int PM_AnimWeapon( void )
+{
+	if ( pm->ps->weapon == WP_BRYAR_PISTOL && (pm->ps->eFlags & EF_WESTAR_MODE) )
+	{
+		return WP_WESTAR;
+	}
+	return pm->ps->weapon;
+}
+
 qboolean gPMDoSlowFall = qfalse;
 
 qboolean pm_cancelOutZoom = qfalse;
@@ -4985,7 +4998,7 @@ static void PM_CrashLand( void ) {
 			}
 			else
 			{
-				PM_StartTorsoAnim( WeaponReadyAnim[pm->ps->weapon] );
+				PM_StartTorsoAnim( WeaponReadyAnim[PM_AnimWeapon()] );
 			}
 		}
 	}
@@ -6682,7 +6695,7 @@ static void PM_Footsteps( void ) {
 							}
 							else
 							{
-								PM_ContinueLegsAnim(PM_LegsSlopeBackTransition(WeaponReadyLegsAnim[pm->ps->weapon]));
+								PM_ContinueLegsAnim(PM_LegsSlopeBackTransition(WeaponReadyLegsAnim[PM_AnimWeapon()]));
 							}
 						}
 					}
@@ -8432,7 +8445,7 @@ static void PM_Weapon( void )
 				}
 				else
 				{
-					//PM_StartTorsoAnim( WeaponReadyAnim[pm->ps->weapon] );
+					//PM_StartTorsoAnim( WeaponReadyAnim[PM_AnimWeapon()] );
 					PM_StartTorsoAnim( TORSO_RAISEWEAP1);
 				}
 			}
@@ -8717,18 +8730,18 @@ if (pm->ps->duelInProgress)
 		{
 			if (pm->ps->weapon == WP_THERMAL)
 			{
-				if ((pm->ps->torsoAnim) == WeaponAttackAnim[pm->ps->weapon] &&
+				if ((pm->ps->torsoAnim) == WeaponAttackAnim[PM_AnimWeapon()] &&
 					(pm->ps->weaponTime-200) <= 0)
 				{
-					PM_StartTorsoAnim( WeaponReadyAnim[pm->ps->weapon] );
+					PM_StartTorsoAnim( WeaponReadyAnim[PM_AnimWeapon()] );
 				}
 			}
 			else
 			{
-				if ((pm->ps->torsoAnim) == WeaponAttackAnim[pm->ps->weapon] &&
+				if ((pm->ps->torsoAnim) == WeaponAttackAnim[PM_AnimWeapon()] &&
 					(pm->ps->weaponTime-700) <= 0)
 				{
-					PM_StartTorsoAnim( WeaponReadyAnim[pm->ps->weapon] );
+					PM_StartTorsoAnim( WeaponReadyAnim[PM_AnimWeapon()] );
 				}
 			}
 		}
@@ -9004,7 +9017,7 @@ if (pm->ps->duelInProgress)
 					}
 					else
 					{
-						PM_StartTorsoAnim( WeaponReadyAnim[pm->ps->weapon] );
+						PM_StartTorsoAnim( WeaponReadyAnim[PM_AnimWeapon()] );
 					}
 				}
 			}
@@ -9017,11 +9030,11 @@ if (pm->ps->duelInProgress)
 		pm->ps->weaponstate == WEAPON_READY && pm->ps->weaponTime <= 0 &&
 		(pm->ps->weapon >= WP_BRYAR_PISTOL || pm->ps->weapon == WP_STUN_BATON) &&
 		pm->ps->torsoTimer <= 0 &&
-		(pm->ps->torsoAnim) != WeaponReadyAnim[pm->ps->weapon] &&
+		(pm->ps->torsoAnim) != WeaponReadyAnim[PM_AnimWeapon()] &&
 		pm->ps->torsoAnim != TORSO_WEAPONIDLE3 &&
 		pm->ps->weapon != WP_EMPLACED_GUN)
 	{
-		PM_StartTorsoAnim( WeaponReadyAnim[pm->ps->weapon] );
+		PM_StartTorsoAnim( WeaponReadyAnim[PM_AnimWeapon()] );
 	}
 	else if (PM_CanSetWeaponAnims() &&
 		pm->ps->weapon == WP_MELEE)
@@ -9069,7 +9082,7 @@ if (pm->ps->duelInProgress)
 		}
 		else if (PM_CanSetWeaponAnims())
 		{
-			PM_StartTorsoAnim( WeaponReadyAnim[pm->ps->weapon] );
+			PM_StartTorsoAnim( WeaponReadyAnim[PM_AnimWeapon()] );
 		}
 	}
 	else if (((pm->ps->torsoAnim) != TORSO_WEAPONREADY4 &&
@@ -9323,7 +9336,7 @@ if (pm->ps->duelInProgress)
 	}
 	else
 	{
-		PM_StartTorsoAnim( WeaponAttackAnim[pm->ps->weapon] );
+		PM_StartTorsoAnim( WeaponAttackAnim[PM_AnimWeapon()] );
 	}
 
 	if (pm->cmd.buttons & BUTTON_ALT_ATTACK)
