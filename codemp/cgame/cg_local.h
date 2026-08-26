@@ -586,7 +586,8 @@ typedef struct centity_s {
 	qboolean		  flameThrowerSndActive;
 	qboolean	hasPlayedJetpackSounds;
 
-	int				saberSoundDebounceTime; // prevents saber on/off sound spam
+	int				saberSoundOnDebounceTime;
+	int				saberSoundOffDebounceTime;
 } centity_t;
 
 

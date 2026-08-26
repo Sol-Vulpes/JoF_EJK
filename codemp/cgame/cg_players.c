@@ -11157,9 +11157,9 @@ void CG_Player( centity_t *cent ) {
 					&& !cent->currentState.saberHolstered)
 				{ //switching away from the saber
 					//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberoffquick.wav" ));
-					if (cg.time - cent->saberSoundDebounceTime >= 800)
+					if (cg.time - cent->saberSoundOffDebounceTime >= 800)
 					{
-						cent->saberSoundDebounceTime = cg.time;
+						cent->saberSoundOffDebounceTime = cg.time;
 						if (ci->saber[0].soundOff
 							&& !cent->currentState.saberHolstered)
 						{
@@ -11180,9 +11180,9 @@ void CG_Player( centity_t *cent ) {
 					&& !cent->saberWasInFlight)
 				{ //switching to the saber
 					//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberon.wav" ));
-					if (cg.time - cent->saberSoundDebounceTime >= 800)
+					if (cg.time - cent->saberSoundOnDebounceTime >= 800)
 					{
-						cent->saberSoundDebounceTime = cg.time;
+						cent->saberSoundOnDebounceTime = cg.time;
 						if (ci->saber[0].soundOn)
 						{
 							trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, ci->saber[0].soundOn);

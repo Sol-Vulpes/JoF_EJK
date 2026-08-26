@@ -3055,9 +3055,9 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 		if (cent->weapon == WP_SABER && cent->weapon != ps->weapon && !ps->saberHolstered)
 		{ //switching away from the saber
 			//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberoffquick.wav" ));
-			if (cg.time - cent->saberSoundDebounceTime >= 800)
+			if (cg.time - cent->saberSoundOffDebounceTime >= 800)
 			{
-				cent->saberSoundDebounceTime = cg.time;
+				cent->saberSoundOffDebounceTime = cg.time;
 				if (cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered)
 				{
 					trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOff);
@@ -3074,9 +3074,9 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 		else if (ps->weapon == WP_SABER && cent->weapon != ps->weapon && !cent->saberWasInFlight)
 		{ //switching to the saber
 			//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberon.wav" ));
-			if (cg.time - cent->saberSoundDebounceTime >= 800)
+			if (cg.time - cent->saberSoundOnDebounceTime >= 800)
 			{
-				cent->saberSoundDebounceTime = cg.time;
+				cent->saberSoundOnDebounceTime = cg.time;
 				if (cgs.clientinfo[ps->clientNum].saber[0].soundOn)
 				{
 					trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOn);

@@ -1476,13 +1476,21 @@ static qboolean CG_ProximityCheck(vec3_t pos1, vec3_t pos2) { //Returns qtrue if
 	return qtrue;
 }
 
-// Per-client debounce for saber on/off sounds - prevents audio spam from rapid toggling.
-static int cg_saberSoundDebounce[MAX_CLIENTS];
+// Per-client, per-sound debounce for saber on/off sounds.  A dual saber setup can
+// legitimately emit different sounds in quick succession, so one timer for the
+// whole client would suppress the second hilt or the opposite transition.
+#define MAX_SABER_SOUND_DEBOUNCES (MAX_SABERS * 2)
+typedef struct {
+	sfxHandle_t	sfx;
+	int			time;
+} saberSoundDebounce_t;
+
+static saberSoundDebounce_t cg_saberSoundDebounce[MAX_CLIENTS][MAX_SABER_SOUND_DEBOUNCES];
 
 // Returns qtrue (suppress the sound) if the sfx is a saber on/off sound that was
 // played too recently for the nearest client. Updates the debounce timer when allowed.
 static qboolean CG_SaberSoundThrottled( sfxHandle_t sfx, vec3_t origin ) {
-	int			i, bestClient;
+	int			i, bestClient, debounceIndex, oldestIndex;
 	float		bestDistSq, distSq;
 	qboolean	isSaberSound;
 
@@ -1511,10 +1519,24 @@ static qboolean CG_SaberSoundThrottled( sfxHandle_t sfx, vec3_t origin ) {
 	if ( !isSaberSound || bestClient < 0 )
 		return qfalse;
 
-	if ( cg.time - cg_saberSoundDebounce[bestClient] < 800 )
-		return qtrue; // suppress
+	oldestIndex = 0;
+	for ( debounceIndex = 0; debounceIndex < MAX_SABER_SOUND_DEBOUNCES; debounceIndex++ ) {
+		saberSoundDebounce_t *debounce = &cg_saberSoundDebounce[bestClient][debounceIndex];
 
-	cg_saberSoundDebounce[bestClient] = cg.time;
+		if ( debounce->sfx == sfx ) {
+			if ( cg.time - debounce->time < 800 )
+				return qtrue; // suppress a repeat of this sound only
+
+			debounce->time = cg.time;
+			return qfalse;
+		}
+
+		if ( debounce->time < cg_saberSoundDebounce[bestClient][oldestIndex].time )
+			oldestIndex = debounceIndex;
+	}
+
+	cg_saberSoundDebounce[bestClient][oldestIndex].sfx = sfx;
+	cg_saberSoundDebounce[bestClient][oldestIndex].time = cg.time;
 	return qfalse;
 }
 
@@ -2800,9 +2822,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			if (ci)
 			{
 				centity_t *saberCent = &cg_entities[es->number];
-				if (cg.time - saberCent->saberSoundDebounceTime >= 800)
+				if (cg.time - saberCent->saberSoundOnDebounceTime >= 800)
 				{
-					saberCent->saberSoundDebounceTime = cg.time;
+					saberCent->saberSoundOnDebounceTime = cg.time;
 					if (ci->saber[0].soundOn)
 					{
 						trap->S_StartSound (NULL, es->number, CHAN_AUTO, ci->saber[0].soundOn );
