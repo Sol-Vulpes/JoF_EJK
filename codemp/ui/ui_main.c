@@ -7555,6 +7555,103 @@ static void UI_SetSaberBoxesandHilts (void)
 extern qboolean UI_SaberSkinForSaber( const char *saberName, char *saberSkin );
 extern qboolean ItemParse_asset_model_go( itemDef_t *item, const char *name,int *runTimeLength );
 extern qboolean ItemParse_model_g2skin_go( itemDef_t *item, const char *skinName );
+extern qboolean ItemParse_model_g2anim_go( itemDef_t *item, const char *animName );
+
+static qboolean UI_LoadNormalMenuCharacter( itemDef_t *item, const char *modelSpec )
+{
+	char modelName[MAX_QPATH];
+	char modelPath[MAX_QPATH];
+	char skinPath[MAX_QPATH];
+	char *skin;
+	int animRunLength;
+
+	if ( !modelSpec || !modelSpec[0] )
+	{
+		return qfalse;
+	}
+
+	Q_strncpyz( modelName, modelSpec, sizeof(modelName) );
+	skin = strchr( modelName, '/' );
+	if ( skin )
+	{
+		*skin++ = '\0';
+	}
+
+	if ( !skin || !skin[0] )
+	{
+		skin = "default";
+	}
+
+	if ( strchr( skin, '|' ) )
+	{
+		Com_sprintf( skinPath, sizeof(skinPath), "models/players/%s/|%s", modelName, skin );
+	}
+	else
+	{
+		Com_sprintf( skinPath, sizeof(skinPath), "models/players/%s/model_%s.skin", modelName, skin );
+	}
+	Com_sprintf( modelPath, sizeof(modelPath), "models/players/%s/model.glm", modelName );
+
+	ItemParse_asset_model_go( item, modelPath, &animRunLength );
+	if ( !(item->flags & ITF_G2VALID) )
+	{
+		return qfalse;
+	}
+
+	ItemParse_model_g2skin_go( item, skinPath );
+	return qtrue;
+}
+
+/*
+ * Keep the profile preview on the regular ITEM_TYPE_MODEL path used by the
+ * custom-character menu. Adapted from github.com/Razish/japp's player
+ * selection preview; JAPP attributes the original approach to JA+.
+ */
+static qboolean UI_UpdateNormalMenuCharacter( void )
+{
+	menuDef_t *menu;
+	itemDef_t *item;
+	char modelName[MAX_QPATH];
+	char defaultModel[MAX_QPATH];
+
+	menu = Menu_GetFocused();
+	if ( !menu )
+	{
+		return qtrue;
+	}
+
+	item = (itemDef_t *)Menu_FindItemByName( menu, "character" );
+	if ( !item )
+	{
+		return qtrue;
+	}
+
+	ItemParse_model_g2anim_go( item, ui_char_anim.string );
+
+	trap->Cvar_VariableStringBuffer( "model", modelName, sizeof(modelName) );
+	if ( UI_LoadNormalMenuCharacter( item, modelName ) )
+	{
+		return qtrue;
+	}
+
+	trap->Cvar_VariableStringBuffer( "cg_defaultModel", defaultModel, sizeof(defaultModel) );
+	if ( !defaultModel[0] )
+	{
+		Q_strncpyz( defaultModel, DEFAULT_MODEL, sizeof(defaultModel) );
+	}
+
+	if ( Q_stricmp( modelName, defaultModel ) && UI_LoadNormalMenuCharacter( item, defaultModel ) )
+	{
+		return qtrue;
+	}
+
+	if ( Q_stricmp( defaultModel, DEFAULT_MODEL ) )
+	{
+		return UI_LoadNormalMenuCharacter( item, DEFAULT_MODEL );
+	}
+
+	return qfalse;
+}
 
 static void UI_UpdateSaberType( void )
 {
@@ -7660,8 +7757,6 @@ static void UI_GetSaberCvars ( void )
 	trap->Cvar_Set ( "ui_saber_color", UI_Cvar_VariableString ( "g_saber_color" ) );
 	trap->Cvar_Set ( "ui_saber2_color", UI_Cvar_VariableString ( "g_saber2_color" ) );
 }
-
-extern qboolean ItemParse_model_g2anim_go( itemDef_t *item, const char *animName );
 
 void UI_UpdateCharacterSkin( void )
 {
@@ -8144,7 +8239,11 @@ static void UI_RunMenuScript(char **args)
 
 	if (String_Parse(args, &name))
 	{
-		if (Q_stricmp(name, "StartServer") == 0)
+		if (Q_stricmp(name, "updateplayerpreview") == 0)
+		{
+			UI_UpdateNormalMenuCharacter();
+		}
+		else if (Q_stricmp(name, "StartServer") == 0)
 		{
 			int i, added = 0;
 			float skill;
@@ -11513,6 +11612,16 @@ qboolean UI_FeederSelection(float feederFloat, int index, itemDef_t *item)
 				trap->Cvar_Set("char_color_green", "255");
 				trap->Cvar_Set("char_color_blue", "255");
 			}
+
+			trap->Cvar_Set("ui_char_color_red", UI_Cvar_VariableString("char_color_red"));
+			trap->Cvar_Set("ui_char_color_green", UI_Cvar_VariableString("char_color_green"));
+			trap->Cvar_Set("ui_char_color_blue", UI_Cvar_VariableString("char_color_blue"));
+			trap->Cvar_Update(&ui_char_color_red);
+			trap->Cvar_Update(&ui_char_color_green);
+			trap->Cvar_Update(&ui_char_color_blue);
+
+			// Razish/JAPP: update the same walking character widget used by custom character creation.
+			UI_UpdateNormalMenuCharacter();
 		}
 	}
 	else if (feederID == FEEDER_MOVES)
