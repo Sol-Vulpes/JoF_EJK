@@ -8258,7 +8258,8 @@ static void UI_RunMenuScript(char **args)
 		else if (Q_stricmp(name, "cosmeticsmodel") == 0)
 		{
 			UI_UpdateCosmeticsCharacter();
-		if (Q_stricmp(name, "updateplayerpreview") == 0)
+		}
+		else if (Q_stricmp(name, "updateplayerpreview") == 0)
 		{
 			UI_UpdateNormalMenuCharacter();
 		}
@@ -10663,14 +10664,12 @@ void UI_UpdateCosmeticsCharacter( void )
 	menu = Menus_FindByName( "ingame_cosmetics" );
 	if ( !menu )
 	{
-		Com_Printf( S_COLOR_YELLOW "WARNING: cosmetics preview: menu (ingame_cosmetics) not loaded.\n" );
 		return;
 	}
 
 	item = (itemDef_t *)Menu_FindItemByName( menu, "character" );
 	if ( !item )
 	{
-		Com_Printf( S_COLOR_YELLOW "WARNING: cosmetics preview: no item named (character) in the menu.\n" );
 		return;
 	}
 
@@ -10720,15 +10719,10 @@ void UI_UpdateCosmeticsCharacter( void )
 	//invalid model handle produces the RGB axis placeholder, so retry with the default male.
 	if ( !(item->flags & ITF_G2VALID) )
 	{
-		Com_Printf( S_COLOR_YELLOW "WARNING: cosmetics preview: could not load %s\n", modelPath );
-
 		Com_sprintf( modelPath, sizeof( modelPath ), "models/players/%s/model.glm", DEFAULT_MODEL );
 		Com_sprintf( skinPath, sizeof( skinPath ), "models/players/%s/model_default.skin", DEFAULT_MODEL );
 		ItemParse_asset_model_go( item, modelPath, &animRunLength );
 		ItemParse_model_g2skin_go( item, skinPath );
-
-		if ( !(item->flags & ITF_G2VALID) )
-			Com_Printf( S_COLOR_YELLOW "WARNING: cosmetics preview: could not load fallback %s\n", modelPath );
 	}
 }
 
