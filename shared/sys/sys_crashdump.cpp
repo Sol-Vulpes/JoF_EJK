@@ -31,20 +31,25 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include <cstdio>
 #include <cstring>
+#include <csignal>
 #include <ctime>
 
 #if defined(_WIN32)
 	#include <windows.h>
+	#include <tlhelp32.h>
 	#include <dbghelp.h>
 #else
-	#include <csignal>
 	#include <cstdlib>
 	#include <execinfo.h>
 	#include <fcntl.h>
 	#include <unistd.h>
 #endif
 
-static volatile qboolean crashHandlerFired = qfalse;
+// Set from inside the crash handler itself, so it has to be safe to touch
+// from a signal handler (POSIX) or an SEH filter running on the crashing
+// thread (Windows) - sig_atomic_t is the type the standard guarantees is
+// safe for that.
+static volatile sig_atomic_t crashHandlerFired = 0;
 
 static void Sys_CrashDumpPath( char *out, size_t outSize )
 {
@@ -58,17 +63,15 @@ static void Sys_CrashDumpPath( char *out, size_t outSize )
 	// _PORTABLE_VERSION) - fall back to the EternalJK mod folder next to the
 	// binary (<install path>/EternalJK) so we always have somewhere valid,
 	// and consistent with the non-portable EternalJK home folder, to write
-	// the dump.
+	// the dump. Always EternalJK, not fs_game: crash dumps aren't
+	// mod-specific, and fs_game is a server-controlled value we'd rather
+	// not fold into a filesystem path we're about to write to.
 	char *base = Sys_DefaultHomePath();
 	static char installGameDir[MAX_OSPATH];
 	if ( !base || !base[0] )
 	{
-		const char *gameDir = Cvar_VariableString( "fs_game" );
-		if ( !gameDir[0] )
-			gameDir = ETERNALJKGAME;
-
 		Com_sprintf( installGameDir, sizeof( installGameDir ), "%s%c%s",
-			Sys_DefaultInstallPath(), PATH_SEP, gameDir );
+			Sys_DefaultInstallPath(), PATH_SEP, ETERNALJKGAME );
 		base = installGameDir;
 	}
 
@@ -84,107 +87,221 @@ static void Sys_CrashDumpPath( char *out, size_t outSize )
 
 #if defined(_WIN32)
 
+// Resolved dynamically (see Sys_LoadDbgHelp) rather than linked at build
+// time, so dbghelp isn't a startup dependency and can't be shadowed by a
+// same-named DLL sitting in the game directory.
+struct DbgHelpApi
+{
+	decltype( &SymInitialize ) SymInitialize;
+	decltype( &SymCleanup ) SymCleanup;
+	decltype( &SymSetOptions ) SymSetOptions;
+	decltype( &StackWalk64 ) StackWalk64;
+	decltype( &SymFunctionTableAccess64 ) SymFunctionTableAccess64;
+	decltype( &SymGetModuleBase64 ) SymGetModuleBase64;
+	decltype( &SymFromAddr ) SymFromAddr;
+	decltype( &SymGetLineFromAddr64 ) SymGetLineFromAddr64;
+	decltype( &SymGetModuleInfo64 ) SymGetModuleInfo64;
+};
+
+static bool Sys_LoadDbgHelp( DbgHelpApi *api )
+{
+	// LOAD_LIBRARY_SEARCH_SYSTEM32 pins this to the trusted system copy -
+	// it won't resolve to a dbghelp.dll planted next to the game binary.
+	HMODULE module = LoadLibraryExW( L"dbghelp.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32 );
+	if ( !module )
+		return false;
+
+	api->SymInitialize = (decltype( api->SymInitialize ))GetProcAddress( module, "SymInitialize" );
+	api->SymCleanup = (decltype( api->SymCleanup ))GetProcAddress( module, "SymCleanup" );
+	api->SymSetOptions = (decltype( api->SymSetOptions ))GetProcAddress( module, "SymSetOptions" );
+	api->StackWalk64 = (decltype( api->StackWalk64 ))GetProcAddress( module, "StackWalk64" );
+	api->SymFunctionTableAccess64 = (decltype( api->SymFunctionTableAccess64 ))GetProcAddress( module, "SymFunctionTableAccess64" );
+	api->SymGetModuleBase64 = (decltype( api->SymGetModuleBase64 ))GetProcAddress( module, "SymGetModuleBase64" );
+	api->SymFromAddr = (decltype( api->SymFromAddr ))GetProcAddress( module, "SymFromAddr" );
+	api->SymGetLineFromAddr64 = (decltype( api->SymGetLineFromAddr64 ))GetProcAddress( module, "SymGetLineFromAddr64" );
+	api->SymGetModuleInfo64 = (decltype( api->SymGetModuleInfo64 ))GetProcAddress( module, "SymGetModuleInfo64" );
+
+	return api->SymInitialize && api->SymCleanup && api->SymSetOptions && api->StackWalk64 &&
+		api->SymFunctionTableAccess64 && api->SymGetModuleBase64 && api->SymFromAddr &&
+		api->SymGetLineFromAddr64 && api->SymGetModuleInfo64;
+}
+
+// Logs each loaded module's name and base address, so frames that can only
+// be resolved to "module+offset" (no matching PDB) can still be rebased
+// against the right build's binaries afterwards.
+static void Sys_CrashDumpModules( FILE *fp )
+{
+	fprintf( fp, "Modules:\n" );
+
+	HANDLE snapshot = CreateToolhelp32Snapshot( TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, GetCurrentProcessId() );
+	if ( snapshot == INVALID_HANDLE_VALUE )
+		return;
+
+	MODULEENTRY32 module = {};
+	module.dwSize = sizeof( module );
+
+	if ( Module32First( snapshot, &module ) )
+	{
+		do
+		{
+			fprintf( fp, "  %p %s\n", module.modBaseAddr, module.szModule );
+		} while ( Module32Next( snapshot, &module ) );
+	}
+
+	CloseHandle( snapshot );
+}
+
 static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 {
 	// Don't try to handle a crash that happens while we're already
 	// writing the crash dump for a previous one.
 	if ( crashHandlerFired )
 		return EXCEPTION_EXECUTE_HANDLER;
-	crashHandlerFired = qtrue;
+	crashHandlerFired = 1;
 
 	char path[MAX_OSPATH];
 	Sys_CrashDumpPath( path, sizeof( path ) );
 
+	bool wroteDump = false;
+
 	FILE *fp = fopen( path, "w" );
 	if ( fp )
 	{
+		// Unbuffered: SymInitialize() below allocates heavily and can
+		// re-fault if the original crash was heap corruption. crashHandlerFired
+		// stops us recursing into this handler again, but if we never get
+		// back here to fclose(), a buffered file would end up empty -
+		// this way the exception code/address/module list are on disk
+		// immediately, before anything below has a chance to re-fault.
+		setvbuf( fp, NULL, _IONBF, 0 );
+
 		fprintf( fp, "JoF EternalJK crash dump\n" );
 		fprintf( fp, "Built: %s %s\n", __DATE__, __TIME__ );
 		fprintf( fp, "Exception code: 0x%08lX at address %p\n\n",
 			info->ExceptionRecord->ExceptionCode,
 			info->ExceptionRecord->ExceptionAddress );
 
+		Sys_CrashDumpModules( fp );
+		fprintf( fp, "\n" );
+
 		HANDLE process = GetCurrentProcess();
 		HANDLE thread = GetCurrentThread();
 
-		SymSetOptions( SYMOPT_LOAD_LINES | SYMOPT_UNDNAME );
-
-		if ( SymInitialize( process, NULL, TRUE ) )
+		DbgHelpApi dbghelp;
+		if ( Sys_LoadDbgHelp( &dbghelp ) )
 		{
-			STACKFRAME64 frame = {};
-			CONTEXT context = *info->ContextRecord;
+			dbghelp.SymSetOptions( SYMOPT_LOAD_LINES | SYMOPT_UNDNAME );
+
+			if ( dbghelp.SymInitialize( process, NULL, TRUE ) )
+			{
+				STACKFRAME64 frame = {};
+				CONTEXT context = *info->ContextRecord;
 
 #if defined(_M_X64)
-			DWORD machineType = IMAGE_FILE_MACHINE_AMD64;
-			frame.AddrPC.Offset = context.Rip;
-			frame.AddrFrame.Offset = context.Rbp;
-			frame.AddrStack.Offset = context.Rsp;
+				DWORD machineType = IMAGE_FILE_MACHINE_AMD64;
+				frame.AddrPC.Offset = context.Rip;
+				frame.AddrFrame.Offset = context.Rbp;
+				frame.AddrStack.Offset = context.Rsp;
 #else
-			DWORD machineType = IMAGE_FILE_MACHINE_I386;
-			frame.AddrPC.Offset = context.Eip;
-			frame.AddrFrame.Offset = context.Ebp;
-			frame.AddrStack.Offset = context.Esp;
+				DWORD machineType = IMAGE_FILE_MACHINE_I386;
+				frame.AddrPC.Offset = context.Eip;
+				frame.AddrFrame.Offset = context.Ebp;
+				frame.AddrStack.Offset = context.Esp;
 #endif
-			frame.AddrPC.Mode = AddrModeFlat;
-			frame.AddrFrame.Mode = AddrModeFlat;
-			frame.AddrStack.Mode = AddrModeFlat;
+				frame.AddrPC.Mode = AddrModeFlat;
+				frame.AddrFrame.Mode = AddrModeFlat;
+				frame.AddrStack.Mode = AddrModeFlat;
 
-			fprintf( fp, "Stack trace:\n" );
+				fprintf( fp, "Stack trace:\n" );
 
-			char symbolBuffer[sizeof( SYMBOL_INFO ) + MAX_SYM_NAME];
-			SYMBOL_INFO *symbol = (SYMBOL_INFO *)symbolBuffer;
-			symbol->SizeOfStruct = sizeof( SYMBOL_INFO );
-			symbol->MaxNameLen = MAX_SYM_NAME;
+				// SYMBOL_INFO must be aligned to ULONG64 (the trailing
+				// Name[] array is accessed through DWORD64-sized fields) -
+				// a char[] buffer only guarantees 1-byte alignment, so
+				// allocate through a ULONG64 array per the documented
+				// dbghelp idiom instead.
+				ULONG64 symbolBuffer[(sizeof( SYMBOL_INFO ) + MAX_SYM_NAME * sizeof( char ) + sizeof( ULONG64 ) - 1) / sizeof( ULONG64 )];
+				SYMBOL_INFO *symbol = (SYMBOL_INFO *)symbolBuffer;
+				symbol->SizeOfStruct = sizeof( SYMBOL_INFO );
+				symbol->MaxNameLen = MAX_SYM_NAME;
 
-			for ( int i = 0; i < 64; i++ )
-			{
-				if ( !StackWalk64( machineType, process, thread, &frame, &context,
-						NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL ) )
+				for ( int i = 0; i < 64; i++ )
 				{
-					break;
-				}
+					if ( !dbghelp.StackWalk64( machineType, process, thread, &frame, &context,
+							NULL, dbghelp.SymFunctionTableAccess64, dbghelp.SymGetModuleBase64, NULL ) )
+					{
+						break;
+					}
 
-				if ( frame.AddrPC.Offset == 0 )
-					break;
+					if ( frame.AddrPC.Offset == 0 )
+						break;
 
-				DWORD64 displacement = 0;
-				if ( SymFromAddr( process, frame.AddrPC.Offset, &displacement, symbol ) )
-				{
-					IMAGEHLP_LINE64 line = {};
-					line.SizeOfStruct = sizeof( IMAGEHLP_LINE64 );
-					DWORD lineDisplacement = 0;
+					DWORD64 displacement = 0;
+					if ( dbghelp.SymFromAddr( process, frame.AddrPC.Offset, &displacement, symbol ) )
+					{
+						IMAGEHLP_LINE64 line = {};
+						line.SizeOfStruct = sizeof( IMAGEHLP_LINE64 );
+						DWORD lineDisplacement = 0;
 
-					if ( SymGetLineFromAddr64( process, frame.AddrPC.Offset, &lineDisplacement, &line ) )
-						fprintf( fp, "  %s (%s:%lu)\n", symbol->Name, line.FileName, line.LineNumber );
+						if ( dbghelp.SymGetLineFromAddr64( process, frame.AddrPC.Offset, &lineDisplacement, &line ) )
+							fprintf( fp, "  %s (%s:%lu)\n", symbol->Name, line.FileName, line.LineNumber );
+						else
+							fprintf( fp, "  %s + 0x%llx\n", symbol->Name, displacement );
+					}
 					else
-						fprintf( fp, "  %s + 0x%llx\n", symbol->Name, displacement );
+					{
+						// Release builds ship without a PDB, so SymFromAddr
+						// fails here on every frame - fall back to
+						// module+offset (e.g. eternaljk.x86_64.exe+0x3f21a8)
+						// so the address is still something that can be
+						// rebased and looked up against the matching build.
+						IMAGEHLP_MODULE64 moduleInfo = {};
+						moduleInfo.SizeOfStruct = sizeof( IMAGEHLP_MODULE64 );
+						if ( dbghelp.SymGetModuleInfo64( process, frame.AddrPC.Offset, &moduleInfo ) )
+							fprintf( fp, "  %s+0x%llx\n", moduleInfo.ModuleName,
+								frame.AddrPC.Offset - moduleInfo.BaseOfImage );
+						else
+							fprintf( fp, "  0x%016llx\n", frame.AddrPC.Offset );
+					}
 				}
-				else
-				{
-					fprintf( fp, "  0x%016llx\n", frame.AddrPC.Offset );
-				}
-			}
 
-			SymCleanup( process );
+				dbghelp.SymCleanup( process );
+			}
+			else
+			{
+				fprintf( fp, "(Symbol information unavailable, stack trace omitted)\n" );
+			}
 		}
 		else
 		{
-			fprintf( fp, "(Symbol information unavailable, stack trace omitted)\n" );
+			fprintf( fp, "(dbghelp.dll unavailable, stack trace omitted)\n" );
 		}
 
 		fprintf( fp, "\nRecent console output:\n" );
 		ConsoleLogWriteOut( fp );
 
 		fclose( fp );
+		wroteDump = true;
+	}
 
 #ifndef DEDICATED
-		char message[MAX_OSPATH + 256];
+	// Shown either way (mirrors Sys_ErrorDialog's own fopen-failed path) -
+	// a failed write should still tell the player something happened,
+	// rather than have the game silently vanish.
+	char message[MAX_OSPATH + 256];
+	if ( wroteDump )
+	{
 		Com_sprintf( message, sizeof( message ),
 			"JoF EternalJK has crashed.\n\nA crash dump was written to:\n%s\n\n"
 			"Please attach this file when reporting the issue.", path );
-		MessageBoxA( NULL, message, "JoF EternalJK - Crash", MB_OK | MB_ICONERROR );
-#endif
 	}
+	else
+	{
+		Com_sprintf( message, sizeof( message ),
+			"JoF EternalJK has crashed, and the crash dump could not be written to:\n%s\n\n"
+			"Please report the issue and mention this.", path );
+	}
+	MessageBoxA( NULL, message, "JoF EternalJK - Crash", MB_OK | MB_ICONERROR );
+#endif
 
 	return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -214,7 +331,7 @@ static void Sys_CrashHandler( int sig, siginfo_t *info, void *ucontext )
 		raise( sig );
 		return;
 	}
-	crashHandlerFired = qtrue;
+	crashHandlerFired = 1;
 
 	char path[MAX_OSPATH];
 	Sys_CrashDumpPath( path, sizeof( path ) );
