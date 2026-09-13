@@ -69,12 +69,27 @@ static QINLINE qboolean CG_IsPredictedWeaponAttackAnim(int weapon, int torsoAnim
 	return torsoAnim == WeaponAttackAnim[weapon];
 }
 
-static QINLINE void CG_RestorePredictedWeaponAttackAnim(playerState_t *ps, int savedWeapon, int savedWeaponTime, int savedTorsoAnim)
+static QINLINE qboolean CG_IsVehicleGunAttackAnim(int torsoAnim)
 {
-	if (savedWeaponTime <= 0)
-		return;
-	
+	return torsoAnim == BOTH_VS_ATF_G || torsoAnim == BOTH_VS_ATL_G || torsoAnim == BOTH_VS_ATR_G ||
+		torsoAnim == BOTH_VT_ATF_G || torsoAnim == BOTH_VT_ATL_G || torsoAnim == BOTH_VT_ATR_G;
+}
+
+static QINLINE void CG_RestorePredictedWeaponAttackAnim(playerState_t *ps, int savedWeapon,
+	int savedWeaponState, int savedWeaponTime, int savedVehicleNum, int savedTorsoAnim, qboolean savedTorsoFlip)
+{
 	if (ps->weapon != savedWeapon)
+		return;
+
+	if (savedWeapon == WP_BOWCASTER && savedWeaponState == WEAPON_CHARGING &&
+		savedVehicleNum && CG_IsVehicleGunAttackAnim(savedTorsoAnim))
+	{
+		ps->torsoAnim = savedTorsoAnim;
+		ps->torsoFlip = savedTorsoFlip;
+		return;
+	}
+
+	if (savedWeaponTime <= 0)
 		return;
 
 	if (!CG_IsPredictedWeaponAttackAnim(savedWeapon, savedTorsoAnim))
@@ -1256,8 +1271,11 @@ void CG_PredictPlayerState( void ) {
 
 		// Save client-predicted torso animation before server overwrites it
 		int savedTorsoAnim = cg.predictedPlayerState.torsoAnim;
+		qboolean savedTorsoFlip = cg.predictedPlayerState.torsoFlip;
 		int savedWeapon = cg.predictedPlayerState.weapon;
+		int savedWeaponState = cg.predictedPlayerState.weaponstate;
 		int savedWeaponTime = cg.predictedPlayerState.weaponTime;
+		int savedVehicleNum = cg.predictedPlayerState.m_iVehicleNum;
 
 		cg.predictedPlayerState = cg.nextSnap->ps;
 		if (CG_Piloting(cg.nextSnap->ps.m_iVehicleNum))
@@ -1268,14 +1286,18 @@ void CG_PredictPlayerState( void ) {
 
 		// Restore client-predicted weapon attack animation if still firing
 		// This prevents non-JaPRO servers from overwriting our correct prediction
-		CG_RestorePredictedWeaponAttackAnim(&cg.predictedPlayerState, savedWeapon, savedWeaponTime, savedTorsoAnim);
+		CG_RestorePredictedWeaponAttackAnim(&cg.predictedPlayerState, savedWeapon, savedWeaponState,
+			savedWeaponTime, savedVehicleNum, savedTorsoAnim, savedTorsoFlip);
 	} else {
 		cg.snap->ps.slopeRecalcTime = cg.predictedPlayerState.slopeRecalcTime; //this is the only value we want to maintain seperately on server/client
 
 		// Save client-predicted torso animation before server overwrites it
 		int savedTorsoAnim = cg.predictedPlayerState.torsoAnim;
+		qboolean savedTorsoFlip = cg.predictedPlayerState.torsoFlip;
 		int savedWeapon = cg.predictedPlayerState.weapon;
+		int savedWeaponState = cg.predictedPlayerState.weaponstate;
 		int savedWeaponTime = cg.predictedPlayerState.weaponTime;
+		int savedVehicleNum = cg.predictedPlayerState.m_iVehicleNum;
 
 		cg.predictedPlayerState = cg.snap->ps;
 		if (CG_Piloting(cg.snap->ps.m_iVehicleNum))
@@ -1286,7 +1308,8 @@ void CG_PredictPlayerState( void ) {
 
 		// Restore client-predicted weapon attack animation if still firing
 		// This prevents non-JaPRO servers from overwriting our correct prediction
-		CG_RestorePredictedWeaponAttackAnim(&cg.predictedPlayerState, savedWeapon, savedWeaponTime, savedTorsoAnim);
+		CG_RestorePredictedWeaponAttackAnim(&cg.predictedPlayerState, savedWeapon, savedWeaponState,
+			savedWeaponTime, savedVehicleNum, savedTorsoAnim, savedTorsoFlip);
 	}
 
 	//JAPRO - Clientside - Unlock Pmove bounds - Start

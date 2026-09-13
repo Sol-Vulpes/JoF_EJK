@@ -8508,7 +8508,11 @@ backAgain:
 			case WP_CONCUSSION:
 			case WP_BRYAR_OLD:
 				// Override the shoot anim.
-				if ( pm->ps->torsoAnim == WeaponAttackAnim[pm->ps->weapon] )
+				if ( pm->ps->torsoAnim == WeaponAttackAnim[pm->ps->weapon]
+#ifdef _CGAME
+					|| (pm->ps->weapon == WP_BOWCASTER && pm->ps->weaponstate == WEAPON_CHARGING)
+#endif
+					)
 				{
 					if ( pm->cmd.rightmove > 0 )			//right side attack
 					{
