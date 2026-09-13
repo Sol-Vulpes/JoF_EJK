@@ -10258,6 +10258,14 @@ void PM_AdjustAttackStates( pmove_t *pmove )
 	{
 		// Scoped disruptor fire is incompatible with vehicle-relative rider aiming.
 		pmove->cmd.buttons &= ~BUTTON_ALT_ATTACK;
+		if (pmove->ps->zoomMode == 1)
+		{
+			pmove->ps->zoomMode = 0;
+			pmove->ps->zoomFov = 0;
+			pmove->ps->zoomTime = pmove->ps->commandTime;
+			pmove->ps->zoomLocked = qfalse;
+			pmove->ps->zoomLockTime = 0;
+		}
 	}
 
 	// get ammo usage
@@ -10271,7 +10279,8 @@ void PM_AdjustAttackStates( pmove_t *pmove )
 	}
 
 	// disruptor alt-fire should toggle the zoom mode, but only bother doing this for the player?
-	if ( pmove->ps->weapon == WP_DISRUPTOR && pmove->ps->weaponstate == WEAPON_READY )
+	if ( pmove->ps->weapon == WP_DISRUPTOR && pmove->ps->weaponstate == WEAPON_READY &&
+		!pmove->ps->m_iVehicleNum )
 	{
 		if ( !(pmove->ps->eFlags & EF_ALT_FIRING) && (pmove->cmd.buttons & BUTTON_ALT_ATTACK) /*&&
 			pmove->cmd.upmove <= 0 && !pmove->cmd.forwardmove && !pmove->cmd.rightmove*/)
