@@ -29,6 +29,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "sys_public.h"
 #include "con_local.h"
 
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <csignal>
@@ -45,11 +46,20 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 	#include <unistd.h>
 #endif
 
-// Set from inside the crash handler itself, so it has to be safe to touch
-// from a signal handler (POSIX) or an SEH filter running on the crashing
-// thread (Windows) - sig_atomic_t is the type the standard guarantees is
-// safe for that.
-static volatile sig_atomic_t crashHandlerFired = 0;
+// Guards against two threads crashing at once, not just one thread
+// recursing into its own handler: a plain flag lets both threads read 0
+// before either writes 1, so both would proceed into dbghelp (which isn't
+// thread-safe) or race on the same fd/FILE*. A lock-free atomic CAS is the
+// cheapest way to guarantee only one thread ever wins, and lock-free atomic
+// ops on a type this size are async-signal-safe, so it's fine to touch from
+// a POSIX signal handler as well as a Windows SEH filter.
+static std::atomic<int> crashHandlerFired{ 0 };
+
+static bool Sys_ClaimCrashHandler( void )
+{
+	int expected = 0;
+	return crashHandlerFired.compare_exchange_strong( expected, 1 );
+}
 
 static void Sys_CrashDumpPath( char *out, size_t outSize )
 {
@@ -154,10 +164,10 @@ static void Sys_CrashDumpModules( FILE *fp )
 static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 {
 	// Don't try to handle a crash that happens while we're already
-	// writing the crash dump for a previous one.
-	if ( crashHandlerFired )
+	// writing the crash dump for a previous one (or a different thread
+	// crashing at the same instant - see Sys_ClaimCrashHandler).
+	if ( !Sys_ClaimCrashHandler() )
 		return EXCEPTION_EXECUTE_HANDLER;
-	crashHandlerFired = 1;
 
 	char path[MAX_OSPATH];
 	Sys_CrashDumpPath( path, sizeof( path ) );
@@ -326,12 +336,13 @@ static void Sys_CrashHandler( int sig, siginfo_t *info, void *ucontext )
 {
 	signal( sig, SIG_DFL );
 
-	if ( crashHandlerFired )
+	// See Sys_ClaimCrashHandler: guards against another thread crashing at
+	// the same instant, not just this handler recursing into itself.
+	if ( !Sys_ClaimCrashHandler() )
 	{
 		raise( sig );
 		return;
 	}
-	crashHandlerFired = 1;
 
 	char path[MAX_OSPATH];
 	Sys_CrashDumpPath( path, sizeof( path ) );
