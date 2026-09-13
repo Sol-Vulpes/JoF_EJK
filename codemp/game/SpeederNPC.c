@@ -508,8 +508,7 @@ void AnimateRiders( Vehicle_t *pVeh )
 	else
 	{
 		qboolean HasWeapon	= ((pilotPS->weapon != WP_NONE) && (pilotPS->weapon != WP_MELEE));
-		qboolean Charging	= (pilotPS->weaponstate == WEAPON_CHARGING || pilotPS->weaponstate == WEAPON_CHARGING_ALT);
-		qboolean Attacking	= (HasWeapon && !Charging && !!(pVeh->m_ucmd.buttons&(BUTTON_ATTACK|BUTTON_ALT_ATTACK)));
+		qboolean Attacking	= (HasWeapon && !!(pVeh->m_ucmd.buttons&(BUTTON_ATTACK|BUTTON_ALT_ATTACK)));
 		qboolean Flying		= qfalse;
 		qboolean Crashing	= qfalse;
 		qboolean Right		= (pVeh->m_ucmd.rightmove>0);
