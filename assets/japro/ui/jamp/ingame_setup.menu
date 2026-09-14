@@ -488,12 +488,78 @@
 			}
 		}
 
+		// model options  button
+		itemDef
+		{
+			name				modeloptionsbutton_glow
+			style				WINDOW_STYLE_SHADER
+			rect				20 223 185 30
+			background			"gfx/menus/menu_blendbox2"			// Frame around button
+			forecolor			1 1 1 1
+			visible			0
+			// appearance_slot		1
+			decoration
+		}
+
+		itemDef
+		{
+			name				modeloptionsmenubutton
+			group				setup_submenu
+			text				"Model Options"
+			type				ITEM_TYPE_BUTTON
+			style				WINDOW_STYLE_EMPTY
+			rect				20 223 170 30
+			font				3
+			textscale			0.9
+			textalignx			170
+			textaligny			5
+			textalign			ITEM_ALIGN_RIGHT
+			textstyle			3
+			forecolor			1 .682 0 1
+			visible			1
+			descText			"Configure default and forced player models."
+
+			mouseEnter
+			{
+				show			modeloptionsbutton_glow
+			}
+			mouseExit
+			{
+				hide			modeloptionsbutton_glow
+			}
+			action
+			{
+				play			"sound/interface/button1"
+
+				defer			VideoSetup	videowarningMenu
+
+				show			setup_background
+				hide 			video
+				hide			advancedvideo
+				hide			lighting
+				hide			advancedlighting
+				hide			vidrestart
+				hide			visuals
+				hide			morevisuals
+				hide			hud
+				hide			sound
+				hide			options
+				hide			network
+				hide			mods
+				show			modeloptions
+				hide			defaults
+
+				setitemcolor	setup_submenu			forecolor	1 .682 0 1
+				setitemcolor	modeloptionsmenubutton	forecolor	1 1 1 1
+			}
+		}
+
 		// network  button
 		itemDef
 		{
 			name				networkbutton_glow
 			style				WINDOW_STYLE_SHADER
-			rect				20 223 185 30
+			rect				20 253 185 30
 			background			"gfx/menus/menu_blendbox2"			// Frame around button
 			forecolor			1 1 1 1
 			visible			0
@@ -508,7 +574,7 @@
 			text				"Network"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				20 223 170 30
+			rect				20 253 170 30
 			font				3
 			textscale			0.9
 			textalignx			170
@@ -555,26 +621,13 @@
 			}
 		}
 
-		// mods  button
-		itemDef
-		{
-			name				modsbutton_glow
-			style				WINDOW_STYLE_SHADER
-			rect				20 223 185 30
-			background			"gfx/menus/menu_blendbox2"			// Frame around button
-			forecolor			1 1 1 1
-			visible			0
-			// appearance_slot		1
-			decoration
-		}
-
 
 		// gamedefaults button
 		itemDef
 		{
 			name				gamedefaultsbutton_glow
 			style				WINDOW_STYLE_SHADER
-			rect				20 253 185 30
+			rect				20 283 185 30
 			background			"gfx/menus/menu_blendbox2"			// Frame around button
 			forecolor			1 1 1 1
 			visible			0
@@ -589,7 +642,7 @@
 			text				@MENUS_DEFAULTS
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				20 253 170 30
+			rect				20 283 170 30
 			font				3
 			textscale			0.9
 			textalignx			170
@@ -4236,44 +4289,6 @@
 			mouseexit			{ hide	highlight13 }
 		}
 
-		// MODEL OPTIONS BUTTON
-		itemDef
-		{
-			name				modeloptionsbutton_glow
-			style				WINDOW_STYLE_SHADER
-			rect				260 305 200 16
-			background			"gfx/menus/menu_blendbox"
-			forecolor			1 0.5 0.5 1
-			visible				0
-			decoration
-		}
-
-		itemDef
-		{
-			name				modeloptionsbutton
-			group				options
-	  		type				ITEM_TYPE_BUTTON
-			text				"Model Options"
-			rect				260 303 200 20
-			textalign			ITEM_ALIGN_CENTER
-			textalignx			100
-			textaligny			0
-			font 				4
-			textscale 			1
-			forecolor			1 .682 0 1
-			visible				0
-			descText			"Configure default and forced player models."
-			action
-			{
-				play 			"sound/interface/button1"
-				hide			options
-				hide			modeloptionsbutton_glow
-				show			modeloptions
-			}
-			mouseenter			{ show modeloptionsbutton_glow }
-			mouseexit			{ hide modeloptionsbutton_glow }
-		}
-
 		//----------------------------------------------------------------------------------------------
 		//
 		//	MODEL OPTIONS
@@ -4413,43 +4428,6 @@
 			action				{ play "sound/interface/button1" }
 			mouseenter			{ show highlight6 }
 			mouseexit			{ hide highlight6 }
-		}
-
-		itemDef
-		{
-			name				done4button_glow
-			style				WINDOW_STYLE_SHADER
-			rect				260 245 200 16
-			background			"gfx/menus/menu_blendbox"
-			forecolor			1 0.5 0.5 1
-			visible				0
-			decoration
-		}
-
-		itemDef
-		{
-			name				done4
-			group				modeloptions
-	  		type				ITEM_TYPE_BUTTON
-			text				"Done"
-			rect				260 243 200 20
-			textalign			ITEM_ALIGN_CENTER
-			textalignx			100
-			textaligny			0
-			font 				4
-			textscale 			1
-			forecolor			1 .682 0 1
-			visible				0
-			descText			"Return to game options."
-			action
-			{
-				play 			"sound/interface/button1"
-				show			options
-				hide			done4button_glow
-				hide			modeloptions
-			}
-			mouseenter			{ show done4button_glow }
-			mouseexit			{ hide done4button_glow }
 		}
 
 		//----------------------------------------------------------------------------------------------
