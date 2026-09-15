@@ -27,6 +27,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // It also handles local physics interaction, like fragments bouncing off walls
 
 #include "cg_local.h"
+#include "game/bg_pickup.h"
 
 static	pmove_t		cg_pmove;
 
@@ -697,16 +698,43 @@ static void CG_TouchItem( centity_t *cent ) {
 	}
 
 	item = &bg_itemlist[ cent->currentState.modelindex ];
+	if (CG_UsesPickupConfirmation() && BG_ConfirmedPickupType(item->giType)) {
+		return; // Only this server's accepted pickups produce local feedback.
+	}
 
-	// These pickups do not update predicted health/inventory, so nearby items
-	// would all pass the same capacity check. Touch order and custom quantities
-	// are server-controlled: wait for its pickup event before announcing or
-	// hiding health, armor, ammo, and holdables (including bacta).
-	if (item->giType == IT_ARMOR || item->giType == IT_HEALTH ||
-		item->giType == IT_AMMO || item->giType == IT_HOLDABLE)
-	{
+	//Currently there is no reliable way of knowing if the client has touched a certain item before another if they are next to each other, or rather
+	//if the server has touched them in the same order. This results often in grabbing an item in the prediction and the server giving you the other
+	//item. So for now prediction of armor, health, and ammo is disabled.
+/*
+	if (item->giType == IT_ARMOR)
+	{ //rww - this will be stomped next update, but it's set so that we don't try to pick up two shields in one prediction and have the server cancel one
+	//	cg.predictedPlayerState.stats[STAT_ARMOR] += item->quantity;
+
+		//FIXME: This can't be predicted properly at the moment
 		return;
 	}
+
+	if (item->giType == IT_HEALTH)
+	{ //same as above, for health
+	//	cg.predictedPlayerState.stats[STAT_HEALTH] += item->quantity;
+
+		//FIXME: This can't be predicted properly at the moment
+		return;
+	}
+
+	if (item->giType == IT_AMMO)
+	{ //same as above, for ammo
+	//	cg.predictedPlayerState.ammo[item->giTag] += item->quantity;
+
+		//FIXME: This can't be predicted properly at the moment
+		return;
+	}
+
+	if (item->giType == IT_HOLDABLE)
+	{ //same as above, for holdables
+	//	cg.predictedPlayerState.stats[STAT_HOLDABLE_ITEMS] |= (1 << item->giTag);
+	}
+*/
 	// Special case for flags.
 	// We don't predict touching our own flag
 	// Make sure the item type is also a flag too

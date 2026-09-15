@@ -1242,6 +1242,8 @@ typedef struct cg_s {
 	//==========================
 
 	int			itemPickup;
+	int             pickupQueue[16];
+	int             pickupQueueHead, pickupQueueCount;
 	int			itemPickupTime;
 	int			itemPickupBlendTime;	// the pulse around the crosshair is timed seperately
 
@@ -2637,6 +2639,9 @@ void CG_FreeCosmetics( void );
 //
 void CG_ExecuteNewServerCommands( int latestSequence );
 void CG_ParseServerinfo( void );
+void CG_ConfirmedPickup_f( void );
+void CG_AdvancePickupQueue( void );
+qboolean CG_UsesPickupConfirmation( void );
 void CG_SetConfigValues( void );
 void CG_ShaderStateChanged(void);
 
