@@ -1381,7 +1381,7 @@ void CG_LoadClientInfo( clientInfo_t *ci, int clientNum ) {
 		for ( i = 0 ; i < MAX_GENTITIES ; i++ ) {
 			if ( cg_entities[i].currentState.clientNum == clientNum
 				&& cg_entities[i].currentState.eType == ET_PLAYER ) {
-				CG_ResetPlayerEntity( &cg_entities[i] );
+				CG_ResetPlayerEntity( &cg_entities[i], qfalse );
 			}
 		}
 
@@ -1474,7 +1474,7 @@ void CG_LoadClientInfo( clientInfo_t *ci, int clientNum ) {
 	for ( i = 0 ; i < MAX_GENTITIES ; i++ ) {
 		if ( cg_entities[i].currentState.clientNum == clientNum
 			&& cg_entities[i].currentState.eType == ET_PLAYER ) {
-			CG_ResetPlayerEntity( &cg_entities[i] );
+			CG_ResetPlayerEntity( &cg_entities[i], qfalse );
 		}
 	}
 }
@@ -14422,14 +14422,24 @@ endOfCall:
 ===============
 CG_ResetPlayerEntity
 
-A player just came into view or teleported, so reset all animation info
+A player just came into view or teleported. Preserve matching animations only
+when returning to visibility with the same model; always reset orientation.
 ===============
 */
-void CG_ResetPlayerEntity( centity_t *cent )
+void CG_ResetPlayerEntity( centity_t *cent, qboolean preserveAnimations )
 {
 	clientInfo_t *ci;
 	int i = 0;
 	int j = 0;
+	qboolean preserveLegs = preserveAnimations && cent->pe.legs.animation &&
+		cent->pe.legs.animationNumber == cent->currentState.legsAnim &&
+		cent->pe.legs.lastFlip == cent->currentState.legsFlip;
+	qboolean preserveTorso = preserveAnimations && cent->pe.torso.animation &&
+		cent->pe.torso.animationNumber == cent->currentState.torsoAnim &&
+		cent->pe.torso.lastFlip == cent->currentState.torsoFlip;
+
+	// Torso and legs share bone overrides, so retain their state together.
+	preserveLegs = preserveTorso = preserveLegs && preserveTorso;
 
 //	cent->errorTime = -99999;		// guarantee no error decay added
 //	cent->extrapolated = qfalse;
@@ -14497,8 +14507,14 @@ void CG_ResetPlayerEntity( centity_t *cent )
 	if (cent->currentState.eType != ET_NPC ||
 		!(cent->currentState.eFlags & EF_DEAD))
 	{
-		CG_ClearLerpFrame( cent, ci, &cent->pe.legs, cent->currentState.legsAnim, qfalse);
-		CG_ClearLerpFrame( cent, ci, &cent->pe.torso, cent->currentState.torsoAnim, qtrue);
+		if (!preserveLegs)
+		{
+			CG_ClearLerpFrame( cent, ci, &cent->pe.legs, cent->currentState.legsAnim, qfalse);
+		}
+		if (!preserveTorso)
+		{
+			CG_ClearLerpFrame( cent, ci, &cent->pe.torso, cent->currentState.torsoAnim, qtrue);
+		}
 
 		BG_EvaluateTrajectory( &cent->currentState.pos, cg.time, cent->lerpOrigin );
 		BG_EvaluateTrajectory( &cent->currentState.apos, cg.time, cent->lerpAngles );
@@ -14506,13 +14522,19 @@ void CG_ResetPlayerEntity( centity_t *cent )
 //		VectorCopy( cent->lerpOrigin, cent->rawOrigin );
 		VectorCopy( cent->lerpAngles, cent->rawAngles );
 
-		memset( &cent->pe.legs, 0, sizeof( cent->pe.legs ) );
+		if (!preserveLegs)
+		{
+			memset( &cent->pe.legs, 0, sizeof( cent->pe.legs ) );
+		}
 		cent->pe.legs.yawAngle = cent->rawAngles[YAW];
 		cent->pe.legs.yawing = qfalse;
 		cent->pe.legs.pitchAngle = 0;
 		cent->pe.legs.pitching = qfalse;
 
-		memset( &cent->pe.torso, 0, sizeof( cent->pe.torso ) );
+		if (!preserveTorso)
+		{
+			memset( &cent->pe.torso, 0, sizeof( cent->pe.torso ) );
+		}
 		cent->pe.torso.yawAngle = cent->rawAngles[YAW];
 		cent->pe.torso.yawing = qfalse;
 		cent->pe.torso.pitchAngle = cent->rawAngles[PITCH];
