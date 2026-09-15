@@ -1467,9 +1467,22 @@ static qboolean isGlobalVGS(const char *s) {
 
 // Toggle sounds sent by G_Sound contain the server hilt's sound, not the
 // client-only override. Do not globally replace that sound for other players.
+void CG_PrepareForceOwnSaberSounds(const playerState_t *ps, const playerState_t *oldPs) {
+	int active, oldActive;
+	memset(cg.forceSaberSoundPending, 0, sizeof(cg.forceSaberSoundPending));
+	memset(cg.forceSaberSoundUsed, 0, sizeof(cg.forceSaberSoundUsed));
+	if (!oldPs || ps->clientNum != cg.clientNum || oldPs->clientNum != cg.clientNum)
+		return;
+	// For duals: 0 = both active, 1 = primary only, 2 = both off.
+	active = ps->saberHolstered == 2 ? 0 : ps->saberHolstered == 1 ? 1 : 3;
+	oldActive = oldPs->saberHolstered == 2 ? 0 : oldPs->saberHolstered == 1 ? 1 : 3;
+	cg.forceSaberSoundPending[0] = active & ~oldActive;
+	cg.forceSaberSoundPending[1] = oldActive & ~active;
+}
+
 static sfxHandle_t CG_ForceOwnSaberSound(const entityState_t *es, int source, sfxHandle_t sound) {
 	clientInfo_t *ci;
-	sfxHandle_t replacement = 0;
+	int matches[2] = {0, 0}, available[2], preferred[2];
 	int i, j;
 	vec3_t delta;
 	float distance;
@@ -1506,17 +1519,38 @@ static sfxHandle_t CG_ForceOwnSaberSound(const entityState_t *es, int source, sf
 	for (i = 0; i < MAX_SABERS; i++) {
 		for (j = 0; j < 2; j++) {
 			sfxHandle_t original = j ? ci->serverSaberSoundOff[i] : ci->serverSaberSoundOn[i];
-			sfxHandle_t custom = j ? ci->saber[i].soundOff : ci->saber[i].soundOn;
-			if (original != sound || !ci->saber[i].model[0] || !custom) {
-				continue;
-			}
-			if (replacement && replacement != custom) {
-				return sound; // The event does not distinguish identical dual-hilt sounds.
-			}
-			replacement = custom;
+			if (original == sound && ci->saber[i].model[0])
+				matches[j] |= 1 << i;
 		}
 	}
-	return replacement ? replacement : sound;
+	for (j = 0; j < 2; j++) {
+		available[j] = matches[j] & ~cg.forceSaberSoundUsed[j];
+		preferred[j] = available[j] & cg.forceSaberSoundPending[j];
+	}
+	if (preferred[0] || preferred[1]) {
+		available[0] = preferred[0];
+		available[1] = preferred[1];
+	} else if (!available[0] && !available[1]) {
+		available[0] = matches[0];
+		available[1] = matches[1];
+	}
+	// If the same file is used for ignition AND shutdown, require an actual
+	// state transition to distinguish them rather than guessing a sound type.
+	if ((available[0] && available[1]) || (!available[0] && !available[1]))
+		return sound;
+	j = available[1] ? 1 : 0;
+	if (available[j] == 3 && cg.snap->ps.saberHolstered == 1)
+		available[j] = j ? 2 : 1;
+	// Shared server sounds are emitted once per hilt for a full dual toggle.
+	// Consume each matching slot once so different forced hilts both get heard.
+	for (i = 0; i < MAX_SABERS; i++) {
+		if (available[j] & (1 << i)) {
+			sfxHandle_t custom = j ? ci->saber[i].soundOff : ci->saber[i].soundOn;
+			cg.forceSaberSoundUsed[j] |= 1 << i;
+			return custom ? custom : sound;
+		}
+	}
+	return sound;
 }
 
 static qboolean CG_ProximityCheck(vec3_t pos1, vec3_t pos2) { //Returns qtrue if two vectors are within 32 of eachother in every way?
