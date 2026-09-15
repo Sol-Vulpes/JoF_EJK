@@ -2603,6 +2603,7 @@ void CG_Chunks( int owner, vec3_t origin, const vec3_t normal, const vec3_t mins
 void CG_MiscModelExplosion( vec3_t mins, vec3_t maxs, int size, material_t chunkType );
 
 void CG_Bleed( vec3_t origin, int entityNum );
+qboolean CG_IsDroidEntity( int entityNum );
 
 localEntity_t *CG_MakeExplosion( vec3_t origin, vec3_t dir,
 								qhandle_t hModel, int numframes, qhandle_t shader, int msec,
