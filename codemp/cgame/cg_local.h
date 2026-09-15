@@ -647,6 +647,7 @@ typedef struct centity_s {
 	unsigned int	flameSndDebounceTime;
 	int				lightningEnvironmentTime;
 	int				lightningSurfaceTime;
+	int				lightningImpactSoundTime;
 	unsigned int	flameThrowerHitTime;
 	qboolean		  flameThrowerSndActive;
 	qboolean	hasPlayedJetpackSounds;
@@ -1949,6 +1950,7 @@ typedef struct cgMedia_s {
 	qhandle_t	lightningShader; // japro loda
 	qhandle_t	forceLightningArcShader;
 	qhandle_t	forceLightningFlashShader;
+	sfxHandle_t	forceLightningImpactSounds[3];
 
 	//japro gibs
 	qhandle_t	gibAbdomen;
