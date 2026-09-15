@@ -1147,6 +1147,8 @@ typedef struct cg_s {
 	int			eventSequence;
 	int			predictableEvents[MAX_PREDICTED_EVENTS];
 	int			lastExternalEvent;		// last ps.externalEvent played, so the predicted and snapshot dispatch paths don't double-play
+	int			forceSaberSoundPending[2]; // on/off hilt masks from the authoritative snapshot transition
+	int			forceSaberSoundUsed[2]; // hilt sounds already matched in this snapshot
 
 	float		stepChange;				// for stair up smoothing
 	int			stepTime;
@@ -2499,6 +2501,7 @@ void CG_LoadDeferredPlayers( void );
 void CG_CheckEvents( centity_t *cent );
 const char	*CG_PlaceString( int rank );
 void CG_EntityEvent( centity_t *cent, vec3_t position );
+void CG_PrepareForceOwnSaberSounds( const playerState_t *ps, const playerState_t *oldPs );
 void CG_PainEvent( centity_t *cent, int health );
 void CG_ReattachLimb(centity_t *source);
 
