@@ -2470,6 +2470,33 @@ qboolean ForcePower_Valid(int i)
 CG_DrawForceSelect
 ===================
 */
+static qboolean CG_ForceSelectUsesFlamethrower( int power )
+{
+	// JA+ merc mode uses bit 12, also checked by CG_DrawHolsteredSaber.
+	// EF_BOBAFIRE only describes active firing, not owning the flamethrower.
+	return power == FP_LIGHTNING && cgs.serverMod == SVMOD_JAPLUS &&
+		cg.snap && (cg.snap->ps.eFlags & 0x1000);
+}
+
+static qhandle_t CG_ForceSelectIcon( int power )
+{
+	if ( power == REPULSE_WHEEL_SLOT )
+	{
+		return cgs.media.repulseIcon;
+	}
+	if ( power == DASH_WHEEL_SLOT )
+	{
+		return cgs.media.dashIcon;
+	}
+	if ( CG_ForceSelectUsesFlamethrower( power ) )
+	{
+		return cgs.media.flamethrowerIcon;
+	}
+
+	// Stasis has no power index or icon of its own, so it borrows Force Jump.
+	return cgs.media.forcePowerIcons[(power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power];
+}
+
 void CG_DrawForceSelect( void )
 {
 	int		i;
@@ -2480,7 +2507,8 @@ void CG_DrawForceSelect( void )
 	int		sideMax,holdCount;
 	int		yOffset = 0;
 	int		wheel[NUM_FORCE_POWERS + 3];
-	int		wheelCount, cur = -1, idx, drawn, power, icon;
+	int		wheelCount, cur = -1, idx, drawn, power;
+	qhandle_t icon;
 
 	// don't display if dead
 	if ( cg.snap->ps.stats[STAT_HEALTH] <= 0 )
@@ -2570,39 +2598,18 @@ void CG_DrawForceSelect( void )
 		}
 
 		power = wheel[idx];
-		if ( power == REPULSE_WHEEL_SLOT ) {
-			if (cgs.media.repulseIcon) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.repulseIcon );
-				holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
-		} else if ( power == DASH_WHEEL_SLOT ) {
-			if (cgs.media.dashIcon) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.dashIcon );
-				holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
-		} else {
-			// stasis (18) has no icon of its own; borrow the jump (FP_LEVITATION) icon
-			icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
-			if (cgs.media.forcePowerIcons[icon]) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] );
-				holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
+		icon = CG_ForceSelectIcon( power );
+		if ( icon ) {
+			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, icon );
+			holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
 		}
 	}
 
 	// Current center icon
 	power = wheel[cur];
-	if ( power == REPULSE_WHEEL_SLOT ) {
-		if (cgs.media.repulseIcon)
-			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.repulseIcon );
-	} else if ( power == DASH_WHEEL_SLOT ) {
-		if (cgs.media.dashIcon)
-			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.dashIcon );
-	} else {
-		icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
-		if (cgs.media.forcePowerIcons[icon])
-			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
-	}
+	icon = CG_ForceSelectIcon( power );
+	if ( icon )
+		CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, icon );
 
 	// Work forwards (right) from the centered icon, walking the wheel list
 	holdX = x + ((bigIconSize/2) + pad) * cgs.widthRatioCoef;
@@ -2616,22 +2623,10 @@ void CG_DrawForceSelect( void )
 		}
 
 		power = wheel[idx];
-		if ( power == REPULSE_WHEEL_SLOT ) {
-			if (cgs.media.repulseIcon) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.repulseIcon );
-				holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
-		} else if ( power == DASH_WHEEL_SLOT ) {
-			if (cgs.media.dashIcon) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.dashIcon );
-				holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
-		} else {
-			icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
-			if (cgs.media.forcePowerIcons[icon]) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
-				holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
+		icon = CG_ForceSelectIcon( power );
+		if ( icon ) {
+			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, icon );
+			holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
 		}
 	}
 
@@ -2646,6 +2641,10 @@ void CG_DrawForceSelect( void )
 	else if ( cg.forceSelect == DASH_WHEEL_SLOT )
 	{
 		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, "Dash", UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
+	}
+	else if ( CG_ForceSelectUsesFlamethrower( cg.forceSelect ) )
+	{
+		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, "Flamethrower", UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
 	}
 	else if ( showPowersName[cg.forceSelect] )
 	{
@@ -10395,6 +10394,22 @@ static QINLINE void CG_ChatBox_DrawStrings(void)
 	}
 }
 
+static void CG_DrawForceSenseOverlay( void )
+{
+	if (cgs.serverMod != SVMOD_JAPLUS ||
+		!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWSIGHTEFFECT) || !cg.snap ||
+		cg.snap->ps.stats[STAT_HEALTH] <= 0 ||
+		cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
+		!(cg.snap->ps.fd.forcePowersActive & (1 << FP_SEE)))
+		return;
+
+	// The original SP shader supplies the rotating, pulsing purple ring.
+	// Keep this opt-in effect independent of the generic screen-tint setting.
+	trap->R_SetColor(NULL);
+	CG_DrawPic(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, cgs.media.forceSenseOverlay);
+	trap->R_SetColor(NULL);
+}
+
 static void CG_Draw2DScreenTints( void )
 {
 	float			rageTime, rageRecTime, absorbTime, protectTime, ysalTime;
@@ -10895,6 +10910,7 @@ static void CG_Draw2D( void ) {
 	}
 
 	CG_Draw2DScreenTints();
+	CG_DrawForceSenseOverlay();
 
 	if (cg.snap->ps.rocketLockIndex != ENTITYNUM_NONE && (cg.time - cg.snap->ps.rocketLockTime) > 0)
 	{
@@ -12043,9 +12059,19 @@ static void CG_LeadIndicator(void)
 static void CG_PlayerLabels(void)
 {
 	int i;
+	vec3_t aimEnd;
+	trace_t aimTrace;
 
-	if (cgs.restricts & RESTRICT_PLAYERLABELS)
+	if (!cg.snap || (cgs.restricts & RESTRICT_PLAYERLABELS) ||
+		cg.snap->ps.duelInProgress || cg.predictedPlayerState.duelInProgress ||
+		cgs.gametype == GT_DUEL || cgs.gametype == GT_POWERDUEL)
 		return;
+
+	// Check aiming even when the crosshair/name HUD is disabled. The fresh HUD
+	// target below also covers dynamic crosshairs aimed from the weapon muzzle.
+	VectorMA(cg.refdef.vieworg, 3000.0f, cg.refdef.viewaxis[0], aimEnd);
+	CG_Trace(&aimTrace, cg.refdef.vieworg, NULL, NULL, aimEnd,
+		cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
 
 	for (i = 0; i < MAX_CLIENTS; i++) {
 		vec3_t		pos;
@@ -12054,7 +12080,7 @@ static void CG_PlayerLabels(void)
 		centity_t	*cent = &cg_entities[i];
 		vec3_t		diff;
 
-		if (!cent || !cent->currentValid)
+		if (!cent->currentValid)
 			continue;
 		if (i == cg.clientNum)
 			continue;
@@ -12068,7 +12094,10 @@ static void CG_PlayerLabels(void)
 			continue;
 		if (cgs.clientinfo[i].team == TEAM_SPECTATOR)
 			continue;
-		if (cent->currentState.bolt1 && cg_hideDuelerNames.integer == 1) //if cvar is set and player is in duel - skip client, dont draw name
+		if (cent->currentState.bolt1) // Never label players participating in a private duel.
+			continue;
+		if (aimTrace.entityNum == i ||
+			(cg_drawCrosshair.integer && cg.crosshairClientTime == cg.time && cg.crosshairClientNum == i))
 			continue;
 		if (CG_IsMindTricked(cent->currentState.trickedentindex,
 			cent->currentState.trickedentindex2,
@@ -12077,21 +12106,31 @@ static void CG_PlayerLabels(void)
 			cg.snap->ps.clientNum))
 			continue;
 			
-		if (cent->cloaked)
+		if (cent->cloaked || (cent->currentState.powerups & (1 << PW_CLOAKED)))
 			continue;
 
-		VectorSubtract(cent->lerpOrigin, cg.predictedPlayerState.origin, diff);
+		VectorSubtract(cent->lerpOrigin, cg.refdef.vieworg, diff);
 		if (VectorLength(diff) >= 3000) //Make sure distance is less than... 3000 ?
 			continue;
 
-		CG_Trace( &trace, cg.predictedPlayerState.origin, NULL, NULL, cent->lerpOrigin, cg.clientNum, CONTENTS_SOLID|CONTENTS_BODY );
-		if (trace.entityNum == ENTITYNUM_WORLD)
+		// Only an unobstructed camera-to-player trace (or a hit on this player)
+		// is visible. Doors, movers and other bodies must block names too.
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, cent->lerpOrigin,
+			cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
+		if (trace.startsolid || trace.allsolid ||
+			(trace.fraction < 1.0f && trace.entityNum != i))
 			continue;
 
 		VectorCopy(cent->lerpOrigin, pos);
 		pos[2] += 64;
 
 		if (!CG_WorldCoordToScreenCoord(pos, &x, &y)) //off-screen, don't draw it
+			continue;
+
+		// The elevated label itself must not be projected through a ceiling/wall.
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, pos,
+			cg.snap->ps.clientNum, CONTENTS_SOLID);
+		if (trace.startsolid || trace.allsolid || trace.fraction < 1.0f)
 			continue;
 
 		CG_DrawScaledProportionalString(x, y, cgs.clientinfo[i].name, UI_CENTER, colorTable[CT_WHITE], cg_drawPlayerNamesScale.value);

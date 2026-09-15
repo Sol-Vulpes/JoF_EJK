@@ -1465,6 +1465,60 @@ static qboolean isGlobalVGS(const char *s) {
 	return qfalse;
 }
 
+// Toggle sounds sent by G_Sound contain the server hilt's sound, not the
+// client-only override. Do not globally replace that sound for other players.
+static sfxHandle_t CG_ForceOwnSaberSound(const entityState_t *es, int source, sfxHandle_t sound) {
+	clientInfo_t *ci;
+	sfxHandle_t replacement = 0;
+	int i, j;
+	vec3_t delta;
+	float distance;
+
+	if (!sound || !cg.snap || cg.clientNum < 0 || cg.clientNum >= MAX_CLIENTS ||
+		cg.snap->ps.clientNum != cg.clientNum || !cg_forceOwnSaber.string[0] ||
+		!Q_stricmp(cg_forceOwnSaber.string, "none")) {
+		return sound;
+	}
+	if (source != cg.clientNum) {
+		if (source < MAX_CLIENTS || es->eType != ET_EVENTS + EV_GENERAL_SOUND) {
+			return sound;
+		}
+		// Vanilla G_Sound uses an anonymous, snapped-position temp entity.
+		// Use authoritative positions, not the local player's predicted origin.
+		VectorSubtract(es->pos.trBase, cg.snap->ps.origin, delta);
+		distance = VectorLengthSquared(delta);
+		if (distance > 32 * 32) {
+			return sound;
+		}
+		for (i = 0; i < cg.snap->numEntities; i++) {
+			const entityState_t *other = &cg.snap->entities[i];
+			if (other->number == cg.clientNum ||
+				(other->eType != ET_PLAYER && other->eType != ET_NPC)) {
+				continue;
+			}
+			VectorSubtract(es->pos.trBase, other->pos.trBase, delta);
+			if (VectorLengthSquared(delta) <= distance + 3) {
+				return sound; // Another player is closer, or ownership is ambiguous.
+			}
+		}
+	}
+	ci = &cgs.clientinfo[cg.clientNum];
+	for (i = 0; i < MAX_SABERS; i++) {
+		for (j = 0; j < 2; j++) {
+			sfxHandle_t original = j ? ci->serverSaberSoundOff[i] : ci->serverSaberSoundOn[i];
+			sfxHandle_t custom = j ? ci->saber[i].soundOff : ci->saber[i].soundOn;
+			if (original != sound || !ci->saber[i].model[0] || !custom) {
+				continue;
+			}
+			if (replacement && replacement != custom) {
+				return sound; // The event does not distinguish identical dual-hilt sounds.
+			}
+			replacement = custom;
+		}
+	}
+	return replacement ? replacement : sound;
+}
+
 static qboolean CG_ProximityCheck(vec3_t pos1, vec3_t pos2) { //Returns qtrue if two vectors are within 32 of eachother in every way?
 	int i;
 	for (i = 0; i <= 2; i++) {
@@ -2954,7 +3008,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		ByteToDir( es->eventParm, dir );
 		if (es->weapon)
 		{ //client
-			FX_DisruptorHitPlayer( cent->lerpOrigin, dir, qtrue );
+			FX_DisruptorHitPlayer( cent->lerpOrigin, dir, !CG_IsDroidEntity(es->otherEntityNum) );
 		}
 		else
 		{ //non-client
@@ -3769,7 +3823,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			{
 				sfxHandle_t sfx;
 				if ( cgs.gameSounds[ es->eventParm ] ) {
-					sfx = cgs.gameSounds[ es->eventParm ];
+	sfx = CG_ForceOwnSaberSound( es, es->number, cgs.gameSounds[ es->eventParm ] );
 				} else {
 					s = CG_ConfigString( CS_SOUNDS + es->eventParm );
 					sfx = CG_CustomSound( es->number, s );
@@ -3868,7 +3922,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		DEBUGNAME("EV_ENTITY_SOUND");
 		//somewhat of a hack - weapon is the caller entity's index, trickedentindex is the proper sound channel
 		if ( cgs.gameSounds[ es->eventParm ] ) {
-			trap->S_StartSound (NULL, es->clientNum, es->trickedentindex, cgs.gameSounds[ es->eventParm ] );
+			trap->S_StartSound (NULL, es->clientNum, es->trickedentindex,
+				CG_ForceOwnSaberSound(es, es->clientNum, cgs.gameSounds[ es->eventParm ]) );
 		} else {
 			s = CG_ConfigString( CS_SOUNDS + es->eventParm );
 			trap->S_StartSound (NULL, es->clientNum, es->trickedentindex, CG_CustomSound( es->clientNum, s ) );
@@ -3970,7 +4025,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		if (cg.predictedPlayerState.duelInProgress && (cg.predictedPlayerState.clientNum != es->number && cg.predictedPlayerState.duelIndex != es->number))
 			break;
 
-		if (cg_blood.integer) {
+		if (cg_blood.integer && !CG_IsDroidEntity(es->number)) {
 			trap->S_StartSound(NULL, es->number, CHAN_BODY, cgs.media.gibSound);
 			CG_GibPlayer(cent->lerpOrigin);
 		}

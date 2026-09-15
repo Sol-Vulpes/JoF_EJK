@@ -546,6 +546,27 @@ void CG_ParseWeatherEffect(const char *str)
 	char *sptr = (char *)str;
 	sptr++; //pass the '*'
 
+	// Weather commands accumulate clouds; snow/wind do not remove existing rain.
+	{
+		const char *command = sptr;
+		const char *token = COM_ParseExt(&command, qfalse);
+		if (!Q_stricmp(token, "die") || !Q_stricmp(token, "clear"))
+		{
+			cg.saberRainActive = qfalse;
+			if (!Q_stricmp(token, "die"))
+				cg.saberRainFrozen = qfalse;
+		}
+		else if (!Q_stricmp(token, "freeze"))
+		{
+			cg.saberRainFrozen = !cg.saberRainFrozen;
+		}
+		else if (!Q_stricmp(token, "rain") || !Q_stricmp(token, "acidrain") ||
+			!Q_stricmp(token, "lightrain") || !Q_stricmp(token, "heavyrain"))
+		{
+			cg.saberRainActive = qtrue;
+		}
+	}
+
 	if (Q_stricmpn(sptr, "die", 3) && Q_stricmpn(sptr, "clear", 5) && Q_stricmpn(sptr, "freeze", 6)
 	&& Q_stricmpn(sptr, "zone", 4) && Q_stricmpn(sptr, "acidrain", 8) && Q_stricmpn(sptr, "spacedust", 9)
 	&& Q_stricmpn(sptr, "sand", 4) && Q_stricmpn(sptr, "outsideshake", 12) && Q_stricmpn(sptr, "outsidepain", 11))
@@ -1322,6 +1343,7 @@ static void CG_RegisterGraphics( void )
 	cgs.effects.mTurretMuzzleFlash = trap->FX_RegisterEffect("effects/turret/muzzle_flash.efx");
 	cgs.effects.mSparks = trap->FX_RegisterEffect("sparks/spark_nosnd.efx"); //sparks/spark.efx
 	cgs.effects.mSaberCut = trap->FX_RegisterEffect("saber/saber_cut.efx");
+	cgs.effects.mSaberRainSteam = trap->FX_RegisterEffect("saber/fizz.efx");
 	cgs.effects.mSaberBlock = trap->FX_RegisterEffect("saber/saber_block.efx");
 	cgs.effects.mSaberBloodSparks = trap->FX_RegisterEffect("saber/blood_sparks_mp.efx");
 	cgs.effects.mSaberBloodSparksSmall = trap->FX_RegisterEffect("saber/blood_sparks_25_mp.efx");
@@ -1334,6 +1356,8 @@ static void CG_RegisterGraphics( void )
 
 	cgs.effects.forceLightning		= trap->FX_RegisterEffect( "effects/force/lightning.efx" );
 	cgs.effects.forceLightningWide	= trap->FX_RegisterEffect( "effects/force/lightningwide.efx" );
+	cgs.media.forceLightningArcShader = trap->R_RegisterShader("gfx/misc/blueLine");
+	cgs.media.forceLightningFlashShader = trap->R_RegisterShader("gfx/misc/lightningFlash");
 	cgs.effects.forceDrain		= trap->FX_RegisterEffect( "effects/mp/drain.efx" );
 	cgs.effects.forceDrainWide	= trap->FX_RegisterEffect( "effects/mp/drainwide.efx" );
 	cgs.effects.forceDrainWideJaPRO	= trap->FX_RegisterEffect( "effects/mp/drainwide_japro.efx" );
@@ -1372,6 +1396,7 @@ static void CG_RegisterGraphics( void )
 	cgs.media.playerShieldDamage = trap->R_RegisterShader("gfx/misc/personalshield");
 	cgs.media.protectShader = trap->R_RegisterShader("gfx/misc/forceprotect");
 	cgs.media.forceSightBubble = trap->R_RegisterShader("gfx/misc/sightbubble");
+	cgs.media.forceSenseOverlay = trap->R_RegisterShader("gfx/2d/jsense");
 	cgs.media.forceShell = trap->R_RegisterShader("powerups/forceshell");
 	cgs.media.sightShell = trap->R_RegisterShader("powerups/sightshell");
 
@@ -3206,6 +3231,7 @@ Ghoul2 Insert End
 	cgs.media.rageRecShader = trap->R_RegisterShaderNoMip("gfx/mp/f_icon_ragerec");
 	cgs.media.repulseIcon   = trap->R_RegisterShaderNoMip("gfx/jof/force_repulse.tga");	// JoF: Force Repulse wheel icon
 	cgs.media.dashIcon      = trap->R_RegisterShaderNoMip("gfx/jof/force_dash.tga");		// JoF: Force Dash wheel icon
+	cgs.media.flamethrowerIcon = trap->R_RegisterShaderNoMip("gfx/jof/force_flamethrower.png");
 
 
 	//body decal shaders -rww

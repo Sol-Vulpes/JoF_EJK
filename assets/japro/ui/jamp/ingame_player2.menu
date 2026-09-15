@@ -134,9 +134,9 @@
 			font				2
 			textscale			.9
 			textaligny			-5
-			textalign			ITEM_ALIGN_LEFT
+			textalign			ITEM_ALIGN_CENTER
 			textstyle			0
-			textalignx			0
+			textalignx			63
 			backcolor			0 0 0 0
 			forecolor			.615 .615 .956 1
 			feeder			19	//FEEDER_PLAYER_SPECIES
@@ -181,7 +181,8 @@
 			descText			"Browse species"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_SHADER
-			rect				287 48 24 24
+			// Compensate for the artwork's upper-left visual weight within the glow.
+			rect				288.5 49.5 24 24
 			forecolor			1 .682 0 1
 			visible				1
 			mouseEnter
@@ -213,11 +214,11 @@
 			group				none
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				15 80 100 24
+			rect				10 80 90 24
 			forecolor			1 .682 0 1
 			text				"COLORS" //@MENUS_COLOR
-			textalign			ITEM_ALIGN_LEFT
-			textalignx			0
+			textalign			ITEM_ALIGN_CENTER
+			textalignx			45
 			textaligny			-1
 			font				3
 			textscale 			1
@@ -270,13 +271,13 @@
 			descText			"Customized RGB colors"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				160 80 100 24
+			rect				145 82 65 24
 			//font				2
 			textscale			1
 			textaligny			-1
-			textalign			ITEM_ALIGN_LEFT
+			textalign			ITEM_ALIGN_CENTER
 			textstyle			0
-			textalignx			0
+			textalignx			32.5
 			backcolor			0 0 0 0
 			forecolor			1 .682 0 1
 			visible			1
@@ -613,9 +614,9 @@
 			font				2
 			textscale			.9
 			textaligny			-5
-			textalign			ITEM_ALIGN_LEFT
+			textalign			ITEM_ALIGN_CENTER
 			textstyle			0
-			textalignx			0
+			textalignx			45
 			backcolor			0 0 0 0
 			forecolor			1 .682 0 1
 			visible			1
@@ -663,9 +664,9 @@
 			font				2
 			textscale			.9
 			textaligny			-5
-			textalign			ITEM_ALIGN_LEFT
+			textalign			ITEM_ALIGN_CENTER
 			textstyle			0
-			textalignx			0
+			textalignx			45
 			backcolor			0 0 0 0
 			forecolor			1 .682 0 1
 			visible			1
@@ -712,9 +713,9 @@
 			font				2
 			textscale			.9
 			textaligny			-5
-			textalign			ITEM_ALIGN_LEFT
+			textalign			ITEM_ALIGN_CENTER
 			textstyle			0
-			textalignx			0
+			textalignx			45
 			backcolor			0 0 0 0
 			forecolor			1 .682 0 1
 			visible				1

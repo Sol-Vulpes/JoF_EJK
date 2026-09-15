@@ -395,9 +395,9 @@
 			font				2
 			textscale			.9
 			textaligny			-5
-			textalign			ITEM_ALIGN_LEFT
+			textalign			ITEM_ALIGN_CENTER
 			textstyle			0
-			textalignx			0
+			textalignx			60
 			backcolor			0 0 0 0
 			forecolor			.615 .615 .956 1
 			feeder			19	//FEEDER_PLAYER_SPECIES
@@ -441,7 +441,8 @@
 			descText "Browse species"
 			type ITEM_TYPE_BUTTON
 			style WINDOW_STYLE_SHADER
-			rect 296 88 24 24
+			// Compensate for the artwork's upper-left visual weight within the glow.
+			rect 297.5 89.5 24 24
 			forecolor 1 .682 0 1
 			visible 1
 			mouseEnter
@@ -555,9 +556,9 @@
 			font				2
 			textscale			.9
 			textaligny			-5
-			textalign			ITEM_ALIGN_LEFT
+			textalign			ITEM_ALIGN_CENTER
 			textstyle			0
-			textalignx			0
+			textalignx			45
 			backcolor			0 0 0 0
 			forecolor			1 .682 0 1
 			visible			1
@@ -606,9 +607,9 @@
 			font				2
 			textscale			.9
 			textaligny			-5
-			textalign			ITEM_ALIGN_LEFT
+			textalign			ITEM_ALIGN_CENTER
 			textstyle			0
-			textalignx			0
+			textalignx			45
 			backcolor			0 0 0 0
 			forecolor			1 .682 0 1
 			visible			1
@@ -656,9 +657,9 @@
 			font				2
 			textscale			.9
 			textaligny			-5
-			textalign			ITEM_ALIGN_LEFT
+			textalign			ITEM_ALIGN_CENTER
 			textstyle			0
-			textalignx			0
+			textalignx			45
 			backcolor			0 0 0 0
 			forecolor			1 .682 0 1
 			visible				1
