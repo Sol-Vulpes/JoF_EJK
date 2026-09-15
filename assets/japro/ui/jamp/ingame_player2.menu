@@ -239,14 +239,6 @@
 			forecolor			1 .682 0 1
 			visible			1
 
-			mouseEnter 
-			{ 
-				show			rgb_glow
-			}
-			mouseExit 
-			{ 
-				hide			rgb_glow
-			}	  	  
 			action 
 			{
 				play			"sound/interface/button1.wav"
@@ -462,18 +454,6 @@
 			{ 
 				play			"sound/interface/button1"
 			}
-		}
-
-		itemDef 
-		{
-			name				rgb_glow
-			group				none
-			style				WINDOW_STYLE_SHADER
-			rect				145 82 65 24
-			background			"gfx/menus/menu_buttonback"
-			forecolor			1 1 1 1
-			visible			0
-			decoration
 		}
 
 		itemDef
