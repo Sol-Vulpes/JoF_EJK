@@ -10387,7 +10387,8 @@ static QINLINE void CG_ChatBox_DrawStrings(void)
 
 static void CG_DrawForceSenseOverlay( void )
 {
-	if (!(cg_stylePlayer.integer & JAPRO_STYLE_FORCESENSEOVERLAY) || !cg.snap ||
+	if (cgs.serverMod != SVMOD_JAPLUS ||
+		!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWSIGHTEFFECT) || !cg.snap ||
 		cg.snap->ps.stats[STAT_HEALTH] <= 0 ||
 		cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
 		!(cg.snap->ps.fd.forcePowersActive & (1 << FP_SEE)))
