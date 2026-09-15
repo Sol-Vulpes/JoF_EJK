@@ -1696,7 +1696,8 @@ static qboolean japroPlayerStyles[] = {
 	qtrue,//Old JA+ style grapple line
 	qtrue,//Disable alternate standing pose
 	qtrue,//Force alternate standing pose on all characters
-	qtrue//Seasonal cosmetics
+	qtrue,//Seasonal cosmetics
+	qtrue//Force Sense camera effect (SP)
 };
 
 //JA+ Specific = amaltdim ?
@@ -1723,7 +1724,8 @@ static qboolean japlusPlayerStyles[] = {
 	qtrue,//Old JA+ style grapple line
 	qtrue,//Disable alternate standing pose
 	qtrue,//Force alternate standing pose on all characters
-	qtrue//Seasonal cosmetics
+	qtrue,//Seasonal cosmetics
+	qtrue//Force Sense camera effect (SP)
 };
 
 static bitInfo_T playerStyles[] = { // MAX_WEAPON_TWEAKS tweaks (24)
@@ -1749,6 +1751,7 @@ static bitInfo_T playerStyles[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{ "Enable alternate stand pose on some characters" },//19
 	{ "Force alternate stand pose on all characters" },//20
 	{ "Seasonal Cosmetics"},//21
+	{ "Force Sense camera effect (SP)" },//22
 };
 static const int MAX_PLAYERSTYLES = ARRAY_LEN(playerStyles);
 

@@ -1396,6 +1396,7 @@ static void CG_RegisterGraphics( void )
 	cgs.media.playerShieldDamage = trap->R_RegisterShader("gfx/misc/personalshield");
 	cgs.media.protectShader = trap->R_RegisterShader("gfx/misc/forceprotect");
 	cgs.media.forceSightBubble = trap->R_RegisterShader("gfx/misc/sightbubble");
+	cgs.media.forceSenseOverlay = trap->R_RegisterShader("gfx/2d/jsense");
 	cgs.media.forceShell = trap->R_RegisterShader("powerups/forceshell");
 	cgs.media.sightShell = trap->R_RegisterShader("powerups/sightshell");
 
