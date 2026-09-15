@@ -1666,6 +1666,7 @@ typedef struct cgMedia_s {
 	qhandle_t	playerShieldDamage;
 	qhandle_t	protectShader;
 	qhandle_t	forceSightBubble;
+	qhandle_t	forceSenseOverlay;
 	qhandle_t	forceShell;
 	qhandle_t	sightShell;
 
