@@ -645,6 +645,8 @@ typedef struct centity_s {
 #endif
 	
 	unsigned int	flameSndDebounceTime;
+	int				lightningEnvironmentTime;
+	int				lightningSurfaceTime;
 	unsigned int	flameThrowerHitTime;
 	qboolean		  flameThrowerSndActive;
 	qboolean	hasPlayedJetpackSounds;
@@ -1944,6 +1946,8 @@ typedef struct cgMedia_s {
 	sfxHandle_t	noAmmoSound;
 
 	qhandle_t	lightningShader; // japro loda
+	qhandle_t	forceLightningArcShader;
+	qhandle_t	forceLightningFlashShader;
 
 	//japro gibs
 	qhandle_t	gibAbdomen;
@@ -2729,6 +2733,7 @@ void FX_BlasterWeaponHitPlayer( vec3_t origin, vec3_t normal, qboolean humanoid 
 
 
 void FX_ForceDrained(vec3_t origin, vec3_t dir);
+qboolean FX_ForceLightningEnvironment(centity_t *cent, vec3_t origin, matrix3_t axis, qboolean wide);
 
 
 //-----------------------------
