@@ -2473,7 +2473,7 @@ static qboolean CG_ForceSelectUsesFlamethrower( int power )
 	// Empower overrides merc even when the server leaves the merc bit set.
 	return power == FP_LIGHTNING && cgs.serverMod == SVMOD_JAPLUS &&
 		cg.snap && (cg.snap->ps.eFlags & 0x1000) &&
-		!(cg.snap->ps.eFlags & EF_EMPOWERED);
+		!(cg.snap->ps.eFlags & EF_EMPOWERED) && !cg.forceSelectLightningOverride;
 }
 
 static qhandle_t CG_ForceSelectIcon( int power )
