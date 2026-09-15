@@ -111,6 +111,7 @@ struct DbgHelpApi
 	decltype( &SymFromAddr ) SymFromAddr;
 	decltype( &SymGetLineFromAddr64 ) SymGetLineFromAddr64;
 	decltype( &SymGetModuleInfo64 ) SymGetModuleInfo64;
+	decltype( &MiniDumpWriteDump ) MiniDumpWriteDump;
 };
 
 static bool Sys_LoadDbgHelp( DbgHelpApi *api )
@@ -130,10 +131,45 @@ static bool Sys_LoadDbgHelp( DbgHelpApi *api )
 	api->SymFromAddr = (decltype( api->SymFromAddr ))GetProcAddress( module, "SymFromAddr" );
 	api->SymGetLineFromAddr64 = (decltype( api->SymGetLineFromAddr64 ))GetProcAddress( module, "SymGetLineFromAddr64" );
 	api->SymGetModuleInfo64 = (decltype( api->SymGetModuleInfo64 ))GetProcAddress( module, "SymGetModuleInfo64" );
+	api->MiniDumpWriteDump = (decltype( api->MiniDumpWriteDump ))GetProcAddress( module, "MiniDumpWriteDump" );
 
 	return api->SymInitialize && api->SymCleanup && api->SymSetOptions && api->StackWalk64 &&
 		api->SymFunctionTableAccess64 && api->SymGetModuleBase64 && api->SymFromAddr &&
-		api->SymGetLineFromAddr64 && api->SymGetModuleInfo64;
+		api->SymGetLineFromAddr64 && api->SymGetModuleInfo64 && api->MiniDumpWriteDump;
+}
+
+// Writes a minidump (.dmp) next to the text log - registers, stack memory,
+// thread and module info, everything WinDbg/Visual Studio need to open this
+// like a live debugging session frozen at the moment of the crash, rather
+// than the hand-rolled stack trace we write to the text log (which only
+// ever gets you function names/offsets, never variable values).
+// MiniDumpWithIndirectlyReferencedMemory pulls in whatever the stack and
+// registers point to (so locals/arguments are inspectable) without going as
+// far as a full process memory dump. Deliberately NOT MiniDumpWithDataSegs -
+// that pulls in the full .data section of every one of the 30-odd loaded
+// modules (game + every system DLL), which measured ~60MB on a real crash
+// here, several times over what's practical to attach to a bug report; the
+// crashing module's globals are rarely what's needed to read a stack trace.
+static bool Sys_WriteMiniDump( DbgHelpApi *dbghelp, EXCEPTION_POINTERS *info, const char *dumpPath )
+{
+	HANDLE file = CreateFileA( dumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
+	if ( file == INVALID_HANDLE_VALUE )
+		return false;
+
+	MINIDUMP_EXCEPTION_INFORMATION exceptionInfo;
+	exceptionInfo.ThreadId = GetCurrentThreadId();
+	exceptionInfo.ExceptionPointers = info;
+	exceptionInfo.ClientPointers = FALSE;
+
+	const MINIDUMP_TYPE dumpType = (MINIDUMP_TYPE)(
+		MiniDumpWithIndirectlyReferencedMemory |
+		MiniDumpWithThreadInfo );
+
+	BOOL ok = dbghelp->MiniDumpWriteDump( GetCurrentProcess(), GetCurrentProcessId(),
+		file, dumpType, &exceptionInfo, NULL, NULL );
+
+	CloseHandle( file );
+	return ok != FALSE;
 }
 
 // Logs each loaded module's name and base address, so frames that can only
@@ -172,6 +208,21 @@ static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 	char path[MAX_OSPATH];
 	Sys_CrashDumpPath( path, sizeof( path ) );
 
+	// Same path, .dmp instead of .log.
+	char dumpPath[MAX_OSPATH];
+	Com_sprintf( dumpPath, sizeof( dumpPath ), "%s", path );
+	size_t pathLen = strlen( dumpPath );
+	if ( pathLen > 4 && !strcmp( dumpPath + pathLen - 4, ".log" ) )
+		memcpy( dumpPath + pathLen - 4, ".dmp", 4 );
+
+	DbgHelpApi dbghelp;
+	bool haveDbgHelp = Sys_LoadDbgHelp( &dbghelp );
+
+	// Written before the text log below, and independently of whether that
+	// fopen() succeeds - it's the more valuable artifact of the two, so it
+	// shouldn't be held hostage to the other one working.
+	bool wroteMiniDump = haveDbgHelp && Sys_WriteMiniDump( &dbghelp, info, dumpPath );
+
 	bool wroteDump = false;
 
 	FILE *fp = fopen( path, "w" );
@@ -187,9 +238,10 @@ static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 
 		fprintf( fp, "JoF EternalJK crash dump\n" );
 		fprintf( fp, "Built: %s %s\n", __DATE__, __TIME__ );
-		fprintf( fp, "Exception code: 0x%08lX at address %p\n\n",
+		fprintf( fp, "Exception code: 0x%08lX at address %p\n",
 			info->ExceptionRecord->ExceptionCode,
 			info->ExceptionRecord->ExceptionAddress );
+		fprintf( fp, "Minidump: %s\n\n", wroteMiniDump ? dumpPath : "(failed to write)" );
 
 		Sys_CrashDumpModules( fp );
 		fprintf( fp, "\n" );
@@ -197,8 +249,7 @@ static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 		HANDLE process = GetCurrentProcess();
 		HANDLE thread = GetCurrentThread();
 
-		DbgHelpApi dbghelp;
-		if ( Sys_LoadDbgHelp( &dbghelp ) )
+		if ( haveDbgHelp )
 		{
 			dbghelp.SymSetOptions( SYMOPT_LOAD_LINES | SYMOPT_UNDNAME );
 
@@ -297,12 +348,22 @@ static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 	// Shown either way (mirrors Sys_ErrorDialog's own fopen-failed path) -
 	// a failed write should still tell the player something happened,
 	// rather than have the game silently vanish.
-	char message[MAX_OSPATH + 256];
+	char message[2 * MAX_OSPATH + 256];
 	if ( wroteDump )
 	{
-		Com_sprintf( message, sizeof( message ),
-			"JoF EternalJK has crashed.\n\nA crash dump was written to:\n%s\n\n"
-			"Please attach this file when reporting the issue.", path );
+		if ( wroteMiniDump )
+		{
+			Com_sprintf( message, sizeof( message ),
+				"JoF EternalJK has crashed.\n\nA crash log and minidump were written to:\n%s\n%s\n\n"
+				"Please attach both files when reporting the issue.", path, dumpPath );
+		}
+		else
+		{
+			Com_sprintf( message, sizeof( message ),
+				"JoF EternalJK has crashed.\n\nA crash log was written to:\n%s\n"
+				"(the minidump could not be written)\n\n"
+				"Please attach this file when reporting the issue.", path );
+		}
 	}
 	else
 	{
