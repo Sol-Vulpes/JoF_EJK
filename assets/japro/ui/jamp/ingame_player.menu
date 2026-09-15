@@ -248,6 +248,8 @@
 		itemDef
 		{
 			name				movesbutton
+			cvarTest			ui_isJAPlus
+			showCvar			{ 1 }
 			group				none
 			text				"Moves List"
 			descText			"Moves Lists"
