@@ -9853,6 +9853,46 @@ void UI_SetSiegeTeams(void)
 	Menu_SetFeederSelection(NULL, FEEDER_SIEGE_TEAM2, -1, NULL);
 }
 
+static void UI_UpdateSiegeClassIcons( const int team )
+{
+	static const struct {
+		const char *button;
+		short baseClass;
+		const char *fallback;
+	} icons[] = {
+		{ "class1_button", SPC_INFANTRY, "gfx/mp/c_icon_infantry" },
+		{ "class2_button", SPC_HEAVY_WEAPONS, "gfx/mp/c_icon_heavy_weapons" },
+		{ "class3_button", SPC_DEMOLITIONIST, "gfx/mp/c_icon_demolitionist" },
+		{ "class4_button", SPC_VANGUARD, "gfx/mp/c_icon_vanguard" },
+		{ "class5_button", SPC_SUPPORT, "gfx/mp/c_icon_support" },
+		{ "class6_button", SPC_JEDI, "gfx/mp/c_icon_jedi_general" }
+	};
+	menuDef_t *menu = Menu_GetFocused();
+	int i;
+
+	if (!menu)
+	{
+		return;
+	}
+
+	for (i = 0; i < ARRAY_LEN(icons); i++)
+	{
+		itemDef_t *item = Menu_FindItemByName(menu, icons[i].button);
+		siegeClass_t *scl;
+
+		if (!item)
+		{
+			continue;
+		}
+
+		// The first class in this category represents it in the team picker.
+		// Use its own shader instead of forcing maps to replace Raven's icons.
+		scl = BG_GetClassOnBaseClass(team, icons[i].baseClass, 0);
+		item->window.background = (scl && scl->classShader) ? scl->classShader :
+			trap->R_RegisterShaderNoMip(icons[i].fallback);
+	}
+}
+
 static void UI_SiegeClassCnt( const int team )
 {
 	UI_SetSiegeTeams();
@@ -9863,6 +9903,10 @@ static void UI_SiegeClassCnt( const int team )
 	trap->Cvar_Set("ui_jedi_cnt", va("%d", BG_SiegeCountBaseClass(team,3)));
 	trap->Cvar_Set("ui_demo_cnt", va("%d", BG_SiegeCountBaseClass(team,4)));
 	trap->Cvar_Set("ui_heavy_cnt", va("%d", BG_SiegeCountBaseClass(team,5)));
+
+	// Refresh all six backgrounds on every team selection, including fallbacks,
+	// so icons from the previous team or map cannot remain in the menu.
+	UI_UpdateSiegeClassIcons(team);
 }
 
 /*
