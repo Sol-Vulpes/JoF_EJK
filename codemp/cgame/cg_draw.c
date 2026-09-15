@@ -8656,6 +8656,9 @@ static void CG_ScanForCrosshairEntity( void ) {
 CG_DrawCrosshairNames
 =====================
 */
+// Reset for each 2D pass; only a name actually drawn may replace its overhead.
+static int cg_drawnCrosshairNameClient = ENTITYNUM_NONE;
+
 static void CG_DrawCrosshairNames( void ) {
 	float		*color;
 	vec4_t		tcolor;
@@ -8750,6 +8753,7 @@ static void CG_DrawCrosshairNames( void ) {
 		CG_DrawProportionalString( (SCREEN_WIDTH / 2), 170, str, UI_CENTER, tcolor );
 	}
 
+	cg_drawnCrosshairNameClient = cg.crosshairClientNum;
 	trap->R_SetColor( NULL );
 }
 
@@ -10833,6 +10837,8 @@ static void CG_Draw2D( void ) {
 	float			bestTime;
 	int				drawSelect = 0;
 
+	cg_drawnCrosshairNameClient = ENTITYNUM_NONE;
+
 	// if we are taking a levelshot for the menu, don't draw anything
 	if ( cg.levelShot ) {
 		return;
@@ -12024,19 +12030,11 @@ static void CG_LeadIndicator(void)
 static void CG_PlayerLabels(void)
 {
 	int i;
-	vec3_t aimEnd;
-	trace_t aimTrace;
 
 	if (!cg.snap || (cgs.restricts & RESTRICT_PLAYERLABELS) ||
 		cg.snap->ps.duelInProgress || cg.predictedPlayerState.duelInProgress ||
 		cgs.gametype == GT_DUEL || cgs.gametype == GT_POWERDUEL)
 		return;
-
-	// Check aiming even when the crosshair/name HUD is disabled. The fresh HUD
-	// target below also covers dynamic crosshairs aimed from the weapon muzzle.
-	VectorMA(cg.refdef.vieworg, 3000.0f, cg.refdef.viewaxis[0], aimEnd);
-	CG_Trace(&aimTrace, cg.refdef.vieworg, NULL, NULL, aimEnd,
-		cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
 
 	for (i = 0; i < MAX_CLIENTS; i++) {
 		vec3_t		pos;
@@ -12061,8 +12059,7 @@ static void CG_PlayerLabels(void)
 			continue;
 		if (cent->currentState.bolt1) // Never label players participating in a private duel.
 			continue;
-		if (aimTrace.entityNum == i ||
-			(cg_drawCrosshair.integer && cg.crosshairClientTime == cg.time && cg.crosshairClientNum == i))
+		if (cg_drawnCrosshairNameClient == i)
 			continue;
 		if (CG_IsMindTricked(cent->currentState.trickedentindex,
 			cent->currentState.trickedentindex2,
