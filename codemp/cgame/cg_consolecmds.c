@@ -1565,7 +1565,7 @@ static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{"No auto replier"},//5
 	{"Disable new force effects"},//6
 	{"No new deathmsg"},//7
-	{"Force Sense camera effect (SP)"},//8 - /plugin 7 on JA+
+	{"Force Sense camera effect"},//8 - /plugin 7 on JA+
 	{"No alt dim effect"},//9
 	{"Holster staff on back"},//10
 	{"Disable Ledge grab"},//11
