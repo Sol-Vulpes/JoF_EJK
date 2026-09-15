@@ -2148,6 +2148,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			int		index;
 			qboolean	newindex = qfalse;
 
+			if (es->eventParm < 0 || es->eventParm >= MAX_GENTITIES) {
+				break;
+			}
 			index = cg_entities[es->eventParm].currentState.modelindex;		// player predicted
 
 			if (index < 1 && cg_entities[es->eventParm].currentState.isJediMaster)
