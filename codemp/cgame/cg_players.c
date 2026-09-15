@@ -4970,6 +4970,35 @@ Description: Makes the player appear to have breath puffs (from the cold).
 Added 11/06/02 by Aurelio Reis.
 Ported to MP 01/14/2019
 */
+// Client time can be corrected backwards after a large server timescale change.
+// A normal breathing cycle never schedules its next puff more than 3s ahead.
+static qboolean CG_UpdateBreathTimers(centity_t *cent)
+{
+	if (cent->breathPuffTime > cg.time &&
+		(double)cent->breathPuffTime - cg.time <= 3000.0)
+		return qfalse;
+
+	if (trap->S_GetVoiceVolume(cent->currentState.number) > 0)
+	{
+		cent->breathPuffTime = cg.time + 300;
+		cent->breathTime = cg.time + 150;
+	}
+	else
+	{
+		cent->breathPuffTime = cg.time + 3000;
+		cent->breathTime = cg.time + 1500;
+	}
+	return qtrue;
+}
+
+static float CG_BreathPitchOffset(int breathTime, int time)
+{
+	// Keep the cosmetic tilt within its normal 3.75-degree range, even if
+	// stale timing state reaches this code before the next breathing update.
+	float phase = (float)fabs((double)breathTime - time);
+	return -Com_Clamp(0.0f, 1500.0f, phase) * 0.0025f;
+}
+
 //extern vmCvar_t	cg_drawBreath;
 static void CG_BreathPuffs( centity_t *cent, vec3_t angles, vec3_t origin )
 {
@@ -4985,21 +5014,8 @@ static void CG_BreathPuffs( centity_t *cent, vec3_t angles, vec3_t origin )
 		return;
 	}
 
-	if (cent->breathPuffTime > cg.time) {
+	if (!CG_UpdateBreathTimers(cent)) {
 		return;
-	}
-
-	//Update these here incase we don't have a head_front bolt.
-	// TODO: It'd be nice if they breath faster when they're more damaged or when running...
-	if (trap->S_GetVoiceVolume(cent->currentState.number) > 0)
-	{//make breath when talking
-		cent->breathPuffTime = cg.time + 300; // every 200 ms
-		cent->breathTime = cg.time + 150;
-	}
-	else
-	{
-		cent->breathPuffTime = cg.time + 3000; // every 3 seconds.
-		cent->breathTime = cg.time + 1500;
 	}
 
 	if (cg_stylePlayer.integer & JAPRO_STYLE_DISABLEBREATHING)
@@ -5238,10 +5254,7 @@ static void CG_G2PlayerAngles( centity_t *cent, matrix3_t legs, vec3_t legsAngle
 			if (cent->currentState.torsoAnim < BOTH_ATTACK1 || cent->currentState.torsoAnim > BOTH_ROLL_STAB ||
 				(cent->currentState.torsoAnim >= BOTH_SABERFAST_STANCE && cent->currentState.torsoAnim <= BOTH_SABERSTAFF_STANCE))
 			{ //not attacking
-				if (cent->breathTime - cg.time < 0)
-					cent->lerpAngles[PITCH] += (float)(cent->breathTime - cg.time) * 0.0025f;
-				else
-					cent->lerpAngles[PITCH] -= (float)(cent->breathTime - cg.time) * 0.0025f;
+				cent->lerpAngles[PITCH] += CG_BreathPitchOffset(cent->breathTime, cg.time);
 			}
 		}
 
@@ -14671,6 +14684,8 @@ void CG_ResetPlayerEntity( centity_t *cent, qboolean preserveAnimations )
 	ci->facial_frown = 0;
 	ci->facial_aux = 0;
 	ci->superSmoothTime = 0;
+	cent->breathPuffTime = 0;
+	cent->breathTime = 0;
 
 	//reset lerp origin smooth point
 	VectorCopy(cent->lerpOrigin, cent->beamEnd);
