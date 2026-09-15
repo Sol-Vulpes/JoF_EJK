@@ -2470,8 +2470,10 @@ static qboolean CG_ForceSelectUsesFlamethrower( int power )
 {
 	// JA+ merc mode uses bit 12, also checked by CG_DrawHolsteredSaber.
 	// EF_BOBAFIRE only describes active firing, not owning the flamethrower.
+	// Empower overrides merc even when the server leaves the merc bit set.
 	return power == FP_LIGHTNING && cgs.serverMod == SVMOD_JAPLUS &&
-		cg.snap && (cg.snap->ps.eFlags & 0x1000);
+		cg.snap && (cg.snap->ps.eFlags & 0x1000) &&
+		!(cg.snap->ps.eFlags & EF_EMPOWERED);
 }
 
 static qhandle_t CG_ForceSelectIcon( int power )
