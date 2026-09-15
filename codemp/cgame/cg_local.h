@@ -2185,6 +2185,9 @@ typedef struct cgs_s {
 	qboolean		needpass;
 	qboolean		jediVmerc;
 	int				wDisable;
+	qboolean		forceUiRulesInitialized;
+	int				forceUiGametype;
+	int				forceUiWeaponDisable;
 	int				fDisable;
 
 	char			mapname[MAX_QPATH];

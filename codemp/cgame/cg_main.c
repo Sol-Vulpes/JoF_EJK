@@ -3438,6 +3438,7 @@ Called before every level change or subsystem restart
 */
 void CG_Shutdown( void )
 {
+	trap->Cvar_Set("ui_freeSaber", "0");
 	BG_ClearAnimsets(); //free all dynamic allocations made through the engine
 
 	CG_FreeCosmetics();
