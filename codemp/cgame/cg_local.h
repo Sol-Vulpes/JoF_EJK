@@ -1165,6 +1165,7 @@ typedef struct cg_s {
 	short		lastWeaponSelect[2];//japro
 
 	int			forceSelect;
+	qboolean	forceSelectLightningOverride; // Observed real lightning despite JA+'s merc bit.
 	int			itemSelect;
 
 	// auto rotating items
