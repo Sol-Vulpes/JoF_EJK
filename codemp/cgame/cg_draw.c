@@ -2470,6 +2470,14 @@ qboolean ForcePower_Valid(int i)
 CG_DrawForceSelect
 ===================
 */
+static qboolean CG_ForceSelectUsesFlamethrower( int power )
+{
+	// JA+ merc mode uses bit 12, also checked by CG_DrawHolsteredSaber.
+	// EF_BOBAFIRE only describes active firing, not owning the flamethrower.
+	return power == FP_LIGHTNING && cgs.serverMod == SVMOD_JAPLUS &&
+		cg.snap && (cg.snap->ps.eFlags & 0x1000);
+}
+
 static qhandle_t CG_ForceSelectIcon( int power )
 {
 	if ( power == REPULSE_WHEEL_SLOT )
@@ -2480,7 +2488,7 @@ static qhandle_t CG_ForceSelectIcon( int power )
 	{
 		return cgs.media.dashIcon;
 	}
-	if ( power == FP_LIGHTNING && (cg.snap->ps.eFlags & EF_BOBAFIRE) )
+	if ( CG_ForceSelectUsesFlamethrower( power ) )
 	{
 		return cgs.media.flamethrowerIcon;
 	}
@@ -2634,7 +2642,7 @@ void CG_DrawForceSelect( void )
 	{
 		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, "Dash", UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
 	}
-	else if ( cg.forceSelect == FP_LIGHTNING && (cg.snap->ps.eFlags & EF_BOBAFIRE) )
+	else if ( CG_ForceSelectUsesFlamethrower( cg.forceSelect ) )
 	{
 		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, "Flamethrower", UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
 	}
