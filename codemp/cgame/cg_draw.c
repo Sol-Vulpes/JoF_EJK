@@ -12025,9 +12025,19 @@ static void CG_LeadIndicator(void)
 static void CG_PlayerLabels(void)
 {
 	int i;
+	vec3_t aimEnd;
+	trace_t aimTrace;
 
-	if (cgs.restricts & RESTRICT_PLAYERLABELS)
+	if (!cg.snap || (cgs.restricts & RESTRICT_PLAYERLABELS) ||
+		cg.snap->ps.duelInProgress || cg.predictedPlayerState.duelInProgress ||
+		cgs.gametype == GT_DUEL || cgs.gametype == GT_POWERDUEL)
 		return;
+
+	// Check aiming even when the crosshair/name HUD is disabled. The fresh HUD
+	// target below also covers dynamic crosshairs aimed from the weapon muzzle.
+	VectorMA(cg.refdef.vieworg, 3000.0f, cg.refdef.viewaxis[0], aimEnd);
+	CG_Trace(&aimTrace, cg.refdef.vieworg, NULL, NULL, aimEnd,
+		cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
 
 	for (i = 0; i < MAX_CLIENTS; i++) {
 		vec3_t		pos;
@@ -12036,7 +12046,7 @@ static void CG_PlayerLabels(void)
 		centity_t	*cent = &cg_entities[i];
 		vec3_t		diff;
 
-		if (!cent || !cent->currentValid)
+		if (!cent->currentValid)
 			continue;
 		if (i == cg.clientNum)
 			continue;
@@ -12050,7 +12060,10 @@ static void CG_PlayerLabels(void)
 			continue;
 		if (cgs.clientinfo[i].team == TEAM_SPECTATOR)
 			continue;
-		if (cent->currentState.bolt1 && cg_hideDuelerNames.integer == 1) //if cvar is set and player is in duel - skip client, dont draw name
+		if (cent->currentState.bolt1) // Never label players participating in a private duel.
+			continue;
+		if (aimTrace.entityNum == i ||
+			(cg_drawCrosshair.integer && cg.crosshairClientTime == cg.time && cg.crosshairClientNum == i))
 			continue;
 		if (CG_IsMindTricked(cent->currentState.trickedentindex,
 			cent->currentState.trickedentindex2,
@@ -12059,21 +12072,31 @@ static void CG_PlayerLabels(void)
 			cg.snap->ps.clientNum))
 			continue;
 			
-		if (cent->cloaked)
+		if (cent->cloaked || (cent->currentState.powerups & (1 << PW_CLOAKED)))
 			continue;
 
-		VectorSubtract(cent->lerpOrigin, cg.predictedPlayerState.origin, diff);
+		VectorSubtract(cent->lerpOrigin, cg.refdef.vieworg, diff);
 		if (VectorLength(diff) >= 3000) //Make sure distance is less than... 3000 ?
 			continue;
 
-		CG_Trace( &trace, cg.predictedPlayerState.origin, NULL, NULL, cent->lerpOrigin, cg.clientNum, CONTENTS_SOLID|CONTENTS_BODY );
-		if (trace.entityNum == ENTITYNUM_WORLD)
+		// Only an unobstructed camera-to-player trace (or a hit on this player)
+		// is visible. Doors, movers and other bodies must block names too.
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, cent->lerpOrigin,
+			cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
+		if (trace.startsolid || trace.allsolid ||
+			(trace.fraction < 1.0f && trace.entityNum != i))
 			continue;
 
 		VectorCopy(cent->lerpOrigin, pos);
 		pos[2] += 64;
 
 		if (!CG_WorldCoordToScreenCoord(pos, &x, &y)) //off-screen, don't draw it
+			continue;
+
+		// The elevated label itself must not be projected through a ceiling/wall.
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, pos,
+			cg.snap->ps.clientNum, CONTENTS_SOLID);
+		if (trace.startsolid || trace.allsolid || trace.fraction < 1.0f)
 			continue;
 
 		CG_DrawScaledProportionalString(x, y, cgs.clientinfo[i].name, UI_CENTER, colorTable[CT_WHITE], cg_drawPlayerNamesScale.value);
