@@ -147,7 +147,6 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define JAPRO_STYLE_ENABLE_ALTERNATEPOSE	(1<<19)
 #define JAPRO_STYLE_FORCE_ALTERNATEPOSE		(1<<20)
 #define JAPRO_STYLE_SEASONALCOSMETICS       (1<<21)
-#define JAPRO_STYLE_FORCESENSEOVERLAY       (1<<22)
 
 //japro ignore race fx
 #define RS_TIMER_START					(1<<0) //Ignore sound for start trigger
