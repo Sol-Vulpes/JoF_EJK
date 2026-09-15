@@ -309,7 +309,7 @@
 			descText			"Back to player config"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				39 414 130 24
+			rect				39 418 130 24
 			font				3
 			textscale			1.1
 			textalign			ITEM_ALIGN_CENTER
@@ -322,7 +322,7 @@
 			mouseEnter
 			{
 				show			button_glow
-				setitemrect		button_glow	30 441 190 30
+				setitemrect		button_glow	39 418 130 24
 			}
 			mouseExit
 			{
@@ -344,7 +344,7 @@
 			name				exitgamebutton_glow
 			group				mods
 			style				WINDOW_STYLE_SHADER
-			rect				235 414 130 24
+			rect				235 418 130 24
 			background			"gfx/menus/menu_buttonback"			// Frame around button
 			forecolor			1 1 1 1
 			visible			0
@@ -359,7 +359,7 @@
 			descText			"Quit this menu"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				235 414 130 24
+			rect				235 418 130 24
 			font				3
 			textscale			1.1
 			textalign			ITEM_ALIGN_CENTER
