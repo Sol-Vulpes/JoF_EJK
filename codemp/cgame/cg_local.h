@@ -2695,6 +2695,7 @@ int CG_IsMindTricked(int trickIndex1, int trickIndex2, int trickIndex3, int tric
 void CG_Respawn( void );
 void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops );
 void CG_CheckExternalEvent( playerState_t *ps, playerState_t *ops );
+void CG_CheckConfirmedPickupEvents( playerState_t *ps, playerState_t *ops );
 void CG_CheckChangedPredictableEvents( playerState_t *ps );
 
 

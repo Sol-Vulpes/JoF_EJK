@@ -272,6 +272,7 @@ static void CG_TransitionSnapshot( void ) {
 
 		ops = &oldFrame->ps;
 		ps = &cg.snap->ps;
+		CG_CheckConfirmedPickupEvents(ps, ops);
 		// teleporting checks are irrespective of prediction
 		if ( ( ps->eFlags ^ ops->eFlags ) & EF_TELEPORT_BIT ) {
 			cg.thisFrameTeleport = qtrue;	// will be cleared by prediction code
