@@ -1892,6 +1892,7 @@ typedef struct cgMedia_s {
 	qhandle_t forcePowerIcons[NUM_FORCE_POWERS];
 	qhandle_t repulseIcon;		// JoF: custom Force Repulse wheel icon
 	qhandle_t dashIcon;			// JoF: custom Force Dash wheel icon
+	qhandle_t flamethrowerIcon;	// JoF: EF_BOBAFIRE replacement for Force Lightning
 
 	qhandle_t rageRecShader;
 
