@@ -2536,6 +2536,25 @@ void CG_NewClientInfo( int clientNum, qboolean entitiesInitialized ) {
 	if (clientNum == cg.clientNum && strlen(cg_forceOwnSaber.string) && Q_stricmp(cg_forceOwnSaber.string, "none"))
 	{
 		parsed = sscanf(cg_forceOwnSaber.string, "%s %s", saber1, saber2);
+		if (parsed > 0)
+		{
+			saberInfo_t serverSabers[MAX_SABERS];
+			const char *serverSaber2 = Info_ValueForKey(configstring, "st2");
+			int saberNum;
+
+			memset(serverSabers, 0, sizeof(serverSabers));
+			WP_SetSaber(clientNum, serverSabers, 0, v);
+			if (serverSaber2[0])
+				WP_SetSaber(clientNum, serverSabers, 1, serverSaber2);
+			for (saberNum = 0; saberNum < MAX_SABERS; saberNum++)
+			{
+				if (serverSabers[saberNum].model[0])
+				{
+					newInfo.serverSaberSoundOn[saberNum] = serverSabers[saberNum].soundOn;
+					newInfo.serverSaberSoundOff[saberNum] = serverSabers[saberNum].soundOff;
+				}
+			}
+		}
 		if (parsed > 0 && saber1 && saber1[0] && Q_stricmp(saber1, "none"))
 			v = saber1;
 	}
