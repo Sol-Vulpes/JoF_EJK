@@ -572,6 +572,7 @@ typedef struct centity_s {
 	int				bolt2;
 	int				bolt3;
 	int				bolt4;
+	qboolean		limbNoSmoke; // Cached owner type: HD packs replace limb smoke with blood.
 
 	float			bodyHeight;
 
