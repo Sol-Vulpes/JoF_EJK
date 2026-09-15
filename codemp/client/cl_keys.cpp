@@ -1804,6 +1804,16 @@ void CL_KeyDownEvent( int key, unsigned time )
 			return;
 		}
 
+		// The download progress overlay owns the cursor, so it cannot pass Escape
+		// to the UI. Hide it here while allowing the download to continue. Keep the
+		// confirmation prompt modal since dismissing it would leave the download
+		// waiting indefinitely for a decision.
+		if ( clc.downloadMenuActive && !clc.downloadWaitingOnUser ) {
+			clc.downloadMenuActive = qfalse;
+			cls.cursorActive = qfalse;
+			return;
+		}
+
 		// escape always gets out of CGAME stuff
 		if ( Key_GetCatcher() & KEYCATCH_CGAME ) {
 			Key_SetCatcher( Key_GetCatcher( ) & ~KEYCATCH_CGAME );
