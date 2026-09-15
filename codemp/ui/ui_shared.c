@@ -7681,7 +7681,6 @@ qboolean ItemParse_model_g2anim( itemDef_t *item, int handle ) {
 		i++;
 	}
 
-	Com_Printf("Could not find '%s' in the anim table\n", token.string);
 	return qtrue;
 }
 
@@ -7736,7 +7735,6 @@ qboolean ItemParse_model_g2anim_go( itemDef_t *item, const char *animName )
 		i++;
 	}
 
-	Com_Printf("Could not find '%s' in the anim table\n", animName);
 	return qtrue;
 }
 
