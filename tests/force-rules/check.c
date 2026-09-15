@@ -1,0 +1,117 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#define CHECK(c) do { if (!(c)) { fprintf(stderr, "FAIL %d: %s\n", __LINE__, #c); exit(1); } } while (0)
+typedef int qboolean;
+enum { qfalse, qtrue };
+enum { FP_HEAL, FP_LEVITATION, FP_SPEED, FP_PUSH, FP_PULL, FP_TELEPATHY,
+    FP_GRIP, FP_LIGHTNING, FP_RAGE, FP_PROTECT, FP_ABSORB, FP_TEAM_HEAL,
+    FP_TEAM_FORCE, FP_DRAIN, FP_SEE, FP_SABER_OFFENSE, FP_SABER_DEFENSE,
+    FP_SABERTHROW, NUM_FORCE_POWERS };
+enum { FORCE_LEVEL_1 = 1, FORCE_LEVEL_3 = 3, NUM_FORCE_POWER_LEVELS = 4,
+    NUM_FORCE_MASTERY_LEVELS = 8, MAX_FORCE_RANK = 7,
+    FORCE_LIGHTSIDE = 1, FORCE_DARKSIDE = 2,
+    GT_FFA = 0, GT_JEDIMASTER = 2, GT_DUEL = 3, GT_POWERDUEL = 4, GT_TEAM = 6,
+    WP_NONE = 0, WP_SABER = 3, WP_NUM_WEAPONS = 19 };
+#define DEFAULT_FORCEPOWERS "7-1-032330000000001333"
+static struct { int integer; } ui_freeSaber;
+static struct { int forceUiRulesInitialized, forceUiGametype, forceUiWeaponDisable; } cgs;
+static int testGametype, testWeapons, testDuelWeapons, writes;
+static const char *Info_ValueForKey(const char *info, const char *key) {
+    static char value[32];
+    int number = !strcmp(key, "g_gametype") ? testGametype :
+        !strcmp(key, "g_duelWeaponDisable") ? testDuelWeapons : testWeapons;
+    snprintf(value, sizeof(value), "%d", number);
+    return value;
+}
+static void SetCvar(const char *key, const char *value) {
+    CHECK(!strcmp(key, "ui_freeSaber"));
+    ui_freeSaber.integer = atoi(value);
+    ++writes;
+}
+static struct { void (*Cvar_Set)(const char *, const char *); } imports = { SetCvar }, *trap = &imports;
+static int Com_Clampi(int min, int max, int value) { return value < min ? min : value > max ? max : value; }
+static void Q_strncpyz(char *out, const char *in, size_t size) { CHECK(strlen(in) < size); strcpy(out, in); }
+static void Q_strcat(char *out, size_t size, const char *in) { CHECK(strlen(out) + strlen(in) < size); strcat(out, in); }
+static char *va(const char *format, ...) {
+    static char buffer[256]; va_list args;
+    va_start(args, format); vsnprintf(buffer, sizeof(buffer), format, args); va_end(args); return buffer;
+}
+qboolean BG_LegalizedForcePowers2(char *, size_t, int, qboolean, int, int, int, qboolean);
+#include "actual.h"
+static int UiCost(const char *loadout) {
+    int power, rank, used = 0;
+    const char *ranks = strchr(strchr(loadout, '-') + 1, '-') + 1;
+    for (power = 0; power < NUM_FORCE_POWERS; ++power)
+        for (rank = 1; rank <= ranks[power] - '0'; ++rank)
+            used += UI_ForcePowerCost(power, rank);
+    return used;
+}
+int main(void) {
+    int freeSaber, n, p, zeroPointCases = 0;
+    unsigned seed = 184;
+    const int saberOnly = ((1 << WP_NUM_WEAPONS) - 1) & ~(1 << WP_SABER);
+    char loadout[128], original[128];
+    /* First map must replace archived/previous-server state without an event. */
+    ui_freeSaber.integer = 1;
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 0 && writes == 1);
+    testWeapons = saberOnly;
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 1);
+    /* Explicit JA+ event overrides survive unrelated serverinfo changes. */
+    ui_freeSaber.integer = 0;
+    n = writes;
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 0 && writes == n);
+    /* Map restart resets the cached inputs and reconstructs the rule. */
+    cgs.forceUiRulesInitialized = 0;
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 1);
+    testGametype = GT_DUEL;
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 0);
+    testDuelWeapons = saberOnly;
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 1);
+    testGametype = GT_POWERDUEL;
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 1);
+    testGametype = GT_JEDIMASTER;
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 0);
+    testGametype = GT_FFA;
+    testWeapons = saberOnly & ~(1 << (WP_NUM_WEAPONS - 1));
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 0); /* Match server's non-pickup weapon bits. */
+    for (freeSaber = 0; freeSaber <= 1; ++freeSaber) {
+        ui_freeSaber.integer = freeSaber;
+        CHECK(UI_ForcePowerCost(FP_SABER_OFFENSE, 1) == !freeSaber);
+        CHECK(UI_ForcePowerCost(FP_SABER_DEFENSE, 1) == !freeSaber);
+        CHECK(UI_ForcePowerCost(FP_SABER_OFFENSE, 2) == 5);
+        CHECK(bgForcePowerCost[FP_SABER_OFFENSE][1] == 1);
+        CHECK(bgForcePowerCost[FP_SABER_DEFENSE][1] == 1);
+        for (n = 0; n < 10000; ++n) {
+            strcpy(loadout, n & 1 ? "7-1-" : "7-2-");
+            for (p = 0; p < NUM_FORCE_POWERS; ++p) {
+                seed = seed * 1664525u + 1013904223u;
+                loadout[4 + p] = '0' + ((seed >> 24) & 3);
+            }
+            loadout[4 + NUM_FORCE_POWERS] = 0;
+            BG_LegalizedForcePowers(loadout, sizeof(loadout), 7, freeSaber, 0, GT_FFA, 0);
+            CHECK(UiCost(loadout) <= 100);
+            if (UiCost(loadout) == 100) ++zeroPointCases;
+            strcpy(original, loadout);
+            /* UI repaint and switching rules must never modify base costs. */
+            ui_freeSaber.integer = !freeSaber;
+            (void)UiCost(loadout);
+            ui_freeSaber.integer = freeSaber;
+            CHECK(BG_LegalizedForcePowers(loadout, sizeof(loadout), 7, freeSaber, 0, GT_FFA, 0));
+            CHECK(!strcmp(original, loadout));
+        }
+    }
+    CHECK(zeroPointCases > 0);
+    printf("PASS: rule initialization/transitions/restart/overrides, duel rules, immutable costs, 20000 loadouts (%d fully spent), stable repeated validation.\n", zeroPointCases);
+    return 0;
+}
