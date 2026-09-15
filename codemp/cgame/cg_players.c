@@ -7771,6 +7771,46 @@ void CG_SaberCompWork(vec3_t start, vec3_t end, centity_t *owner, int saberNum, 
 
 qboolean BG_SuperBreakWinAnim( int anim );
 
+static void CG_SaberRainSteam(centity_t *cent, int saberNum, int bladeNum,
+	vec3_t base, vec3_t direction, float length)
+{
+	vec3_t point, sky;
+	vec3_t up = {0, 0, 1};
+	trace_t trace;
+	int contents;
+	int *nextTime = &cent->saberRainSteamTime[saberNum][bladeNum];
+
+	if (!cg.saberRainActive || cg.saberRainFrozen || cl_paused.integer ||
+		cg_saberRainSteam.integer <= 0 || length <= 0 ||
+		(cg_saberRainSteam.integer == 2 && cent->currentState.number != cg.clientNum))
+	{
+		return;
+	}
+
+	// One burst per blade every 300-600 ms, including at high FPS and in mirrors.
+	// Discard a stale deadline after rewinding a demo.
+	if (*nextTime > cg.time && *nextTime <= cg.time + 600)
+		return;
+	*nextTime = cg.time + Q_irand(300, 600);
+
+	VectorMA(base, Q_flrand(0.1f, 1.0f) * length, direction, point);
+	contents = CG_PointContents(point, cent->currentState.number);
+	if (contents & (CONTENTS_SOLID | CONTENTS_INSIDE | CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA))
+		return;
+
+	// Trace against doors and roofs too, so a rainy map does not steam indoors.
+	VectorCopy(point, sky);
+	sky[2] += 65536.0f;
+	CG_Trace(&trace, point, NULL, NULL, sky, cent->currentState.number, MASK_SOLID);
+	if (trace.startsolid || trace.allsolid ||
+		(!(trace.surfaceFlags & SURF_SKY) && !(trace.fraction == 1.0f && (contents & CONTENTS_OUTSIDE))))
+	{
+		return;
+	}
+
+	trap->FX_PlayEffectID(cgs.effects.mSaberRainSteam, point, up, -1, -1, qfalse);
+}
+
 void CG_AddSaberBlade( centity_t *cent, centity_t *scent, refEntity_t *saber, int renderfx, int modelIndex, int saberNum, int bladeNum, vec3_t origin, vec3_t angles, qboolean fromSaber, qboolean dontDraw)
 {
 	vec3_t	org_, end, v, rgb1,
@@ -8505,6 +8545,12 @@ JustDoIt:
 			CG_DoSaberLight( &client->saber[saberNum], cent->currentState.clientNum, saberNum, saberScale );//rgb
 		}
 		return;
+	}
+
+	if (!WP_SaberBladeUseSecondBladeStyle(&client->saber[saberNum], bladeNum) ||
+		!(client->saber[saberNum].saberFlags2 & SFL2_NO_BLADE2))
+	{
+		CG_SaberRainSteam(cent, saberNum, bladeNum, org_, axis_[0], saberLen);
 	}
 
 	// Pass in the renderfx flags attached to the saber weapon model...this is done so that saber glows

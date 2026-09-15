@@ -633,6 +633,7 @@ typedef struct centity_s {
 	int				lastStrafeTrailTime;
 
 	int				breathPuffTime;
+	int				saberRainSteamTime[MAX_SABERS][MAX_BLADES];
 	int				breathTime; //can maybe just use breathPuffTime from ci?
 #endif
 
@@ -1160,6 +1161,8 @@ typedef struct cg_s {
 	int			damageTaken[32];
 
 	qboolean	coldBreathEffects;
+	qboolean	saberRainActive;
+	qboolean	saberRainFrozen;
 	qboolean	rainSoundEffects;
 
 	float		zoomSensitivity;
@@ -2051,6 +2054,7 @@ typedef struct cgEffects_s {
 
 	fxHandle_t	mSparks;
 	fxHandle_t	mSaberCut;
+	fxHandle_t	mSaberRainSteam;
 	fxHandle_t	mTurretMuzzleFlash;
 	fxHandle_t	mSaberBlock;
 	fxHandle_t	mSaberBloodSparks;
