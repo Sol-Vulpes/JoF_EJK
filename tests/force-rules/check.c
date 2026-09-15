@@ -30,7 +30,32 @@ static void SetCvar(const char *key, const char *value) {
     ui_freeSaber.integer = atoi(value);
     ++writes;
 }
-static struct { void (*Cvar_Set)(const char *, const char *); } imports = { SetCvar }, *trap = &imports;
+static void Noop(void) {}
+static void WorldEffect(const char *command) { CHECK(!strcmp(command, "die")); }
+static float CvarValue(const char *name) { return 0; }
+static struct {
+    void (*Cvar_Set)(const char *, const char *);
+    void (*FX_FreeSystem)(void);
+    void (*ROFF_Clean)(void);
+    void (*R_WorldEffectCommand)(const char *);
+    float (*Cvar_VariableValue)(const char *);
+} imports = { SetCvar, Noop, Noop, WorldEffect, CvarValue }, *trap = &imports;
+static struct { struct { int started, file; } log; } cg;
+static void BG_ClearAnimsets(void) {}
+static void CG_FreeCosmetics(void) {}
+static void CG_DestroyAllGhoul2(void) {}
+static void UI_CleanupGhoul2(void) {}
+static void CG_LogPrintf(int file, const char *format, ...) {}
+static void CG_CloseLog(int *file) {}
+typedef int menuDef_t;
+enum { FORCE_NONJEDI, FORCE_JEDI, TEAM_SPECTATOR = 3 };
+static int uiForcePowersRank[NUM_FORCE_POWERS], uiForceUsed, uiForceAvailable;
+static int uiMaxRank = 7, uiForceRank = 7, uiJediNonJedi;
+static qboolean UI_TrueJediEnabled(void) { return qfalse; }
+static const char *UI_TeamName(int team) { return "spectator"; }
+static void UI_UpdateClientForcePowers(const char *team) { CHECK(0); }
+static menuDef_t *Menus_FindByName(const char *name) { return NULL; }
+static void Menu_ShowItemByName(menuDef_t *menu, const char *name, qboolean show) {}
 static int Com_Clampi(int min, int max, int value) { return value < min ? min : value > max ? max : value; }
 static void Q_strncpyz(char *out, const char *in, size_t size) { CHECK(strlen(in) < size); strcpy(out, in); }
 static void Q_strcat(char *out, size_t size, const char *in) { CHECK(strlen(out) + strlen(in) < size); strcat(out, in); }
@@ -53,6 +78,45 @@ int main(void) {
     unsigned seed = 184;
     const int saberOnly = ((1 << WP_NUM_WEAPONS) - 1) & ~(1 << WP_SABER);
     char loadout[128], original[128];
+    /* Reported full light-side build: jump, all light powers, offense/defense
+       at rank 3, then the last point in Push. Reconnect must not trim defense. */
+    memset(uiForcePowersRank, 0, sizeof(uiForcePowersRank));
+    uiForcePowersRank[FP_HEAL] = uiForcePowersRank[FP_LEVITATION] = 3;
+    uiForcePowersRank[FP_TELEPATHY] = uiForcePowersRank[FP_PROTECT] = 3;
+    uiForcePowersRank[FP_ABSORB] = uiForcePowersRank[FP_TEAM_HEAL] = 3;
+    uiForcePowersRank[FP_SABER_OFFENSE] = uiForcePowersRank[FP_SABER_DEFENSE] = 3;
+    uiForcePowersRank[FP_PUSH] = 1;
+    ui_freeSaber.integer = 1;
+    UpdateForceUsed();
+    CHECK(uiForceAvailable == 0 && uiForcePowersRank[FP_SABER_DEFENSE] == 3);
+    /* Reproduce the old teardown behavior: two temporary extra costs drop
+       the eight-point rank, which is not restored when the rule comes back. */
+    ui_freeSaber.integer = 0;
+    UpdateForceUsed();
+    ui_freeSaber.integer = 1;
+    UpdateForceUsed();
+    CHECK(uiForceAvailable == 8 && uiForcePowersRank[FP_SABER_DEFENSE] == 2);
+    uiForcePowersRank[FP_SABER_DEFENSE] = 3;
+    UpdateForceUsed();
+    CG_Shutdown();
+    UpdateForceUsed(); /* UI frame between shutdown and the next gamestate. */
+    CHECK(ui_freeSaber.integer == 1);
+    CHECK(uiForceAvailable == 0 && uiForcePowersRank[FP_SABER_DEFENSE] == 3);
+    testWeapons = saberOnly;
+    memset(&cgs, 0, sizeof(cgs));
+    CG_SyncFreeSaber("");
+    UpdateForceUsed();
+    CHECK(uiForceAvailable == 0 && uiForcePowersRank[FP_SABER_DEFENSE] == 3);
+    /* A different server still replaces the preserved rule with paid costs. */
+    CG_Shutdown();
+    memset(&cgs, 0, sizeof(cgs));
+    testWeapons = 0;
+    CG_SyncFreeSaber("");
+    CHECK(ui_freeSaber.integer == 0);
+    UpdateForceUsed();
+    CHECK(uiForceAvailable == 6 && uiForcePowersRank[FP_SABER_DEFENSE] == 2);
+    memset(&cgs, 0, sizeof(cgs));
+    writes = 0;
     /* First map must replace archived/previous-server state without an event. */
     ui_freeSaber.integer = 1;
     CG_SyncFreeSaber("");
@@ -112,6 +176,6 @@ int main(void) {
         }
     }
     CHECK(zeroPointCases > 0);
-    printf("PASS: rule initialization/transitions/restart/overrides, duel rules, immutable costs, 20000 loadouts (%d fully spent), stable repeated validation.\n", zeroPointCases);
+    printf("PASS: eight-point reconnect regression, shutdown/new-server rules, rule initialization/transitions/restart/overrides, duel rules, immutable costs, 20000 loadouts (%d fully spent), stable repeated validation.\n", zeroPointCases);
     return 0;
 }

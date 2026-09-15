@@ -14,6 +14,12 @@ mocked. It checks map/rule transitions, restart initialization, preservation of
 explicit server overrides, duel weapon rules, and 20,000 generated loadouts,
 including fully spent allocations. It is not an in-game networking/UI test.
 
+The reconnect regression also executes production `CG_Shutdown` and
+`UpdateForceUsed` with cleanup/menu imports mocked. It checks a 100-point
+light-side allocation (Jump, all light powers, Saber Offense and Defense at
+rank 3, Push at rank 1), a UI refresh between shutdown and reconnection, and
+connection to a different server with paid saber ranks.
+
 ## Live verification
 
 Use matching updated UI and cgame modules. The existing engine-side
@@ -42,3 +48,7 @@ seeds it from the advertised saber-only rules on initialization/restart and
 updates it when the rule inputs change. Explicit server events still override
 that default. A mod that does not advertise its rules still needs to send its
 free-saber event; the client cannot infer an unadvertised custom rule.
+
+Shutdown deliberately retains the last known costs until the next gamestate
+replaces them. Resetting them during teardown can irreversibly trim a rank
+from the UI allocation before the actual server rules arrive.
