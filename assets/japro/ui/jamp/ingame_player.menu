@@ -218,7 +218,7 @@
 			decoration
 		}
 
-		// Cosmetics above the custom-character icon; Moves List sits in the top-right row.
+		// Moves List directly above Cosmetics, followed by the custom-character icon.
 		itemDef
 		{
 			name				cosmeticsbutton
@@ -227,7 +227,7 @@
 			descText			"Wear a hat or a cape"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				425 78 160 26
+			rect				425 126 160 26
 			textalign			ITEM_ALIGN_CENTER
 			textalignx			80
 			textaligny			2
@@ -255,7 +255,7 @@
 			descText			"Moves Lists"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				425 26 160 26
+			rect				425 100 160 26
 			textalign			ITEM_ALIGN_CENTER
 			textalignx			80
 			textaligny			2
