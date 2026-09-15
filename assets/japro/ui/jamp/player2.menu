@@ -441,7 +441,8 @@
 			descText "Browse species"
 			type ITEM_TYPE_BUTTON
 			style WINDOW_STYLE_SHADER
-			rect 296 88 24 24
+			// Compensate for the artwork's upper-left visual weight within the glow.
+			rect 297.5 89.5 24 24
 			forecolor 1 .682 0 1
 			visible 1
 			mouseEnter

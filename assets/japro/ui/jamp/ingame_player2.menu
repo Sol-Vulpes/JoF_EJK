@@ -181,7 +181,8 @@
 			descText			"Browse species"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_SHADER
-			rect				287 48 24 24
+			// Compensate for the artwork's upper-left visual weight within the glow.
+			rect				288.5 49.5 24 24
 			forecolor			1 .682 0 1
 			visible				1
 			mouseEnter
@@ -213,11 +214,11 @@
 			group				none
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				15 80 100 24
+			rect				10 80 90 24
 			forecolor			1 .682 0 1
 			text				"COLORS" //@MENUS_COLOR
-			textalign			ITEM_ALIGN_LEFT
-			textalignx			0
+			textalign			ITEM_ALIGN_CENTER
+			textalignx			45
 			textaligny			-1
 			font				3
 			textscale 			1
