@@ -4987,14 +4987,6 @@ void Item_Multi_Paint(itemDef_t *item) {
 	}
 
 	Item_TextColor(item, &color);
-	// Center the changing species value itself, not its blank multi label.
-	if (item->special == FEEDER_PLAYER_SPECIES && item->textalignment == ITEM_ALIGN_CENTER) {
-		DC->drawText(item->window.rect.x + item->textalignx -
-			DC->textWidth(text, item->textscale, item->iMenuFont) / 2.0f,
-			item->window.rect.y + item->textaligny, item->textscale,
-			color, text, 0, 0, item->textStyle, item->iMenuFont);
-		return;
-	}
 	if (item->text) {
 		Item_Text_Paint(item);
 		DC->drawText(item->textRect.x + item->textRect.w + 8, item->textRect.y, item->textscale, color, text, 0, 0, item->textStyle,item->iMenuFont);
