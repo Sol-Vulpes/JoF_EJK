@@ -2438,7 +2438,7 @@ void CG_CreateNPCClient(clientInfo_t **ci);
 void CG_DestroyNPCClient(clientInfo_t **ci);
 
 void CG_Player( centity_t *cent );
-void CG_ResetPlayerEntity( centity_t *cent );
+void CG_ResetPlayerEntity( centity_t *cent, qboolean preserveAnimations );
 void CG_AddRefEntityWithPowerups( refEntity_t *ent, entityState_t *state, int team );
 void CG_NewClientInfo( int clientNum, qboolean entitiesInitialized );
 qboolean CG_ModelIsBlacklisted( const char *modelName );

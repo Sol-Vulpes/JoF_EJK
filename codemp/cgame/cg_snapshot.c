@@ -39,7 +39,7 @@ static void CG_LastWeapon(void);
 CG_ResetEntity
 ==================
 */
-static void CG_ResetEntity( centity_t *cent ) {
+static void CG_ResetEntity( centity_t *cent, qboolean preserveAnimations ) {
 	// if the previous snapshot this entity was updated in is at least
 	// an event window back in time then we can reset the previous event
 	if ( cent->snapShotTime < cg.time - EVENT_VALID_MSEC ) {
@@ -65,7 +65,7 @@ static void CG_ResetEntity( centity_t *cent ) {
 #endif
 
 	if ( cent->currentState.eType == ET_PLAYER || cent->currentState.eType == ET_NPC ) {
-		CG_ResetPlayerEntity( cent );
+		CG_ResetPlayerEntity( cent, preserveAnimations );
 	}
 }
 
@@ -77,12 +77,21 @@ cent->nextState is moved to cent->currentState and events are fired
 ===============
 */
 void CG_TransitionEntity( centity_t *cent ) {
+	// Returning to visibility should not replay an unchanged held animation.
+	// Teleports and entity/model replacements still require a full reset.
+	qboolean preserveAnimations = cent->ghoul2 != NULL &&
+		cent->currentState.eType == ET_PLAYER &&
+		cent->currentState.eType == cent->nextState.eType &&
+		cent->currentState.clientNum == cent->nextState.clientNum &&
+		cent->currentState.modelindex == cent->nextState.modelindex &&
+		!((cent->currentState.eFlags ^ cent->nextState.eFlags) & EF_TELEPORT_BIT);
+
 	cent->currentState = cent->nextState;
 	cent->currentValid = qtrue;
 
 	// reset if the entity wasn't in the last frame or was teleported
 	if ( !cent->interpolate ) {
-		CG_ResetEntity( cent );
+		CG_ResetEntity( cent, preserveAnimations );
 	}
 
 	// clear the next state.  if will be set by the next CG_SetNextSnap
@@ -142,7 +151,7 @@ void CG_SetInitialSnapshot( snapshot_t *snap ) {
 		cent->interpolate = qfalse;
 		cent->currentValid = qtrue;
 
-		CG_ResetEntity( cent );
+		CG_ResetEntity( cent, qfalse );
 
 		// check for events
 		CG_CheckEvents( cent );
