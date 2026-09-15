@@ -235,7 +235,7 @@
 			}
 			doubleclick
 			{
-				play			sound/interface/button1.wav
+				play			"sound/interface/button1.wav"
 			}
 		}
 
