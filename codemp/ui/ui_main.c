@@ -8986,16 +8986,11 @@ static void UI_RunMenuScript(char **args)
 					modelPtr = item->typeData.model;
 					if (modelPtr)
 					{
-						char modelPath[MAX_QPATH];
-
 						uiInfo.movesBaseAnim = datapadMoveTitleBaseAnims[uiInfo.movesTitleIndex];
 						ItemParse_model_g2anim_go( item,  uiInfo.movesBaseAnim );
 						uiInfo.moveAnimTime = 0 ;
 
-						Com_sprintf( modelPath, sizeof( modelPath ), "models/players/%s/model.glm", UI_Cvar_VariableString ( "ui_char_model" ) );
-						ItemParse_asset_model_go( item, modelPath, &animRunLength);
-
-						UI_UpdateCharacterSkin();
+						UI_UpdateWornCharacter( item, &animRunLength );
 						UI_SaberAttachToChar( item );
 					}
 				}
@@ -10774,9 +10769,9 @@ void UI_ClearCosmetics( void )
 
 /*
 =================
-UI_UpdateCosmeticsCharacter
+UI_UpdateWornCharacter
 
-Point the cosmetics preview at the model the player is actually wearing.
+Point a preview at the model the player is actually wearing, preserving its requested animation.
 
 The customise screen's ui_char_model is no good for this: getcharcvars only keeps it when the
 model is a multipart custom jedi or a known species, and silently resets it to the default
@@ -10784,23 +10779,12 @@ jedi for an ordinary model like "kyle/default". So read the "model" cvar - the r
 same string that goes out in userinfo - and drive the preview item from that.
 =================
 */
-void UI_UpdateCosmeticsCharacter( void )
+void UI_UpdateWornCharacter( itemDef_t *item, int *animRunLength )
 {
-	menuDef_t	*menu;
-	itemDef_t	*item;
 	char		model[MAX_QPATH], modelPath[MAX_QPATH], skinPath[MAX_QPATH];
 	char		*parts, *skin;
-	int			animRunLength;
 
-	//look the menu up by name rather than by focus - a silent miss here just leaves the
-	//preview empty, which is maddening to diagnose from the outside
-	menu = Menus_FindByName( "ingame_cosmetics" );
-	if ( !menu )
-	{
-		return;
-	}
-
-	item = (itemDef_t *)Menu_FindItemByName( menu, "character" );
+	*animRunLength = 0;
 	if ( !item )
 	{
 		return;
@@ -10845,7 +10829,7 @@ void UI_UpdateCosmeticsCharacter( void )
 	Com_sprintf( modelPath, sizeof( modelPath ), "models/players/%s/model.glm", model );
 
 	//asset_model_go re-applies the anim the .menu asked for, so no need to set it again here
-	ItemParse_asset_model_go( item, modelPath, &animRunLength );
+	ItemParse_asset_model_go( item, modelPath, animRunLength );
 	ItemParse_model_g2skin_go( item, skinPath );
 
 	//asset_model_go swallows a failed load (its Com_Error is commented out). Rendering an
@@ -10854,8 +10838,19 @@ void UI_UpdateCosmeticsCharacter( void )
 	{
 		Com_sprintf( modelPath, sizeof( modelPath ), "models/players/%s/model.glm", DEFAULT_MODEL );
 		Com_sprintf( skinPath, sizeof( skinPath ), "models/players/%s/model_default.skin", DEFAULT_MODEL );
-		ItemParse_asset_model_go( item, modelPath, &animRunLength );
+		ItemParse_asset_model_go( item, modelPath, animRunLength );
 		ItemParse_model_g2skin_go( item, skinPath );
+	}
+}
+
+void UI_UpdateCosmeticsCharacter( void )
+{
+	menuDef_t *menu = Menus_FindByName( "ingame_cosmetics" );
+	int animRunLength;
+
+	if ( menu )
+	{
+		UI_UpdateWornCharacter( Menu_FindItemByName( menu, "character" ), &animRunLength );
 	}
 }
 
@@ -12253,14 +12248,11 @@ qboolean UI_FeederSelection(float feederFloat, int index, itemDef_t *item)
 				modelPtr = item->typeData.model;
 				if (modelPtr)
 				{
-					char modelPath[MAX_QPATH];
 					int animRunLength;
 
 					ItemParse_model_g2anim_go( item,  datapadMoveData[uiInfo.movesTitleIndex][index].anim );
 
-					Com_sprintf( modelPath, sizeof( modelPath ), "models/players/%s/model.glm", UI_Cvar_VariableString ( "ui_char_model" ) );
-					ItemParse_asset_model_go( item, modelPath, &animRunLength );
-					UI_UpdateCharacterSkin();
+					UI_UpdateWornCharacter( item, &animRunLength );
 
 					uiInfo.moveAnimTime = uiInfo.uiDC.realTime + animRunLength;
 
@@ -12334,16 +12326,12 @@ qboolean UI_FeederSelection(float feederFloat, int index, itemDef_t *item)
 				modelPtr = item->typeData.model;
 				if (modelPtr)
 				{
-					char modelPath[MAX_QPATH];
 					int	animRunLength;
 
 					uiInfo.movesBaseAnim = datapadMoveTitleBaseAnims[uiInfo.movesTitleIndex];
 					ItemParse_model_g2anim_go( item,  uiInfo.movesBaseAnim );
 
-					Com_sprintf( modelPath, sizeof( modelPath ), "models/players/%s/model.glm", UI_Cvar_VariableString ( "ui_char_model" ) );
-					ItemParse_asset_model_go( item, modelPath, &animRunLength );
-
-					UI_UpdateCharacterSkin();
+					UI_UpdateWornCharacter( item, &animRunLength );
 
 				}
 			}

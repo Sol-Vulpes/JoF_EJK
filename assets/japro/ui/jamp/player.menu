@@ -686,31 +686,6 @@
 			}
 		}
 
-		itemDef
-		{
-			name				movesbutton
-			group				none
-			text				"Moves List"
-			descText			"Moves Lists"
-			type				ITEM_TYPE_BUTTON
-			style				WINDOW_STYLE_EMPTY
-			rect				425 276 200 26
-			textalign			ITEM_ALIGN_CENTER
-			textalignx			100
-			textaligny			2
-			font				2
-			textscale			.9
-			backcolor			0 0 0 0
-			forecolor			1 .682 0 1
-			visible				1
-			action
-			{
-				play			"sound/interface/button1.wav"
-				close			playerMenu
-				open			rulesMenu_moves
-			}
-		}
-
 		itemDef 
 		{
 			name				custom

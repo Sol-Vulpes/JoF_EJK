@@ -5466,20 +5466,20 @@ void Item_Model_Paint(itemDef_t *item)
 
 	// a moves datapad anim is playing
 #ifdef UI_BUILD
-	if (uiInfo.moveAnimTime && (uiInfo.moveAnimTime < uiInfo.uiDC.realTime))
+	if (uiInfo.moveAnimTime && (uiInfo.moveAnimTime < uiInfo.uiDC.realTime) &&
+		item->parent && ((menuDef_t *)item->parent)->window.name &&
+		!Q_stricmp(((menuDef_t *)item->parent)->window.name, "rulesMenu_moves") &&
+		item->window.name && !Q_stricmp(item->window.name, "character"))
 	{
 		if (modelPtr)
 		{
-			char modelPath[MAX_QPATH];
-
-			Com_sprintf( modelPath, sizeof( modelPath ), "models/players/%s/model.glm", UI_Cvar_VariableString ( "ui_char_model" ) );
 			//HACKHACKHACK: check for any multi-part anim sequences, and play the next anim, if needbe
 			switch( modelPtr->g2anim )
 			{
 			case BOTH_FORCEWALLREBOUND_FORWARD:
 			case BOTH_FORCEJUMP1:
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCEINAIR1].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				if ( !uiInfo.moveAnimTime )
 				{
 					uiInfo.moveAnimTime = 500;
@@ -5488,45 +5488,43 @@ void Item_Model_Paint(itemDef_t *item)
 				break;
 			case BOTH_FORCEINAIR1:
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCELAND1].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_FORCEWALLRUNFLIP_START:
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCEWALLRUNFLIP_END].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_FORCELONGLEAP_START:
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCELONGLEAP_LAND].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_KNOCKDOWN3://on front - into force getup
 				trap->S_StartLocalSound( uiInfo.uiDC.Assets.moveJumpSound, CHAN_LOCAL );
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCE_GETUP_F1].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_KNOCKDOWN2://on back - kick forward getup
 				trap->S_StartLocalSound( uiInfo.uiDC.Assets.moveJumpSound, CHAN_LOCAL );
 				ItemParse_model_g2anim_go( item, animTable[BOTH_GETUP_BROLL_F].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_KNOCKDOWN1://on back - roll-away
 				trap->S_StartLocalSound( uiInfo.uiDC.Assets.moveRollSound, CHAN_LOCAL );
 				ItemParse_model_g2anim_go( item, animTable[BOTH_GETUP_BROLL_R].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			default:
 				ItemParse_model_g2anim_go( item,  uiInfo.movesBaseAnim );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime = 0;
 				break;
 			}
-
-			UI_UpdateCharacterSkin();
 
 			//update saber models
 			UI_SaberAttachToChar( item );
