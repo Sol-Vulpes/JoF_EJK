@@ -13401,8 +13401,6 @@ void UI_Init( qboolean inGameLoad ) {
 
 	UI_SiegeInit();
 
-	UI_UpdateForcePowers();
-
 	UI_InitMemory();
 
 	// cache redundant calulations
@@ -13485,6 +13483,10 @@ void UI_Init( qboolean inGameLoad ) {
 	Init_Display(&uiInfo.uiDC);
 
 	UI_RegisterCvars();
+	// Load the saved allocation only after the VM cvars contain their engine
+	// values. A zero-initialized ui_freeSaber otherwise trims valid saber ranks
+	// before the menu opens, even when the engine already has free saber enabled.
+	UI_UpdateForcePowers();
 	UI_Set2DRatio();
 
 	String_Init();

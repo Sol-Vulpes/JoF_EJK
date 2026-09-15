@@ -20,17 +20,27 @@ light-side allocation (Jump, all light powers, Saber Offense and Defense at
 rank 3, Push at rank 1), a UI refresh between shutdown and reconnection, and
 connection to a different server with paid saber ranks.
 
+The UI initialization check uses the registration/load order extracted from
+`UI_Init`, with production `UI_UpdateForcePowers`, `UpdateForceUsed` and
+`UI_UpdateClientForcePowers`. It reproduces the screenshot's saved request
+changing from `7-1-330103000333000330` to `7-1-330103000333000320` under
+the old load-before-registration order, then verifies the current order
+preserves Defense rank 3 through the menu's save operation. Engine cvars and
+the UI's initially zeroed cvar mirror are represented separately for this test.
+
 ## Live verification
 
 Use matching updated UI and cgame modules. The existing engine-side
 `forcechanged`/userinfo ordering fix should also be present.
 
 1. On Public, run `/forceinfo` before changing the loadout on each affected map.
-   Compare the advertised weapon rules, `ui_freeSaber`, requested loadout and
-   server-applied ranks. Matching max rank and force-disable settings alone
+   Compare the advertised weapon rules, `ui_freeSaber`, and requested loadout.
+   Matching max rank and force-disable settings alone
    does not establish that the saber costs should match.
 2. Repeat with a fully spent loadout, apply it, respawn, and run `/forceinfo`
-   again. Confirm that the server kept the selected ranks.
+   again. Confirm the requested ranks stay unchanged, and test powers in-game.
+   The protocol does not transmit full applied ranks; `/forceinfo` cannot
+   verify server-applied Saber Offense/Defense from the snapshot.
 3. Test paid-to-free and free-to-paid saber rules, map changes, reconnects and
    `map_restart`. Repeat after changing a serverinfo setting unrelated to
    weapons, checking that explicit `EV_SET_FREE_SABER` overrides survive it.
@@ -39,7 +49,7 @@ Use matching updated UI and cgame modules. The existing engine-side
    ordinary costs.
 5. For the separate devmap stance/attack report, record `/forceinfo` while
    playing as yourself (not following), before and during the lock. Include
-   the map, server mod, saber models and reproduction steps. Offense rank,
+   the map, server mod, saber models and reproduction steps. Requested offense rank,
    holster state, weapon timer, hand extension and saber lock state are
    relevant; the synchronization patch does not bypass gameplay restrictions.
 

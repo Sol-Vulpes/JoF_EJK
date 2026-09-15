@@ -18,6 +18,8 @@ enum { FORCE_LEVEL_1 = 1, FORCE_LEVEL_3 = 3, NUM_FORCE_POWER_LEVELS = 4,
 static struct { int integer; } ui_freeSaber;
 static struct { int forceUiRulesInitialized, forceUiGametype, forceUiWeaponDisable; } cgs;
 static int testGametype, testWeapons, testDuelWeapons, writes;
+static char savedForcePowers[128];
+static int engineFreeSaber, forceSaves;
 static const char *Info_ValueForKey(const char *info, const char *key) {
     static char value[32];
     int number = !strcmp(key, "g_gametype") ? testGametype :
@@ -26,6 +28,12 @@ static const char *Info_ValueForKey(const char *info, const char *key) {
     return value;
 }
 static void SetCvar(const char *key, const char *value) {
+    if (!strcmp(key, "forcepowers")) {
+        CHECK(strlen(value) < sizeof(savedForcePowers));
+        strcpy(savedForcePowers, value);
+        ++forceSaves;
+        return;
+    }
     CHECK(!strcmp(key, "ui_freeSaber"));
     ui_freeSaber.integer = atoi(value);
     ++writes;
@@ -33,13 +41,16 @@ static void SetCvar(const char *key, const char *value) {
 static void Noop(void) {}
 static void WorldEffect(const char *command) { CHECK(!strcmp(command, "die")); }
 static float CvarValue(const char *name) { return 0; }
+enum { EXEC_APPEND };
+static void ExecuteText(int mode, const char *text) {}
 static struct {
     void (*Cvar_Set)(const char *, const char *);
     void (*FX_FreeSystem)(void);
     void (*ROFF_Clean)(void);
     void (*R_WorldEffectCommand)(const char *);
     float (*Cvar_VariableValue)(const char *);
-} imports = { SetCvar, Noop, Noop, WorldEffect, CvarValue }, *trap = &imports;
+    void (*Cmd_ExecuteText)(int, const char *);
+} imports = { SetCvar, Noop, Noop, WorldEffect, CvarValue, ExecuteText }, *trap = &imports;
 static struct { struct { int started, file; } log; } cg;
 static void BG_ClearAnimsets(void) {}
 static void CG_FreeCosmetics(void) {}
@@ -51,9 +62,15 @@ typedef int menuDef_t;
 enum { FORCE_NONJEDI, FORCE_JEDI, TEAM_SPECTATOR = 3 };
 static int uiForcePowersRank[NUM_FORCE_POWERS], uiForceUsed, uiForceAvailable;
 static int uiMaxRank = 7, uiForceRank = 7, uiJediNonJedi;
+static int uiForceSide, gTouchedForce;
+static void UI_RegisterCvars(void) { ui_freeSaber.integer = engineFreeSaber; }
+static char *UI_Cvar_VariableString(const char *name) {
+    CHECK(!strcmp(name, "forcepowers"));
+    return savedForcePowers;
+}
 static qboolean UI_TrueJediEnabled(void) { return qfalse; }
 static const char *UI_TeamName(int team) { return "spectator"; }
-static void UI_UpdateClientForcePowers(const char *team) { CHECK(0); }
+void UI_UpdateClientForcePowers(const char *team);
 static menuDef_t *Menus_FindByName(const char *name) { return NULL; }
 static void Menu_ShowItemByName(menuDef_t *menu, const char *name, qboolean show) {}
 static int Com_Clampi(int min, int max, int value) { return value < min ? min : value > max ? max : value; }
@@ -78,6 +95,32 @@ int main(void) {
     unsigned seed = 184;
     const int saberOnly = ((1 << WP_NUM_WEAPONS) - 1) & ~(1 << WP_SABER);
     char loadout[128], original[128];
+    /* Exact screenshot request. Engine cvar survives UI reload, but the
+       newly loaded UI VM starts with a zero-initialized cvar mirror. */
+    strcpy(savedForcePowers, "7-1-330103000333000330");
+    engineFreeSaber = 1;
+    ui_freeSaber.integer = 0;
+    /* Old startup order reproduces the reported request change on menu open. */
+    UI_UpdateForcePowers();
+    UI_RegisterCvars();
+    UpdateForceUsed();
+    CHECK(uiForceAvailable == 8 && uiForcePowersRank[FP_SABER_DEFENSE] == 2);
+    UI_UpdateClientForcePowers(NULL);
+    CHECK(!strcmp(savedForcePowers, "7-1-330103000333000320"));
+    strcpy(savedForcePowers, "7-1-330103000333000330");
+    forceSaves = 0;
+    ui_freeSaber.integer = 0;
+    TestUiInitOrder();
+    UpdateForceUsed(); /* First refresh after registration cannot undo trimming. */
+    CHECK(uiForceAvailable == 0 && uiForcePowersRank[FP_SABER_DEFENSE] == 3);
+    UI_UpdateClientForcePowers(NULL); /* Force menu onOpen: setForce none. */
+    CHECK(!strcmp(savedForcePowers, "7-1-330103000333000330"));
+    CHECK(forceSaves == 1);
+    /* Genuine paid-saber rules must still enforce their additional cost. */
+    engineFreeSaber = 0;
+    ui_freeSaber.integer = 1;
+    TestUiInitOrder();
+    CHECK(uiForceAvailable == 6 && uiForcePowersRank[FP_SABER_DEFENSE] == 2);
     /* Reported full light-side build: jump, all light powers, offense/defense
        at rank 3, then the last point in Push. Reconnect must not trim defense. */
     memset(uiForcePowersRank, 0, sizeof(uiForcePowersRank));
