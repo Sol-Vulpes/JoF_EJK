@@ -351,6 +351,9 @@ typedef struct clientInfo_s {
 	float			colorOverride[3];
 
 	saberInfo_t		saber[MAX_SABERS];
+	// Original server saber sounds, before cg_forceOwnSaber replaces the hilts.
+	sfxHandle_t		serverSaberSoundOn[MAX_SABERS];
+	sfxHandle_t		serverSaberSoundOff[MAX_SABERS];
 	void			*ghoul2Weapons[MAX_SABERS];
 
 	char			saberName[MAX_QPATH];
