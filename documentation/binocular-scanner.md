@@ -6,6 +6,8 @@ readouts and segments, and green shield readouts and segments complement the exi
 Players use their names; NPCs are labeled `NPC`, or `Vehicle` for vehicle-class
 entities. Internal NPC types and scripted names may not describe the visible
 model, so they are not displayed.
+Player names retain the full `MAX_NETNAME` buffer and shrink to fit the panel
+based on rendered text width; short names keep the normal text size.
 Shield means `STAT_ARMOR`.
 Bars use the target's maximum health as their normal capacity, matching JA's HUD;
 vehicle shield bars use the vehicle definition's shield capacity when available.

@@ -523,8 +523,9 @@ static void CG_DrawBinocularTargets(void) {
 		vec3_t point;
 		trace_t trace;
 		float sx, sy, x, y, healthFraction, shieldCapacity;
+		float nameScale, nameWidth, nameAvailableWidth;
 		int j;
-		char label[64];
+		char label[MAX_NETNAME];
 		char healthDigits[16], shieldDigits[16];
 		if (!cent->currentValid || target->entityNum == cg.snap->ps.clientNum ||
 			(cent->currentState.eType != ET_PLAYER && cent->currentState.eType != ET_NPC) ||
@@ -587,12 +588,18 @@ static void CG_DrawBinocularTargets(void) {
 		if (cent->currentState.eType == ET_PLAYER && target->entityNum < MAX_CLIENTS) {
 			Q_strncpyz(label, cgs.clientinfo[target->entityNum].name, sizeof(label));
 			Q_CleanStr(label);
-			label[18] = '\0';
 		} else {
 			// NPC types and scripted names need not describe the visible model.
 			Q_strncpyz(label, cent->currentState.NPC_class == CLASS_VEHICLE ? "Vehicle" : "NPC", sizeof(label));
 		}
-		CG_Text_Paint(x + 6 * ratio, y + 3 * scale, 0.5f * scale, amber, label, 0, (int)(width - 12 * ratio), ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		// Fit the full name by its rendered width, not its character count.
+		// Reserve a little space for the shadow and never clip trailing letters.
+		nameScale = 0.5f * scale;
+		nameAvailableWidth = width - 14 * ratio;
+		nameWidth = CG_Text_Width(label, nameScale, FONT_SMALL);
+		if (nameWidth > nameAvailableWidth)
+			nameScale *= nameAvailableWidth / nameWidth;
+		CG_Text_Paint(x + 6 * ratio, y + 3 * scale, nameScale, amber, label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
 		healthFraction = (float)target->health / target->maxHealth;
 		CG_Text_Paint(x + 6 * ratio, y + 17 * scale, 0.5f * scale, healthColor,
 			va("HEALTH  %i", target->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
