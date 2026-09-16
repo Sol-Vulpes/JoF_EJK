@@ -44,6 +44,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 	#include <execinfo.h>
 	#include <fcntl.h>
 	#include <unistd.h>
+	#if defined(__APPLE__)
+		#include <mach-o/dyld.h>
+	#endif
 #endif
 
 // Guards against two threads crashing at once, not just one thread
@@ -237,6 +240,7 @@ static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 		setvbuf( fp, NULL, _IONBF, 0 );
 
 		fprintf( fp, "JoF EternalJK crash dump\n" );
+		fprintf( fp, "Version: %s (%s@%s)\n", JOFVERSION, JOF_GIT_BRANCH, JOF_COMMIT_SHA_SHORT );
 		fprintf( fp, "Built: %s %s\n", __DATE__, __TIME__ );
 		fprintf( fp, "Exception code: 0x%08lX at address %p\n",
 			info->ExceptionRecord->ExceptionCode,
@@ -386,6 +390,47 @@ void Sys_InstallCrashHandler( void )
 
 static const int crashSignals[] = { SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGBUS };
 
+// Logs loaded modules so frames backtrace_symbols_fd can only resolve to
+// "binary(function+offset)" (no matching debug info) can still be rebased
+// against the right build's binary/debug file afterwards - same purpose as
+// the Modules: section on the Windows side.
+static void Sys_CrashDumpModules( int fd )
+{
+	const char header[] = "Modules:\n";
+	write( fd, header, sizeof( header ) - 1 );
+
+#if defined(__APPLE__)
+	uint32_t count = _dyld_image_count();
+	for ( uint32_t i = 0; i < count; i++ )
+	{
+		const char *name = _dyld_get_image_name( i );
+		const struct mach_header *mh = _dyld_get_image_header( i );
+		if ( !name || !mh )
+			continue;
+
+		char line[512];
+		int len = snprintf( line, sizeof( line ), "  %p %s\n", (const void *)mh, name );
+		if ( len > 0 )
+			write( fd, line, (size_t)len );
+	}
+#else
+	// Linux: /proc/self/maps already has exactly what we need (address
+	// ranges + module paths per mapped region) - copy it through as-is
+	// rather than parsing it ourselves.
+	int mapsFd = open( "/proc/self/maps", O_RDONLY );
+	if ( mapsFd >= 0 )
+	{
+		char buf[4096];
+		ssize_t n;
+		while ( ( n = read( mapsFd, buf, sizeof( buf ) ) ) > 0 )
+			write( fd, buf, (size_t)n );
+		close( mapsFd );
+	}
+#endif
+
+	write( fd, "\n", 1 );
+}
+
 // Runs on the crashing thread inside the signal handler. Strictly this
 // isn't async-signal-safe (Sys_CrashDumpPath formats a timestamp via libc,
 // and Com_sprintf/backtrace_symbols_fd may allocate), but it's a best-effort
@@ -413,10 +458,16 @@ static void Sys_CrashHandler( int sig, siginfo_t *info, void *ucontext )
 	{
 		char header[512];
 		int len = snprintf( header, sizeof( header ),
-			"JoF EternalJK crash dump\nBuilt: %s %s\nSignal: %d (%s)\nFaulting address: %p\n\nStack trace:\n",
+			"JoF EternalJK crash dump\nVersion: %s (%s@%s)\nBuilt: %s %s\nSignal: %d (%s)\nFaulting address: %p\n\n",
+			JOFVERSION, JOF_GIT_BRANCH, JOF_COMMIT_SHA_SHORT,
 			__DATE__, __TIME__, sig, strsignal( sig ), info ? info->si_addr : NULL );
 		if ( len > 0 )
 			write( fd, header, (size_t)len );
+
+		Sys_CrashDumpModules( fd );
+
+		const char stackHeader[] = "Stack trace:\n";
+		write( fd, stackHeader, sizeof( stackHeader ) - 1 );
 
 		void *frames[64];
 		int frameCount = backtrace( frames, ARRAY_LEN( frames ) );
