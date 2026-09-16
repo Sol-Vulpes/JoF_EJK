@@ -1189,6 +1189,7 @@ static void CG_MapRestart( void ) {
 	if (CG_UsesPickupConfirmation()) {
 		cg.itemPickup = 0;
 	}
+	cg.pickupHandshakeActive = cg.pickupConfirmed = qfalse;
 	for (i = 0 ; i < MAX_CLIENTS ; i++)
 	{
 		ci = &cgs.clientinfo[i];

@@ -1243,8 +1243,7 @@ typedef struct cg_s {
 
 	int			itemPickup;
 	int             pickupQueue[16];
-	int pickupHandshakeTime;
-	int pickupConfirmUntil;
+	qboolean pickupConfirmed;
 	qboolean pickupHandshakeActive;
 	int             pickupQueueHead, pickupQueueCount;
 	int			itemPickupTime;
