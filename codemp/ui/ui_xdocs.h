@@ -78,6 +78,12 @@ XDOCS_CVAR_DEF("cg_saberRainSteam", "Steam on exposed lightsabers during rain",
 	SETTING("2", "Only on your own lightsabers")
 )
 
+XDOCS_CVAR_DEF("cg_tauntAntiSpam", "Throttle repeated model voice lines per player",
+	"A player's taunt, bow, meditate, flourish and gloat lines share one timer, so no single player can repeat voice lines back to back." NL
+	SETTING("0", "Off, every voice line plays") NL
+	SETTING("1", "On, at most one voice line per player every 5 seconds (default)")
+)
+
 //XDOCS_CVAR_DEF("cg_", "Description",
 	//"More somethings if needed." NL
 	//SETTING("0", "something something probably (Base behavior)") NL

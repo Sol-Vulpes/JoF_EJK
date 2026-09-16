@@ -1564,6 +1564,49 @@ static qboolean CG_ProximityCheck(vec3_t pos1, vec3_t pos2) { //Returns qtrue if
 	return qtrue;
 }
 
+// cg_tauntAntiSpam: one debounce per player covering every model voice line, so a taunt
+// bind cannot machine gun the same line and cycling between lines cannot get around it.
+#define TAUNT_ANTISPAM_DEBOUNCE 5000
+static int cg_tauntSoundDebounce[MAX_CLIENTS];
+
+// Returns qtrue (suppress the voice line) if this player played one too recently.
+// Updates the debounce timer when the line is allowed through.
+static qboolean CG_TauntVoiceThrottled( int clientNum ) {
+	int last;
+
+	if ( !cg_tauntAntiSpam.integer )
+		return qfalse;
+
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return qfalse; // NPCs and world entities have their own cooldowns
+
+	last = cg_tauntSoundDebounce[clientNum];
+	if ( last && cg.time >= last && cg.time - last < TAUNT_ANTISPAM_DEBOUNCE )
+		return qtrue; // suppress
+
+	cg_tauntSoundDebounce[clientNum] = cg.time;
+	return qfalse;
+}
+
+// Model voice lines a player can fire off at will.  Servers that route taunts through a
+// generic sound event still land here, so they share the same per-player debounce.
+static qboolean CG_IsTauntVoiceSound( const char *soundName ) {
+	static const char *tauntSounds[] = {
+		"taunt", "anger", "gloat", "victory", "deflect", "respect", "meditate"
+	};
+	size_t i;
+
+	if ( !soundName || soundName[0] != '*' )
+		return qfalse;
+
+	soundName++;
+	for ( i = 0; i < ARRAY_LEN( tauntSounds ); i++ ) {
+		if ( !Q_stricmpn( soundName, tauntSounds[i], strlen( tauntSounds[i] ) ) )
+			return qtrue;
+	}
+	return qfalse;
+}
+
 /*
 ==============
 CG_EntityEvent
@@ -2028,7 +2071,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			{
 				soundIndex = CG_CustomSound( es->number, "*taunt.wav" );
 			}
-			if ( soundIndex )
+			if ( soundIndex && !CG_TauntVoiceThrottled( es->number ) )
 			{
 				trap->S_StartSound (NULL, es->number, CHAN_VOICE, soundIndex );
 			}
@@ -2168,7 +2211,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_TAUNT2:
 	case EV_TAUNT3:
 		DEBUGNAME("EV_TAUNTx");
-		CG_TryPlayCustomSound( NULL, es->number, CHAN_VOICE, va("*taunt%i.wav", event - EV_TAUNT1 + 1) );
+		if ( !CG_TauntVoiceThrottled( es->number ) )
+			CG_TryPlayCustomSound( NULL, es->number, CHAN_VOICE, va("*taunt%i.wav", event - EV_TAUNT1 + 1) );
 		break;
 	case EV_JCHASE1:
 	case EV_JCHASE2:
@@ -3791,6 +3835,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 						CG_ForceOwnSaberSound(es, es->number, cgs.gameSounds[ es->eventParm ]) );
 				} else {
 					s = CG_ConfigString( CS_SOUNDS + es->eventParm );
+					if ( CG_IsTauntVoiceSound( s ) && CG_TauntVoiceThrottled( es->number ) )
+						break;
 					trap->S_StartSound (NULL, es->number, es->saberEntityNum, CG_CustomSound( es->number, s ) );
 				}
 			}
@@ -3889,6 +3935,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 				CG_ForceOwnSaberSound(es, es->clientNum, cgs.gameSounds[ es->eventParm ]) );
 		} else {
 			s = CG_ConfigString( CS_SOUNDS + es->eventParm );
+			if ( CG_IsTauntVoiceSound( s ) && CG_TauntVoiceThrottled( es->clientNum ) )
+				break;
 			trap->S_StartSound (NULL, es->clientNum, es->trickedentindex, CG_CustomSound( es->clientNum, s ) );
 		}
 		break;
