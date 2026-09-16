@@ -44,6 +44,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 	#include <execinfo.h>
 	#include <fcntl.h>
 	#include <unistd.h>
+	#if defined(__APPLE__)
+		#include <mach-o/dyld.h>
+	#endif
 #endif
 
 // Guards against two threads crashing at once, not just one thread
@@ -111,6 +114,7 @@ struct DbgHelpApi
 	decltype( &SymFromAddr ) SymFromAddr;
 	decltype( &SymGetLineFromAddr64 ) SymGetLineFromAddr64;
 	decltype( &SymGetModuleInfo64 ) SymGetModuleInfo64;
+	decltype( &MiniDumpWriteDump ) MiniDumpWriteDump;
 };
 
 static bool Sys_LoadDbgHelp( DbgHelpApi *api )
@@ -130,10 +134,45 @@ static bool Sys_LoadDbgHelp( DbgHelpApi *api )
 	api->SymFromAddr = (decltype( api->SymFromAddr ))GetProcAddress( module, "SymFromAddr" );
 	api->SymGetLineFromAddr64 = (decltype( api->SymGetLineFromAddr64 ))GetProcAddress( module, "SymGetLineFromAddr64" );
 	api->SymGetModuleInfo64 = (decltype( api->SymGetModuleInfo64 ))GetProcAddress( module, "SymGetModuleInfo64" );
+	api->MiniDumpWriteDump = (decltype( api->MiniDumpWriteDump ))GetProcAddress( module, "MiniDumpWriteDump" );
 
 	return api->SymInitialize && api->SymCleanup && api->SymSetOptions && api->StackWalk64 &&
 		api->SymFunctionTableAccess64 && api->SymGetModuleBase64 && api->SymFromAddr &&
-		api->SymGetLineFromAddr64 && api->SymGetModuleInfo64;
+		api->SymGetLineFromAddr64 && api->SymGetModuleInfo64 && api->MiniDumpWriteDump;
+}
+
+// Writes a minidump (.dmp) next to the text log - registers, stack memory,
+// thread and module info, everything WinDbg/Visual Studio need to open this
+// like a live debugging session frozen at the moment of the crash, rather
+// than the hand-rolled stack trace we write to the text log (which only
+// ever gets you function names/offsets, never variable values).
+// MiniDumpWithIndirectlyReferencedMemory pulls in whatever the stack and
+// registers point to (so locals/arguments are inspectable) without going as
+// far as a full process memory dump. Deliberately NOT MiniDumpWithDataSegs -
+// that pulls in the full .data section of every one of the 30-odd loaded
+// modules (game + every system DLL), which measured ~60MB on a real crash
+// here, several times over what's practical to attach to a bug report; the
+// crashing module's globals are rarely what's needed to read a stack trace.
+static bool Sys_WriteMiniDump( DbgHelpApi *dbghelp, EXCEPTION_POINTERS *info, const char *dumpPath )
+{
+	HANDLE file = CreateFileA( dumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
+	if ( file == INVALID_HANDLE_VALUE )
+		return false;
+
+	MINIDUMP_EXCEPTION_INFORMATION exceptionInfo;
+	exceptionInfo.ThreadId = GetCurrentThreadId();
+	exceptionInfo.ExceptionPointers = info;
+	exceptionInfo.ClientPointers = FALSE;
+
+	const MINIDUMP_TYPE dumpType = (MINIDUMP_TYPE)(
+		MiniDumpWithIndirectlyReferencedMemory |
+		MiniDumpWithThreadInfo );
+
+	BOOL ok = dbghelp->MiniDumpWriteDump( GetCurrentProcess(), GetCurrentProcessId(),
+		file, dumpType, &exceptionInfo, NULL, NULL );
+
+	CloseHandle( file );
+	return ok != FALSE;
 }
 
 // Logs each loaded module's name and base address, so frames that can only
@@ -172,6 +211,21 @@ static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 	char path[MAX_OSPATH];
 	Sys_CrashDumpPath( path, sizeof( path ) );
 
+	// Same path, .dmp instead of .log.
+	char dumpPath[MAX_OSPATH];
+	Com_sprintf( dumpPath, sizeof( dumpPath ), "%s", path );
+	size_t pathLen = strlen( dumpPath );
+	if ( pathLen > 4 && !strcmp( dumpPath + pathLen - 4, ".log" ) )
+		memcpy( dumpPath + pathLen - 4, ".dmp", 4 );
+
+	DbgHelpApi dbghelp;
+	bool haveDbgHelp = Sys_LoadDbgHelp( &dbghelp );
+
+	// Written before the text log below, and independently of whether that
+	// fopen() succeeds - it's the more valuable artifact of the two, so it
+	// shouldn't be held hostage to the other one working.
+	bool wroteMiniDump = haveDbgHelp && Sys_WriteMiniDump( &dbghelp, info, dumpPath );
+
 	bool wroteDump = false;
 
 	FILE *fp = fopen( path, "w" );
@@ -186,10 +240,12 @@ static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 		setvbuf( fp, NULL, _IONBF, 0 );
 
 		fprintf( fp, "JoF EternalJK crash dump\n" );
+		fprintf( fp, "Version: %s (%s@%s)\n", JOFVERSION, JOF_GIT_BRANCH, JOF_COMMIT_SHA_SHORT );
 		fprintf( fp, "Built: %s %s\n", __DATE__, __TIME__ );
-		fprintf( fp, "Exception code: 0x%08lX at address %p\n\n",
+		fprintf( fp, "Exception code: 0x%08lX at address %p\n",
 			info->ExceptionRecord->ExceptionCode,
 			info->ExceptionRecord->ExceptionAddress );
+		fprintf( fp, "Minidump: %s\n\n", wroteMiniDump ? dumpPath : "(failed to write)" );
 
 		Sys_CrashDumpModules( fp );
 		fprintf( fp, "\n" );
@@ -197,8 +253,7 @@ static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 		HANDLE process = GetCurrentProcess();
 		HANDLE thread = GetCurrentThread();
 
-		DbgHelpApi dbghelp;
-		if ( Sys_LoadDbgHelp( &dbghelp ) )
+		if ( haveDbgHelp )
 		{
 			dbghelp.SymSetOptions( SYMOPT_LOAD_LINES | SYMOPT_UNDNAME );
 
@@ -297,12 +352,22 @@ static LONG WINAPI Sys_CrashHandler( EXCEPTION_POINTERS *info )
 	// Shown either way (mirrors Sys_ErrorDialog's own fopen-failed path) -
 	// a failed write should still tell the player something happened,
 	// rather than have the game silently vanish.
-	char message[MAX_OSPATH + 256];
+	char message[2 * MAX_OSPATH + 256];
 	if ( wroteDump )
 	{
-		Com_sprintf( message, sizeof( message ),
-			"JoF EternalJK has crashed.\n\nA crash dump was written to:\n%s\n\n"
-			"Please attach this file when reporting the issue.", path );
+		if ( wroteMiniDump )
+		{
+			Com_sprintf( message, sizeof( message ),
+				"JoF EternalJK has crashed.\n\nA crash log and minidump were written to:\n%s\n%s\n\n"
+				"Please attach both files when reporting the issue.", path, dumpPath );
+		}
+		else
+		{
+			Com_sprintf( message, sizeof( message ),
+				"JoF EternalJK has crashed.\n\nA crash log was written to:\n%s\n"
+				"(the minidump could not be written)\n\n"
+				"Please attach this file when reporting the issue.", path );
+		}
 	}
 	else
 	{
@@ -324,6 +389,47 @@ void Sys_InstallCrashHandler( void )
 #else // !_WIN32
 
 static const int crashSignals[] = { SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGBUS };
+
+// Logs loaded modules so frames backtrace_symbols_fd can only resolve to
+// "binary(function+offset)" (no matching debug info) can still be rebased
+// against the right build's binary/debug file afterwards - same purpose as
+// the Modules: section on the Windows side.
+static void Sys_CrashDumpModules( int fd )
+{
+	const char header[] = "Modules:\n";
+	write( fd, header, sizeof( header ) - 1 );
+
+#if defined(__APPLE__)
+	uint32_t count = _dyld_image_count();
+	for ( uint32_t i = 0; i < count; i++ )
+	{
+		const char *name = _dyld_get_image_name( i );
+		const struct mach_header *mh = _dyld_get_image_header( i );
+		if ( !name || !mh )
+			continue;
+
+		char line[512];
+		int len = snprintf( line, sizeof( line ), "  %p %s\n", (const void *)mh, name );
+		if ( len > 0 )
+			write( fd, line, (size_t)len );
+	}
+#else
+	// Linux: /proc/self/maps already has exactly what we need (address
+	// ranges + module paths per mapped region) - copy it through as-is
+	// rather than parsing it ourselves.
+	int mapsFd = open( "/proc/self/maps", O_RDONLY );
+	if ( mapsFd >= 0 )
+	{
+		char buf[4096];
+		ssize_t n;
+		while ( ( n = read( mapsFd, buf, sizeof( buf ) ) ) > 0 )
+			write( fd, buf, (size_t)n );
+		close( mapsFd );
+	}
+#endif
+
+	write( fd, "\n", 1 );
+}
 
 // Runs on the crashing thread inside the signal handler. Strictly this
 // isn't async-signal-safe (Sys_CrashDumpPath formats a timestamp via libc,
@@ -352,10 +458,16 @@ static void Sys_CrashHandler( int sig, siginfo_t *info, void *ucontext )
 	{
 		char header[512];
 		int len = snprintf( header, sizeof( header ),
-			"JoF EternalJK crash dump\nBuilt: %s %s\nSignal: %d (%s)\nFaulting address: %p\n\nStack trace:\n",
+			"JoF EternalJK crash dump\nVersion: %s (%s@%s)\nBuilt: %s %s\nSignal: %d (%s)\nFaulting address: %p\n\n",
+			JOFVERSION, JOF_GIT_BRANCH, JOF_COMMIT_SHA_SHORT,
 			__DATE__, __TIME__, sig, strsignal( sig ), info ? info->si_addr : NULL );
 		if ( len > 0 )
 			write( fd, header, (size_t)len );
+
+		Sys_CrashDumpModules( fd );
+
+		const char stackHeader[] = "Stack trace:\n";
+		write( fd, stackHeader, sizeof( stackHeader ) - 1 );
 
 		void *frames[64];
 		int frameCount = backtrace( frames, ARRAY_LEN( frames ) );
