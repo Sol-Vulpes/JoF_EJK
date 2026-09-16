@@ -6,7 +6,7 @@ server is JAPro-derived; a separately maintained JA+ server must port the change
 
 ## Protocol v1
 
-- Server advertises `g_pickupConfirm=1` in serverinfo (ROM).
+- JoF JA+ server advertises `V=2.5B0` and `g_pickupConfirm=1` in serverinfo. Other servers retain original client pickup behavior even if they advertise the capability, including this repository's JAPro-derived server.
 - Client advertises `cg_pickupConfirm=1` in userinfo (ROM).
 - After an accepted health, armor, ammo or holdable pickup, the server sends
   the collector `jof_pickup <item-modelindex>` on the reliable command channel.
@@ -43,7 +43,7 @@ bounds. It does **not** simulate a live network or prove audibility/rendering.
 
 ## Required live checks
 
-1. Run the updated server module and client; verify both capability cvars are 1.
+1. Run the updated JoF JA+ server (`V=2.5B0`) and client; verify both capability cvars are 1.
 2. At low health/armor, collect a shield and medpack together: verify both stats,
    two console lines and feedback sounds, and the two icons displayed in sequence.
 3. Near capacity, touch several shields or medpacks: feedback must match only

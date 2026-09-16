@@ -1216,10 +1216,10 @@ require a reload of all the media
 static void CG_MapRestart( void ) {
 	int i;
 	clientInfo_t *ci;
-		cgs.forceUiRulesInitialized = qfalse;
-		CG_SyncFreeSaber(CG_ConfigString(CS_SERVERINFO));
 		cg.pickupQueueHead = cg.pickupQueueCount = 0;
-		cg.itemPickup = 0;
+		if (CG_UsesPickupConfirmation()) {
+			cg.itemPickup = 0;
+		}
 	for (i = 0 ; i < MAX_CLIENTS ; i++)
 	{
 		ci = &cgs.clientinfo[i];

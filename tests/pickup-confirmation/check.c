@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#ifdef _WIN32
+#define Q_stricmp _stricmp
+#else
+#include <strings.h>
+#define Q_stricmp strcasecmp
+#endif
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"FAIL %d: %s\n",__LINE__,#x); exit(1); } } while(0)
 #define ARRAY_LEN(x) (sizeof(x)/sizeof((x)[0]))
 #define MAX_CLIENTS 32
@@ -23,10 +29,11 @@ static struct {
  snapshot_t *snap;
 } cg;
 static const char *serverVersion = "1", *clientVersion = "1", *argument = "1", *extra = "";
+static const char *jaPlusVersion = "2.5B0";
 static char messages[32][64];
 static int messageCount, soundCount, feedbackCount, feedback[32];
 static const char *CG_ConfigString(int n) { return serverVersion; }
-static const char *Info_ValueForKey(const char *info, const char *key) { return info; }
+static const char *Info_ValueForKey(const char *info, const char *key) { return strcmp(key,"V") == 0 ? jaPlusVersion : info; }
 static const char *CG_Argv(int n) { return n == 1 ? argument : extra; }
 static void GetUserinfo(int n, char *out, int size) { snprintf(out,size,"%s",clientVersion); }
 static void SendServerCommand(int n,const char *text) { CHECK(n==0); CHECK(messageCount<32); strcpy(messages[messageCount++],text); }
@@ -67,6 +74,15 @@ int main(void) {
  snapshot.ps.clientNum=1; CG_ConfirmedPickup_f(); CHECK(feedbackCount==4); snapshot.ps.clientNum=0;
  serverVersion=""; CG_ConfirmedPickup_f(); CHECK(feedbackCount==4 && !CG_UsesPickupConfirmation());
  serverVersion="2"; CHECK(!CG_UsesPickupConfirmation()); serverVersion="1";
+ /* Other servers retain ordinary feedback even when advertising capability. */
+ jaPlusVersion=""; CHECK(!CG_UsesPickupConfirmation()); CG_ConfirmedPickup_f();
+ jaPlusVersion="2.4B8"; CHECK(!CG_UsesPickupConfirmation()); CG_ConfirmedPickup_f();
+ jaPlusVersion="2.5B0-other"; CHECK(!CG_UsesPickupConfirmation()); CG_ConfirmedPickup_f();
+ CHECK(feedbackCount==4 && soundCount==4);
+ cg.pickupQueueCount=0;
+ CG_QueuePickupNotification(2); CHECK(cg.itemPickup==2 && cg.pickupQueueCount==0);
+ jaPlusVersion="2.5B0"; CHECK(CG_UsesPickupConfirmation());
+ cg_pickupConfirm.integer=0; CHECK(!CG_UsesPickupConfirmation()); cg_pickupConfirm.integer=1;
  clientVersion=""; G_ConfirmItemPickup(&item,&collector); CHECK(messageCount==2);
  clientVersion="2"; G_ConfirmItemPickup(&item,&collector); CHECK(messageCount==2);
  clientVersion="1"; item.item=&bg_itemlist[5]; G_ConfirmItemPickup(&item,&collector); CHECK(messageCount==2);
