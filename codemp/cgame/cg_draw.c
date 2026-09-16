@@ -470,6 +470,142 @@ CG_DrawZoomMask
 
 ================
 */
+static void CG_DrawBinocularMeter(float x, float y, float width, float fraction, float scale, vec4_t color) {
+	vec4_t dim = { 0.12f, 0.24f, 0.24f, 0.65f };
+	int i;
+	fraction = Q_max(0.0f, Q_min(1.0f, fraction));
+	for (i = 0; i < 12; i++) {
+		CG_FillRect(x + i * width / 12.0f, y, width / 12.0f - cgs.widthRatioCoef * scale, 2 * scale,
+			fraction * 12 > i ? color : dim);
+	}
+}
+
+// Use the same digit artwork as the default HUD, with floating-point spacing
+// so the binocular percentage scale also works for small and widescreen labels.
+static void CG_DrawBinocularDigits(float x, float y, const char *digits, float scale, vec4_t color) {
+	vec4_t shadow = { 0, 0, 0, 0.7f };
+	float ratio = cgs.widthRatioCoef * scale;
+	for (; *digits; digits++, x += 7 * ratio) {
+		qhandle_t shader = cgs.media.smallnumberShaders[*digits - '0'];
+		trap->R_SetColor(shadow);
+		CG_DrawPic(x + ratio, y + scale, 6 * ratio, 12 * scale, shader);
+		trap->R_SetColor(color);
+		CG_DrawPic(x, y, 6 * ratio, 12 * scale, shader);
+	}
+}
+
+static void CG_DrawBinocularTargets(void) {
+	vec4_t amber = { 1.0f, 0.74f, 0.30f, 0.95f };
+	vec4_t healthColor = { 1.0f, 0.25f, 0.22f, 0.95f };
+	vec4_t shieldColor = { 0.30f, 1.0f, 0.40f, 0.95f };
+	vec4_t background = { 0.015f, 0.045f, 0.055f, 0.78f };
+	float placedX[MAX_BINOCULAR_TARGETS], placedY[MAX_BINOCULAR_TARGETS];
+	float scale = Q_max(25, Q_min(200, cg_binocularScanScale.integer)) * 0.01f;
+	qboolean compact = cg_binocularScanStyle.integer == 1;
+	float ratio = cgs.widthRatioCoef * scale, width = 130.0f * ratio;
+	float height = (compact ? 22.0f : 50.0f) * scale, gap = 4.0f * scale;
+	float placedWidth[MAX_BINOCULAR_TARGETS];
+	int i, placed = 0;
+	if (cg.predictedPlayerState.zoomMode != 2) {
+		cg.binocularTargetCount = 0;
+		return;
+	}
+	if (!cg.snap || cg.snap->ps.zoomMode != 2 ||
+		cg.predictedPlayerState.stats[STAT_HEALTH] <= 0 || cg.intermissionStarted ||
+		cg.snap->ps.clientNum != cg.clientNum ||
+		cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
+		(cgs.serverMod == SVMOD_JAPRO && cg.predictedPlayerState.stats[STAT_RACEMODE]) ||
+		cg.time < cg.binocularUpdateTime || cg.time - cg.binocularUpdateTime > BINOCULAR_EXPIRE_MSEC)
+		return;
+	for (i = 0; i < cg.binocularTargetCount; i++) {
+		binocularTarget_t *target = &cg.binocularTargets[i];
+		centity_t *cent = &cg_entities[target->entityNum];
+		vec3_t point;
+		trace_t trace;
+		float sx, sy, x, y, healthFraction;
+		int j;
+		char label[64];
+		char healthDigits[16], shieldDigits[16];
+		if (!cent->currentValid || target->entityNum == cg.snap->ps.clientNum ||
+			(cent->currentState.eType != ET_PLAYER && cent->currentState.eType != ET_NPC) ||
+			(cent->currentState.eFlags & (EF_DEAD | EF_NODRAW)) || cent->cloaked ||
+			(cent->currentState.powerups & (1 << PW_CLOAKED)) ||
+			CG_IsMindTricked(cent->currentState.trickedentindex, cent->currentState.trickedentindex2,
+				cent->currentState.trickedentindex3, cent->currentState.trickedentindex4, cg.snap->ps.clientNum))
+			continue;
+		VectorCopy(cent->lerpOrigin, point);
+		point[2] += 8;
+		if (!CG_WorldCoordToScreenCoord(point, &sx, &sy) || sx < 110 || sx > 530 || sy < 125 || sy > 340)
+			continue;
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, point, cg.snap->ps.clientNum, MASK_SHOT);
+		if (trace.startsolid || trace.allsolid || (trace.fraction < 1.0f && trace.entityNum != target->entityNum))
+			continue;
+		if (compact) {
+			Com_sprintf(healthDigits, sizeof(healthDigits), "%i", target->health);
+			Com_sprintf(shieldDigits, sizeof(shieldDigits), "%i", target->armor);
+			width = (24 + 7 * (strlen(healthDigits) + strlen(shieldDigits))) * ratio;
+		}
+		x = sx + 16 * ratio;
+		if (x + width > 535)
+			x = sx - 16 * ratio - width;
+		x = Q_max(105.0f, x);
+		y = Q_max(125.0f, Q_min(345.0f - height, sy - (compact ? 11 : 24) * scale));
+		for (j = 0; j < placed; j++) {
+			if (x < placedX[j] + placedWidth[j] + gap && x + width + gap > placedX[j] &&
+				y < placedY[j] + height + gap && y + height + gap > placedY[j])
+				break;
+		}
+		if (j != placed)
+			continue;
+		placedX[placed] = x;
+		placedWidth[placed] = width;
+		placedY[placed++] = y;
+		CG_FillRect(x, y, width, height, background);
+		// Open corner brackets and a short leader evoke the existing macrobinocular optics.
+		CG_FillRect(sx - 3 * ratio, sy - 5 * scale, ratio, 10 * scale, amber);
+		CG_FillRect(sx - 3 * ratio, sy - 5 * scale, 6 * ratio, scale, amber);
+		CG_FillRect(sx - 3 * ratio, sy + 5 * scale, 6 * ratio, scale, amber);
+		if (x > sx)
+			CG_FillRect(sx + 3 * ratio, sy, x - sx - 3 * ratio, scale, amber);
+		else if (x + width < sx - 3 * ratio)
+			CG_FillRect(x + width, sy, sx - 3 * ratio - x - width, scale, amber);
+		CG_FillRect(x, y, 14 * ratio, scale, amber);
+		CG_FillRect(x, y, ratio, 8 * scale, amber);
+		CG_FillRect(x + width - 14 * ratio, y + height - scale, 14 * ratio, scale, amber);
+		CG_FillRect(x + width - ratio, y + height - 8 * scale, ratio, 8 * scale, amber);
+		if (compact) {
+			float separatorX = x + (6 + 7 * strlen(healthDigits)) * ratio;
+			CG_DrawBinocularDigits(x + 6 * ratio, y + 5 * scale, healthDigits, scale, healthColor);
+			// Font drawing rounds x/y to integers; keep the separator on the
+			// same floating-point image path as the digits to avoid relative jitter.
+			trap->R_SetColor(amber);
+			CG_DrawRotatePic2(separatorX + 6 * ratio, y + 11 * scale,
+				1.2f * ratio, 10 * scale, 20.0f, cgs.media.whiteShader);
+			CG_DrawBinocularDigits(separatorX + 12 * ratio, y + 5 * scale, shieldDigits, scale, shieldColor);
+			continue;
+		}
+		if (cent->currentState.eType == ET_PLAYER && target->entityNum < MAX_CLIENTS) {
+			Q_strncpyz(label, cgs.clientinfo[target->entityNum].name, sizeof(label));
+			Q_CleanStr(label);
+			label[18] = '\0';
+		} else {
+			Q_strncpyz(label, target->name[0] ? target->name : "Unknown", sizeof(label));
+		}
+		CG_Text_Paint(x + 6 * ratio, y + 3 * scale, 0.5f * scale, amber, label, 0, (int)(width - 12 * ratio), ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		healthFraction = (float)target->health / target->maxHealth;
+		CG_Text_Paint(x + 6 * ratio, y + 17 * scale, 0.5f * scale, healthColor,
+			va("HEALTH  %i", target->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		CG_DrawBinocularMeter(x + 6 * ratio, y + 28 * scale, width - 12 * ratio, healthFraction, scale,
+			healthColor);
+		CG_Text_Paint(x + 6 * ratio, y + 32 * scale, 0.5f * scale, shieldColor,
+			va("SHIELD  %i", target->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		// JA uses max health as the normal armor capacity; numbers preserve overcharge.
+		CG_DrawBinocularMeter(x + 6 * ratio, y + 43 * scale, width - 12 * ratio,
+			(float)target->armor / target->maxHealth, scale, shieldColor);
+	}
+	trap->R_SetColor(NULL);
+}
+
 static void CG_DrawZoomMask( void )
 {
 	vec4_t		color1;
@@ -10928,6 +11064,7 @@ static void CG_Draw2D( void ) {
 
 	// Draw this before the text so that any text won't get clipped off
 	CG_DrawZoomMask();
+	CG_DrawBinocularTargets();
 
 /*
 	if (cg.cameraMode) {
