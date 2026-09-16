@@ -606,11 +606,17 @@ A new item was picked up this frame
 ================
 */
 qboolean CG_UsesPickupConfirmation( void ) {
+	// Require the same JoF JA+ identity used by the engine and UI.
 	return cg_pickupConfirm.integer == 1 &&
+		!Q_stricmp(Info_ValueForKey(CG_ConfigString(CS_SERVERINFO), "V"), "2.5B0") &&
 		atoi(Info_ValueForKey(CG_ConfigString(CS_SERVERINFO), "g_pickupConfirm")) == 1;
 }
 
 void CG_AdvancePickupQueue( void ) {
+	if (!CG_UsesPickupConfirmation()) {
+		cg.pickupQueueHead = cg.pickupQueueCount = 0;
+		return;
+	}
 	if (cg.pickupQueueCount &&
 		(!cg.itemPickup || cg.time - cg.itemPickupTime >= 750)) {
 		cg.itemPickup = cg.pickupQueue[cg.pickupQueueHead];
