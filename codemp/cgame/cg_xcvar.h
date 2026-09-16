@@ -207,9 +207,6 @@ XCVAR_DEF( cg_drawHud,							"1",		NULL,				CVAR_ARCHIVE )
 
 XCVAR_DEF( cg_predictKnockback,					"0",		NULL,				0 )
 
-//JA+ amghost pass-through prediction
-// 0 = off, 1 = detect it (default)
-XCVAR_DEF( cg_ghostPredict,						"1",		NULL,				CVAR_ARCHIVE )
 
 XCVAR_DEF( cp_pluginDisable,					"0",		NULL,				CVAR_ARCHIVE|CVAR_USERINFO ) //as before minus bit 9, so a JA+ server holsters a staff to the back
 XCVAR_DEF( com_maxFPS,							"125",		NULL,				CVAR_ARCHIVE )
