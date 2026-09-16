@@ -522,9 +522,10 @@ static void CG_DrawBinocularTargets(void) {
 		centity_t *cent = &cg_entities[target->entityNum];
 		vec3_t point;
 		trace_t trace;
-		float sx, sy, x, y, healthFraction;
+		float sx, sy, x, y, healthFraction, shieldCapacity;
+		float nameScale, nameWidth, nameAvailableWidth;
 		int j;
-		char label[64];
+		char label[MAX_NETNAME];
 		char healthDigits[16], shieldDigits[16];
 		if (!cent->currentValid || target->entityNum == cg.snap->ps.clientNum ||
 			(cent->currentState.eType != ET_PLAYER && cent->currentState.eType != ET_NPC) ||
@@ -587,11 +588,18 @@ static void CG_DrawBinocularTargets(void) {
 		if (cent->currentState.eType == ET_PLAYER && target->entityNum < MAX_CLIENTS) {
 			Q_strncpyz(label, cgs.clientinfo[target->entityNum].name, sizeof(label));
 			Q_CleanStr(label);
-			label[18] = '\0';
 		} else {
-			Q_strncpyz(label, target->name[0] ? target->name : "Unknown", sizeof(label));
+			// NPC types and scripted names need not describe the visible model.
+			Q_strncpyz(label, cent->currentState.NPC_class == CLASS_VEHICLE ? "Vehicle" : "NPC", sizeof(label));
 		}
-		CG_Text_Paint(x + 6 * ratio, y + 3 * scale, 0.5f * scale, amber, label, 0, (int)(width - 12 * ratio), ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		// Fit the full name by its rendered width, not its character count.
+		// Reserve a little space for the shadow and never clip trailing letters.
+		nameScale = 0.5f * scale;
+		nameAvailableWidth = width - 14 * ratio;
+		nameWidth = CG_Text_Width(label, nameScale, FONT_SMALL);
+		if (nameWidth > nameAvailableWidth)
+			nameScale *= nameAvailableWidth / nameWidth;
+		CG_Text_Paint(x + 6 * ratio, y + 3 * scale, nameScale, amber, label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
 		healthFraction = (float)target->health / target->maxHealth;
 		CG_Text_Paint(x + 6 * ratio, y + 17 * scale, 0.5f * scale, healthColor,
 			va("HEALTH  %i", target->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
@@ -599,9 +607,14 @@ static void CG_DrawBinocularTargets(void) {
 			healthColor);
 		CG_Text_Paint(x + 6 * ratio, y + 32 * scale, 0.5f * scale, shieldColor,
 			va("SHIELD  %i", target->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
-		// JA uses max health as the normal armor capacity; numbers preserve overcharge.
+		// Vehicles have a separate shield capacity; ordinary actors use JA's
+		// maximum-health-based armor capacity. Numeric values preserve overcharge.
+		shieldCapacity = target->maxHealth;
+		if (cent->currentState.NPC_class == CLASS_VEHICLE && cent->m_pVehicle &&
+			cent->m_pVehicle->m_pVehicleInfo && cent->m_pVehicle->m_pVehicleInfo->shields > 0)
+			shieldCapacity = cent->m_pVehicle->m_pVehicleInfo->shields;
 		CG_DrawBinocularMeter(x + 6 * ratio, y + 43 * scale, width - 12 * ratio,
-			(float)target->armor / target->maxHealth, scale, shieldColor);
+			(float)target->armor / shieldCapacity, scale, shieldColor);
 	}
 	trap->R_SetColor(NULL);
 }
