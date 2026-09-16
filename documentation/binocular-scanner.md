@@ -3,11 +3,13 @@
 Binoculars (`zoomMode == 2`) display health and shield labels beside visible living
 players and NPCs. Amber-yellow corner and target brackets, translucent dark panels, red health
 readouts and segments, and green shield readouts and segments complement the existing binocular optics.
-Players use their names; NPCs use their configured full name, falling back to
-their NPC type. Without a supplied name, the client shows `Unknown`.
+Players use their names; NPCs are labeled `NPC`, or `Vehicle` for vehicle-class
+entities. Internal NPC types and scripted names may not describe the visible
+model, so they are not displayed.
 Shield means `STAT_ARMOR`.
 Bars use the target's maximum health as their normal capacity, matching JA's HUD;
-numeric values retain any health or armor above that capacity.
+vehicle shield bars use the vehicle definition's shield capacity when available.
+Numeric values retain any health or armor above that capacity.
 
 Build and install both this repository's `cgame` and `jampgame` modules. No new art
 assets or engine protocol changes are required. Other server mods must implement
@@ -50,6 +52,9 @@ visibility flags, cloaking, and mind tricks. It sends a zero-count clear when
 binocular use ends. No positions or guessed health values are transmitted.
 
 ### Optional NPC names
+
+The protocol extension below remains supported, but the current binocular HUD
+deliberately displays `NPC` or `Vehicle` instead of these names.
 
 Clients supporting NPC names also advertise `binoNames=1`. After `binoStats`,
 send one or more commands with the same server timestamp:
