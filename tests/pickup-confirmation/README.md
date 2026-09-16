@@ -4,10 +4,23 @@ This branch replaces the unconditional prediction suppression from #184 with
 an opt-in client/server path. It requires **both** updated modules. This repo's
 server is JAPro-derived; a separately maintained JA+ server must port the change.
 
-## Protocol v1
+## Protocol v2
 
-- JoF JA+ server advertises `V=2.5B0` and `g_pickupConfirm=1` in serverinfo. Other servers retain original client pickup behavior even if they advertise the capability, including this repository's JAPro-derived server.
-- Client advertises `cg_pickupConfirm=1` in userinfo (ROM).
+- JoF JA+ server advertises `V=2.5B0` and `g_pickupConfirm=2` in serverinfo. Other servers retain original client pickup behavior even if they advertise the capability, including this repository's JAPro-derived server.
+- Client advertises `cg_pickupConfirm=1` in userinfo (ROM), but that flag alone
+  does not authorize custom commands. The server advertises `g_pickupConfirm=2`.
+- On a supported JoF JA+ server (`V=2.5B0`), the loaded client module sends
+  `jof_pickupReady 2` once active and renews it every second. The server stores
+  readiness per connection for three seconds. `jof_pickupReady 0` revokes it
+  when the module shuts down; ClientBegin clears readiness as well.
+- Send `jof_pickup` only while this connection's readiness is valid, the client
+  userinfo flag is 1, and the server protocol version is 2. Never broadcast it.
+  Older clients cannot opt in through a leftover userinfo cvar. Older servers
+  advertising version 1 receive no handshake from this client and retain normal
+  pickup feedback. The server acknowledges a valid request with
+  `jof_pickupReady 2`, only to that requesting client. Until acknowledged, the
+  client keeps ordinary feedback; its acknowledgement expires after 2.5 seconds.
+  No acknowledgement or probe is sent to clients that did not request it.
 - After an accepted health, armor, ammo or holdable pickup, the server sends
   the collector `jof_pickup <item-modelindex>` on the reliable command channel.
   Rejected touches send nothing. Item indices use the existing shared item table.
@@ -39,11 +52,15 @@ The harness compiles extracted production server confirmation, capability,
 command parsing and HUD queue functions. Engine transport and the final
 sound/console callback are mocked. It checks shield + medpack, distinct repeated
 pickups, malformed commands, version mismatch, spectator filtering, and queue
-bounds. It does **not** simulate a live network or prove audibility/rendering.
+bounds. It also checks that stale userinfo flags cannot enable delivery, readiness
+is per client and expires, revocation works, and only a valid acknowledgement
+enables the client's confirmation path. It does **not** simulate a live network
+or prove audibility/rendering.
 
 ## Required live checks
 
-1. Run the updated JoF JA+ server (`V=2.5B0`) and client; verify both capability cvars are 1.
+1. Run the updated JoF JA+ server (`V=2.5B0`) and client; verify server capability
+   `g_pickupConfirm=2`, client `cg_pickupConfirm=1`, and the readiness exchange.
 2. At low health/armor, collect a shield and medpack together: verify both stats,
    two console lines and feedback sounds, and the two icons displayed in sequence.
 3. Near capacity, touch several shields or medpacks: feedback must match only
