@@ -2422,9 +2422,10 @@ static void G_ConfirmItemPickup(gentity_t *ent, gentity_t *other) {
 		BG_ConfirmedPickupType(ent->item->giType)) {
 		char userinfo[MAX_INFO_STRING];
 		trap->GetUserinfo(other->s.number, userinfo, sizeof(userinfo));
-		if (g_pickupConfirm.integer == 2 && other->client &&
-			other->client->pers.pickupConfirmUntil > level.time &&
-			atoi(Info_ValueForKey(userinfo, "cg_pickupConfirm")) == 1) {
+		if (g_pickupConfirm.integer == 3 && other->client &&
+			other->client->pers.pickupConfirmed &&
+			!strcmp(Info_ValueForKey(userinfo, "cg_pickupReady"), "3") &&
+			!strcmp(Info_ValueForKey(userinfo, "cg_pickupConfirm"), "1")) {
 			trap->SendServerCommand(other->s.number, va("jof_pickup %d", ent->s.modelindex));
 		}
 	}

@@ -8852,11 +8852,15 @@ void Cmd_AddMaster_f(gentity_t *ent);
 
 static void Cmd_PickupReady_f(gentity_t *ent) {
 	char version[16];
+	char userinfo[MAX_INFO_STRING];
 	trap->Argv(1, version, sizeof(version));
-	ent->client->pers.pickupConfirmUntil = 0;
-	if (g_pickupConfirm.integer == 2 && trap->Argc() == 2 && !strcmp(version, "2")) {
-		ent->client->pers.pickupConfirmUntil = level.time + 3000;
-		trap->SendServerCommand(ent->s.number, "jof_pickupReady 2");
+	trap->GetUserinfo(ent->s.number, userinfo, sizeof(userinfo));
+	ent->client->pers.pickupConfirmed = qfalse;
+	if (g_pickupConfirm.integer == 3 && trap->Argc() == 2 && !strcmp(version, "3") &&
+		!strcmp(Info_ValueForKey(userinfo, "cg_pickupReady"), "3") &&
+		!strcmp(Info_ValueForKey(userinfo, "cg_pickupConfirm"), "1")) {
+		ent->client->pers.pickupConfirmed = qtrue;
+		trap->SendServerCommand(ent->s.number, "jof_pickupReady 3");
 	}
 }
 

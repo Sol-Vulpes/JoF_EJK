@@ -3241,6 +3241,8 @@ Ghoul2 Insert End
 	cgs.media.mSaberDamageGlow = trap->R_RegisterShader("gfx/effects/saberDamageGlow");
 
 	CG_RegisterCvars();
+	trap->Cvar_Set("cg_pickupConfirm", "1");
+	trap->Cvar_Set("cg_pickupReady", "3");
 
 	CG_InitConsoleCommands();
 
@@ -3438,16 +3440,17 @@ Called before every level change or subsystem restart
 */
 void CG_Shutdown( void )
 {
-
 	// Keep the last known saber costs until the next gamestate supplies its rules.
 	// A temporary paid-saber reset makes the UI trim fully spent loadouts during
 	// reconnect; restoring free costs afterwards cannot restore the lost ranks.
 	// CG_SyncFreeSaber initializes the next server's rules independently.
-
+	// Userinfo is handled by the engine even when game commands are flood
+	// filtered. Do not leave readiness behind for a subsequently loaded mod.
+	trap->Cvar_Set("cg_pickupReady", "0");
 	if (cg.pickupHandshakeActive) {
 		trap->SendClientCommand("jof_pickupReady 0");
-		cg.pickupHandshakeActive = qfalse;
 	}
+	cg.pickupHandshakeActive = cg.pickupConfirmed = qfalse;
 	BG_ClearAnimsets(); //free all dynamic allocations made through the engine
 
 	CG_FreeCosmetics();
