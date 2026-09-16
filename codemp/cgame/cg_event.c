@@ -605,11 +605,35 @@ CG_ItemPickup
 A new item was picked up this frame
 ================
 */
-qboolean CG_UsesPickupConfirmation( void ) {
+static qboolean CG_PickupHandshakeSupported(void) {
 	// Require the same JoF JA+ identity used by the engine and UI.
 	return cg_pickupConfirm.integer == 1 &&
 		!Q_stricmp(Info_ValueForKey(CG_ConfigString(CS_SERVERINFO), "V"), "2.5B0") &&
-		atoi(Info_ValueForKey(CG_ConfigString(CS_SERVERINFO), "g_pickupConfirm")) == 1;
+		!strcmp(Info_ValueForKey(CG_ConfigString(CS_SERVERINFO), "g_pickupConfirm"), "2");
+}
+
+void CG_UpdatePickupHandshake(void) {
+	if (cg.demoPlayback || !CG_PickupHandshakeSupported()) {
+		cg.pickupHandshakeActive = qfalse;
+		cg.pickupConfirmUntil = 0;
+		return;
+	}
+	if (!cg.pickupHandshakeActive || cg.time < cg.pickupHandshakeTime ||
+		cg.time - cg.pickupHandshakeTime >= 1000) {
+		trap->SendClientCommand("jof_pickupReady 2");
+		cg.pickupHandshakeTime = cg.time;
+		cg.pickupHandshakeActive = qtrue;
+	}
+}
+
+void CG_PickupReady_f(void) {
+	if (cg.pickupHandshakeActive && CG_PickupHandshakeSupported() &&
+		!strcmp(CG_Argv(1), "2") && !CG_Argv(2)[0])
+		cg.pickupConfirmUntil = cg.time + 2500;
+}
+
+qboolean CG_UsesPickupConfirmation( void ) {
+	return CG_PickupHandshakeSupported() && cg.pickupConfirmUntil > cg.time;
 }
 
 void CG_AdvancePickupQueue( void ) {

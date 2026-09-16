@@ -3328,6 +3328,10 @@ Called before every level change or subsystem restart
 */
 void CG_Shutdown( void )
 {
+	if (cg.pickupHandshakeActive) {
+		trap->SendClientCommand("jof_pickupReady 0");
+		cg.pickupHandshakeActive = qfalse;
+	}
 	BG_ClearAnimsets(); //free all dynamic allocations made through the engine
 
 	CG_FreeCosmetics();

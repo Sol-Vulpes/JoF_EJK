@@ -33,7 +33,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 	#define XCVAR_DEF( name, defVal, update, flags, announce ) { & name , #name , defVal , update , flags , announce },
 #endif
 
-XCVAR_DEF( g_pickupConfirm, "1", NULL, CVAR_SERVERINFO|CVAR_ROM, qfalse )
+XCVAR_DEF( g_pickupConfirm, "2", NULL, CVAR_SERVERINFO|CVAR_ROM, qfalse )
 
 XCVAR_DEF( bg_fighterAltControl,		"0",			NULL,				CVAR_SYSTEMINFO,								qtrue )
 XCVAR_DEF( capturelimit,				"8",			NULL,				CVAR_SERVERINFO|CVAR_ARCHIVE|CVAR_NORESTART,	qtrue )

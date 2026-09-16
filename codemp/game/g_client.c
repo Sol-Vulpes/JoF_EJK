@@ -3044,6 +3044,7 @@ void ClientBegin( int clientNum, qboolean allowTeamReset ) {
 	ent->playerState = &ent->client->ps;
 
 	client->pers.connected = CON_CONNECTED;
+	client->pers.pickupConfirmUntil = 0;
 	if (client->pers.teamState.state == TEAM_BEGIN) //For some reason this is being called when you are spectating a player and they leave/spec.  So dont reset your time in that case..
 		client->pers.enterTime = level.time; 
 	client->pers.teamState.state = TEAM_BEGIN;
