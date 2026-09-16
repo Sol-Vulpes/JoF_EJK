@@ -783,6 +783,7 @@ typedef struct clientPersistant_s {
 	qboolean	localClient;		// true if "ip" info key is "localhost"
 	qboolean	initialSpawn;		// the first spawn should be at a cool location
 	qboolean	predictItemPickup;	// based on cg_predictItems userinfo
+	int pickupConfirmUntil; // Renewed only by the loaded client module's handshake.
 	qboolean	pmoveFixed;			//
 	char		netname[MAX_NETNAME];
 	char		netname_nocolor[MAX_NETNAME];
@@ -961,6 +962,8 @@ struct gclient_s {
 	// the rest of the structure is private to game
 	clientPersistant_t	pers;
 	clientSession_t		sess;
+	int binocularNextUpdate;
+	qboolean binocularScanActive;
 
 	saberInfo_t	saber[MAX_SABERS];
 	void		*weaponGhoul2[MAX_SABERS];

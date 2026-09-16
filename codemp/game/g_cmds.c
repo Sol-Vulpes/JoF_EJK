@@ -8850,6 +8850,16 @@ void Cmd_AdminTeam_f( gentity_t *ent );
 void Cmd_ListMasters_f(gentity_t *ent);
 void Cmd_AddMaster_f(gentity_t *ent);
 
+static void Cmd_PickupReady_f(gentity_t *ent) {
+	char version[16];
+	trap->Argv(1, version, sizeof(version));
+	ent->client->pers.pickupConfirmUntil = 0;
+	if (g_pickupConfirm.integer == 2 && trap->Argc() == 2 && !strcmp(version, "2")) {
+		ent->client->pers.pickupConfirmUntil = level.time + 3000;
+		trap->SendServerCommand(ent->s.number, "jof_pickupReady 2");
+	}
+}
+
 /* This array MUST be sorted correctly by alphabetical name field */
 command_t commands[] = {
 	{ "addbot",				Cmd_AddBot_f,				0 },
@@ -8972,6 +8982,7 @@ command_t commands[] = {
 	{ "hide",				Cmd_Hide_f,					CMD_NOINTERMISSION|CMD_ALIVE},
 	{ "ignore",				Cmd_Ignore_f,				0 },//[JAPRO - Serverside - All - Ignore]
 	{ "jetpack",			Cmd_Jetpack_f,				CMD_NOINTERMISSION|CMD_ALIVE },
+	{ "jof_pickupReady", Cmd_PickupReady_f, 0 },
 
 	{ "jump",				Cmd_JumpChange_f,			CMD_NOINTERMISSION|CMD_ALIVE}, //cmd_alive not needed but i think it resets on joingame cuz forcepoints?
 
