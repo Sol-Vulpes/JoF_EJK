@@ -162,6 +162,9 @@ XCVAR_DEF( cg_holsteredStaffPos,				"0 0 0",	NULL,				0 )
 XCVAR_DEF( cg_holsteredStaffAng,				"0 0 150",	NULL,				0 )
 //how far into the JA+ draw animation the hand closes around the hilt, 0 to 1
 XCVAR_DEF( cg_holsteredStaffSwap,				"0.45",		NULL,				0 )
+//hold the ignition sound back to the same point, so it does not go off on an empty hand. 0 leaves
+//every saber sound exactly where the server put it.
+XCVAR_DEF( cg_holsteredStaffSound,				"1",		NULL,				CVAR_ARCHIVE )
 XCVAR_DEF( cg_holsteredStaffDebug,				"0",		NULL,				0 )
 XCVAR_DEF( cg_drawPlayerNames,					"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawPlayerNamesScale,				"0.5",	NULL,					CVAR_ARCHIVE )
