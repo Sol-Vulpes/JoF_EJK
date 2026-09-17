@@ -323,26 +323,6 @@ void CG_CheckLegacyPickupEvents( playerState_t *ps, playerState_t *ops ) {
 CG_CheckPlayerstateEvents
 ==============
 */
-// These item types are deliberately not predicted by CG_TouchItem. Dispatch
-// their predictable server events from snapshots, before Pmove can overwrite
-// the two-entry event buffer or advance past their sequence numbers.
-static qboolean CG_IsConfirmedPickupEvent( int event, int entityNum ) {
-	int index;
-	int type;
-
-	if ((event & ~EV_EVENT_BITS) != EV_ITEM_PICKUP ||
-		entityNum < 0 || entityNum >= MAX_GENTITIES) {
-		return qfalse;
-	}
-	index = cg_entities[entityNum].currentState.modelindex;
-	if (index < 1 || index >= bg_numItems) {
-		return qfalse;
-	}
-	type = bg_itemlist[index].giType;
-	return type == IT_HEALTH || type == IT_ARMOR ||
-		type == IT_AMMO || type == IT_HOLDABLE;
-}
-
 void CG_CheckConfirmedPickupEvents( playerState_t *ps, playerState_t *ops ) {
 	int i;
 	centity_t *cent;
