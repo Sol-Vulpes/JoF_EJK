@@ -3769,7 +3769,7 @@
 			textscale 			1
 			forecolor			.615 .615 .956 1
 			visible				0
-			descText			"Limit each player to one model voice line every 5 seconds."
+			descText			"Stop players repeating taunts and other model voice lines."
 			mouseenter			{ show highlight11 }
 			mouseexit			{ hide highlight11 }
 			action				{ play "sound/interface/button1" }
