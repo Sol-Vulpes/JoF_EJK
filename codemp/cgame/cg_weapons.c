@@ -3312,7 +3312,9 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 			if (cg.time - cent->saberSoundOffDebounceTime >= 800)
 			{
 				cent->saberSoundOffDebounceTime = cg.time;
-				if (cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered)
+				//a staff going onto a JA+ back was shut down as the blade went in, not here
+				if (cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered
+					&& !CG_StaffSwapShutdownSounded( ps->clientNum ))
 				{
 					trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOff);
 				}
@@ -3331,7 +3333,9 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 			if (cg.time - cent->saberSoundOnDebounceTime >= 800)
 			{
 				cent->saberSoundOnDebounceTime = cg.time;
-				if (cgs.clientinfo[ps->clientNum].saber[0].soundOn)
+				//a staff coming off a JA+ back lights when his hand gets to it, not before
+				if (cgs.clientinfo[ps->clientNum].saber[0].soundOn
+					&& !CG_StaffSwapHoldIgnitionSound( ps->clientNum, cgs.clientinfo[ps->clientNum].saber[0].soundOn ))
 				{
 					trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOn);
 				}
