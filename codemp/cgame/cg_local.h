@@ -1067,6 +1067,9 @@ typedef struct clientCheckpoint_s {
 } clientCheckpoint_t;
 
 typedef struct cg_s {
+	binocularTarget_t binocularTargets[MAX_BINOCULAR_TARGETS];
+	int binocularTargetCount;
+	int binocularUpdateTime;
 	int			clientFrame;		// incremented each frame
 
 	int			clientNum;
