@@ -13694,17 +13694,6 @@ void UI_Refresh( int realtime )
 		UpdateForceUsed();
 	}
 
-	if (ui_freeSaber.integer)
-	{
-		bgForcePowerCost[FP_SABER_OFFENSE][FORCE_LEVEL_1] = 0;
-		bgForcePowerCost[FP_SABER_DEFENSE][FORCE_LEVEL_1] = 0;
-	}
-	else
-	{
-		bgForcePowerCost[FP_SABER_OFFENSE][FORCE_LEVEL_1] = 1;
-		bgForcePowerCost[FP_SABER_DEFENSE][FORCE_LEVEL_1] = 1;
-	}
-
 	/*
 	if (parsedFPMessage[0] && FPMessageTime > realtime)
 	{
