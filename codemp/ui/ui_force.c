@@ -170,7 +170,10 @@ void UI_DrawForceStars(rectDef_t *rect, float scale, vec4_t color, int textStyle
 
 		for (i=FORCE_LEVEL_1;i<=max;i++)
 		{
-			starcolor = UI_ForcePowerCost(forceindex, i);
+			// The star shows the power's base level cost.  A free-saber rule
+			// grants saber offense/defense level 1; it does not change what
+			// that level costs in the force-power legend.
+			starcolor = bgForcePowerCost[forceindex][i];
 
 			if (uiForcePowersDisabled[forceindex])
 			{
