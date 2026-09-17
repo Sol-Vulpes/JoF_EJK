@@ -1348,6 +1348,8 @@ void UI_BuildPlayerModel_List( qboolean inGameLoad )
 	UI_UpdateSpeciesBrowser();
 }
 
+static void UI_UpdateForceRules( int realtime );
+
 void UI_SetActiveMenu( uiMenuCommand_t menu ) {
 	char buf[256];
 
@@ -1418,6 +1420,7 @@ void UI_SetActiveMenu( uiMenuCommand_t menu ) {
 			Menus_ActivateByName("ingame");
 			return;
 		case UIMENU_PLAYERCONFIG:
+			UI_UpdateForceRules(uiInfo.uiDC.realTime);
 			UI_UpdateCurrentServerInfo();
 			// trap->Cvar_Set( "cl_paused", "1" );
 			trap->Key_SetCatcher( KEYCATCH_UI );
@@ -1427,6 +1430,7 @@ void UI_SetActiveMenu( uiMenuCommand_t menu ) {
 			UpdateForceUsed();
 			return;
 		case UIMENU_PLAYERFORCE:
+			UI_UpdateForceRules(uiInfo.uiDC.realTime);
 			// trap->Cvar_Set( "cl_paused", "1" );
 			trap->Key_SetCatcher( KEYCATCH_UI );
 			UI_BuildPlayerList();
@@ -13591,38 +13595,9 @@ void UI_Init( qboolean inGameLoad ) {
 	UI_GetCharacterCvars();
 }
 
-#define	UI_FPS_FRAMES	4
-void UI_Refresh( int realtime )
+static void UI_UpdateForceRules( int realtime )
 {
-	static int index;
-	static int	previousTimes[UI_FPS_FRAMES];
 	const qboolean hadFreeSaber = ui_freeSaber.integer != 0;
-
-	//if ( !( trap->Key_GetCatcher() & KEYCATCH_UI ) ) {
-	//	return;
-	//}
-
-	trap->G2API_SetTime(realtime, 0);
-	trap->G2API_SetTime(realtime, 1);
-	//ghoul2 timer must be explicitly updated during ui rendering.
-
-	uiInfo.uiDC.frameTime = realtime - uiInfo.uiDC.realTime;
-	uiInfo.uiDC.realTime = realtime;
-
-	previousTimes[index % UI_FPS_FRAMES] = uiInfo.uiDC.frameTime;
-	index++;
-	if ( index > UI_FPS_FRAMES ) {
-		int i, total;
-		// average multiple frames together to smooth changes out a bit
-		total = 0;
-		for ( i = 0 ; i < UI_FPS_FRAMES ; i++ ) {
-			total += previousTimes[i];
-		}
-		if ( !total ) {
-			total = 1;
-		}
-		uiInfo.uiDC.FPS = 1000 * UI_FPS_FRAMES / total;
-	}
 
 	UI_UpdateCvars();
 	if (hadFreeSaber != (ui_freeSaber.integer != 0) && !ui_rankChange.integer)
@@ -13631,27 +13606,9 @@ void UI_Refresh( int realtime )
 		// Rank changes recalculate below, after applying the new point budget.
 		UpdateForceUsed();
 	}
-	UI_BuildQ3Model_List_Process();
 
-	if (Menu_Count() > 0) {
-		// paint all the menus
-		Menu_PaintAll();
-		// refresh server browser list
-		UI_DoServerRefresh();
-		// refresh server status
-		UI_BuildServerStatus(qfalse);
-		// refresh find player list
-		UI_BuildFindPlayerList(qfalse);
-	}
-	// draw cursor
-	UI_SetColor( NULL );
-
-	if (!uiInfo.newUIAPI || ui_drawCursor.integer) {
-		if ((trap->Key_GetCatcher() & KEYCATCH_UI) && Menu_Count() > 0) {
-			UI_DrawHandlePic( uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory, 42.0f * uiInfo.uiDC.widthRatioCoef, 42.0f, uiInfo.uiDC.Assets.cursor );
-		}
-	}
-
+	// Apply the server's budget before painting: force ownerdraws can
+	// legalize and save the allocation, so an old budget can lose ranks.
 	if (ui_rankChange.integer)
 	{
 		FPMessageTime = realtime + 3000;
@@ -13713,6 +13670,62 @@ void UI_Refresh( int realtime )
 
 		//remember to update the force power count after changing the max rank
 		UpdateForceUsed();
+	}
+
+}
+
+#define	UI_FPS_FRAMES	4
+void UI_Refresh( int realtime )
+{
+	static int index;
+	static int	previousTimes[UI_FPS_FRAMES];
+
+	//if ( !( trap->Key_GetCatcher() & KEYCATCH_UI ) ) {
+	//	return;
+	//}
+
+	trap->G2API_SetTime(realtime, 0);
+	trap->G2API_SetTime(realtime, 1);
+	//ghoul2 timer must be explicitly updated during ui rendering.
+
+	uiInfo.uiDC.frameTime = realtime - uiInfo.uiDC.realTime;
+	uiInfo.uiDC.realTime = realtime;
+
+	previousTimes[index % UI_FPS_FRAMES] = uiInfo.uiDC.frameTime;
+	index++;
+	if ( index > UI_FPS_FRAMES ) {
+		int i, total;
+		// average multiple frames together to smooth changes out a bit
+		total = 0;
+		for ( i = 0 ; i < UI_FPS_FRAMES ; i++ ) {
+			total += previousTimes[i];
+		}
+		if ( !total ) {
+			total = 1;
+		}
+		uiInfo.uiDC.FPS = 1000 * UI_FPS_FRAMES / total;
+	}
+
+	UI_UpdateForceRules(realtime);
+	UI_BuildQ3Model_List_Process();
+
+	if (Menu_Count() > 0) {
+		// paint all the menus
+		Menu_PaintAll();
+		// refresh server browser list
+		UI_DoServerRefresh();
+		// refresh server status
+		UI_BuildServerStatus(qfalse);
+		// refresh find player list
+		UI_BuildFindPlayerList(qfalse);
+	}
+	// draw cursor
+	UI_SetColor( NULL );
+
+	if (!uiInfo.newUIAPI || ui_drawCursor.integer) {
+		if ((trap->Key_GetCatcher() & KEYCATCH_UI) && Menu_Count() > 0) {
+			UI_DrawHandlePic( uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory, 42.0f * uiInfo.uiDC.widthRatioCoef, 42.0f, uiInfo.uiDC.Assets.cursor );
+		}
 	}
 
 	/*
