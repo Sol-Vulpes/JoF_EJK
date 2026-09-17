@@ -1268,6 +1268,8 @@ typedef struct cg_s {
 	qboolean pickupConfirmed;
 	qboolean pickupHandshakeActive;
 	int             pickupQueueHead, pickupQueueCount;
+	int			pickupEventSequences[MAX_PREDICTED_EVENTS];
+	int			pickupEventParms[MAX_PREDICTED_EVENTS];
 	int			itemPickupTime;
 	int			itemPickupBlendTime;	// the pulse around the crosshair is timed seperately
 
@@ -2694,6 +2696,8 @@ void CG_Respawn( void );
 void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops );
 void CG_CheckExternalEvent( playerState_t *ps, playerState_t *ops );
 void CG_CheckConfirmedPickupEvents( playerState_t *ps, playerState_t *ops );
+void CG_CheckLegacyPickupEvents( playerState_t *ps, playerState_t *ops );
+void CG_ResetPickupEventTracking( void );
 void CG_CheckChangedPredictableEvents( playerState_t *ps );
 
 

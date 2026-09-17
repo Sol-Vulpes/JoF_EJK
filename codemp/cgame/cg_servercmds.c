@@ -1187,12 +1187,12 @@ require a reload of all the media
 static void CG_MapRestart( void ) {
 	int i;
 	clientInfo_t *ci;
-		cg.pickupQueueHead = cg.pickupQueueCount = 0;
-		if (CG_UsesPickupConfirmation()) {
-			cg.itemPickup = 0;
-		}
-		cg.pickupHandshakeActive = cg.pickupConfirmed = qfalse;
-
+cg.pickupQueueHead = cg.pickupQueueCount = 0;
+CG_ResetPickupEventTracking();
+if (CG_UsesPickupConfirmation()) {
+	cg.itemPickup = 0;
+}
+cg.pickupHandshakeActive = cg.pickupConfirmed = qfalse;
 	for (i = 0 ; i < MAX_CLIENTS ; i++)
 	{
 		ci = &cgs.clientinfo[i];
