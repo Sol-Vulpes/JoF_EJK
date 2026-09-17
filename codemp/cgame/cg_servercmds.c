@@ -1186,6 +1186,7 @@ static void CG_MapRestart( void ) {
 	int i;
 	clientInfo_t *ci;
 	cg.pickupQueueHead = cg.pickupQueueCount = 0;
+	CG_ResetPickupEventTracking();
 	if (CG_UsesPickupConfirmation()) {
 		cg.itemPickup = 0;
 	}
