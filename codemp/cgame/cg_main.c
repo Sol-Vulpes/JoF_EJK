@@ -540,16 +540,26 @@ static void CG_AS_Register(void)
 	trap->AS_ParseSets();
 }
 
+//every rain variant the world effect system knows about
+static qboolean CG_WeatherIsRain(const char *token)
+{
+	return (qboolean)(!Q_stricmp(token, "rain") || !Q_stricmp(token, "lightrain") ||
+		!Q_stricmp(token, "heavyrain") || !Q_stricmp(token, "heavyrainfog") ||
+		!Q_stricmp(token, "acidrain"));
+}
+
 //a global weather effect (rain, snow, etc)
 void CG_ParseWeatherEffect(const char *str)
 {
 	char *sptr = (char *)str;
+	qboolean isRain = qfalse;
 	sptr++; //pass the '*'
 
 	// Weather commands accumulate clouds; snow/wind do not remove existing rain.
 	{
 		const char *command = sptr;
 		const char *token = COM_ParseExt(&command, qfalse);
+		isRain = CG_WeatherIsRain(token);
 		if (!Q_stricmp(token, "die") || !Q_stricmp(token, "clear"))
 		{
 			cg.saberRainActive = qfalse;
@@ -567,8 +577,12 @@ void CG_ParseWeatherEffect(const char *str)
 		}
 	}
 
-	if (Q_stricmpn(sptr, "die", 3) && Q_stricmpn(sptr, "clear", 5) && Q_stricmpn(sptr, "freeze", 6)
-	&& Q_stricmpn(sptr, "zone", 4) && Q_stricmpn(sptr, "acidrain", 8) && Q_stricmpn(sptr, "spacedust", 9)
+	if (isRain)
+	{ //rain is wet, not cold - kill the puffs even if something earlier turned them on
+		cg.coldBreathEffects = qfalse;
+	}
+	else if (Q_stricmpn(sptr, "die", 3) && Q_stricmpn(sptr, "clear", 5) && Q_stricmpn(sptr, "freeze", 6)
+	&& Q_stricmpn(sptr, "zone", 4) && Q_stricmpn(sptr, "spacedust", 9)
 	&& Q_stricmpn(sptr, "sand", 4) && Q_stricmpn(sptr, "outsideshake", 12) && Q_stricmpn(sptr, "outsidepain", 11))
 	{ //should come with a better way to detect this...
 		cg.coldBreathEffects = qtrue;
