@@ -13582,6 +13582,7 @@ void UI_Refresh( int realtime )
 {
 	static int index;
 	static int	previousTimes[UI_FPS_FRAMES];
+	const qboolean hadFreeSaber = ui_freeSaber.integer != 0;
 
 	//if ( !( trap->Key_GetCatcher() & KEYCATCH_UI ) ) {
 	//	return;
@@ -13610,6 +13611,12 @@ void UI_Refresh( int realtime )
 	}
 
 	UI_UpdateCvars();
+	if (hadFreeSaber != (ui_freeSaber.integer != 0) && !ui_rankChange.integer)
+	{
+		// A direct free-saber change also changes the allocation cost.
+		// Rank changes recalculate below, after applying the new point budget.
+		UpdateForceUsed();
+	}
 	UI_BuildQ3Model_List_Process();
 
 	if (Menu_Count() > 0) {
