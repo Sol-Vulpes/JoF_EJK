@@ -178,34 +178,6 @@ This is called explicitly when the gamestate is first received,
 and whenever the server updates any serverinfo flagged cvars
 ================
 */
-static void CG_SyncFreeSaber( const char *info ) {
-	int gametype = atoi(Info_ValueForKey(info, "g_gametype"));
-	int weaponDisable = atoi(Info_ValueForKey(info,
-		(gametype == GT_DUEL || gametype == GT_POWERDUEL) ?
-		"g_duelWeaponDisable" : "g_weaponDisable"));
-	qboolean freeSaber = gametype != GT_JEDIMASTER;
-	int i;
-
-	// Only refresh when the actual rule inputs change. Explicit server events
-	// (including JA+ overrides) must survive unrelated serverinfo updates.
-	if (cgs.forceUiRulesInitialized && cgs.forceUiGametype == gametype &&
-		cgs.forceUiWeaponDisable == weaponDisable) {
-		return;
-	}
-	cgs.forceUiRulesInitialized = qtrue;
-	cgs.forceUiGametype = gametype;
-	cgs.forceUiWeaponDisable = weaponDisable;
-
-	// Match the server's HasSetSaberOnly, including non-pickup weapon bits.
-	for (i = 0; i < WP_NUM_WEAPONS; i++) {
-		if (i != WP_NONE && i != WP_SABER && !(weaponDisable & (1 << i))) {
-			freeSaber = qfalse;
-			break;
-		}
-	}
-	trap->Cvar_Set("ui_freeSaber", freeSaber ? "1" : "0");
-}
-
 void CG_ParseServerinfo( void ) {
 	const char *info = NULL;
 	const char *gamename = NULL;
@@ -214,7 +186,6 @@ void CG_ParseServerinfo( void ) {
 	char restrictString[16] = { 0 };
 
 	info = CG_ConfigString( CS_SERVERINFO );
-	CG_SyncFreeSaber(info);
 
 	cgs.debugMelee = atoi( Info_ValueForKey( info, "g_debugMelee" ) ); //trap->Cvar_GetHiddenVarValue("g_iknowkungfu");
 	cgs.stepSlideFix = atoi( Info_ValueForKey( info, "g_stepSlideFix" ) );
@@ -1221,6 +1192,7 @@ static void CG_MapRestart( void ) {
 			cg.itemPickup = 0;
 		}
 		cg.pickupHandshakeActive = cg.pickupConfirmed = qfalse;
+
 	for (i = 0 ; i < MAX_CLIENTS ; i++)
 	{
 		ci = &cgs.clientinfo[i];

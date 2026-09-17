@@ -3451,6 +3451,7 @@ void CG_Shutdown( void )
 		trap->SendClientCommand("jof_pickupReady 0");
 	}
 	cg.pickupHandshakeActive = cg.pickupConfirmed = qfalse;
+
 	BG_ClearAnimsets(); //free all dynamic allocations made through the engine
 
 	CG_FreeCosmetics();

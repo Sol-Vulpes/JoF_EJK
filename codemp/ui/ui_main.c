@@ -13483,9 +13483,8 @@ void UI_Init( qboolean inGameLoad ) {
 	Init_Display(&uiInfo.uiDC);
 
 	UI_RegisterCvars();
-	// Load the saved allocation only after the VM cvars contain their engine
-	// values. A zero-initialized ui_freeSaber otherwise trims valid saber ranks
-	// before the menu opens, even when the engine already has free saber enabled.
+	// Read the saved allocation after ui_freeSaber has its engine value.
+	// The zero-initialized cvar would otherwise trim valid saber ranks.
 	UI_UpdateForcePowers();
 	UI_Set2DRatio();
 
@@ -13693,6 +13692,17 @@ void UI_Refresh( int realtime )
 
 		//remember to update the force power count after changing the max rank
 		UpdateForceUsed();
+	}
+
+	if (ui_freeSaber.integer)
+	{
+		bgForcePowerCost[FP_SABER_OFFENSE][FORCE_LEVEL_1] = 0;
+		bgForcePowerCost[FP_SABER_DEFENSE][FORCE_LEVEL_1] = 0;
+	}
+	else
+	{
+		bgForcePowerCost[FP_SABER_OFFENSE][FORCE_LEVEL_1] = 1;
+		bgForcePowerCost[FP_SABER_DEFENSE][FORCE_LEVEL_1] = 1;
 	}
 
 	/*
