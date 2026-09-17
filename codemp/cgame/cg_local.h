@@ -572,6 +572,7 @@ typedef struct centity_s {
 	int				bolt2;
 	int				bolt3;
 	int				bolt4;
+	qboolean		limbNoSmoke; // Cached owner type: HD packs replace limb smoke with blood.
 
 	float			bodyHeight;
 
@@ -1066,6 +1067,9 @@ typedef struct clientCheckpoint_s {
 } clientCheckpoint_t;
 
 typedef struct cg_s {
+	binocularTarget_t binocularTargets[MAX_BINOCULAR_TARGETS];
+	int binocularTargetCount;
+	int binocularUpdateTime;
 	int			clientFrame;		// incremented each frame
 
 	int			clientNum;
@@ -1143,6 +1147,7 @@ typedef struct cg_s {
 	short		lastWeaponSelect[2];//japro
 
 	int			forceSelect;
+	qboolean	forceSelectLightningOverride; // Observed real lightning despite JA+'s merc bit.
 	int			itemSelect;
 
 	// auto rotating items
@@ -1901,6 +1906,7 @@ typedef struct cgMedia_s {
 	qhandle_t forcePowerIcons[NUM_FORCE_POWERS];
 	qhandle_t repulseIcon;		// JoF: custom Force Repulse wheel icon
 	qhandle_t dashIcon;			// JoF: custom Force Dash wheel icon
+	qhandle_t flamethrowerIcon;	// JoF: JA+ merc-mode replacement for Force Lightning
 
 	qhandle_t rageRecShader;
 
@@ -2589,6 +2595,7 @@ void CG_Chunks( int owner, vec3_t origin, const vec3_t normal, const vec3_t mins
 void CG_MiscModelExplosion( vec3_t mins, vec3_t maxs, int size, material_t chunkType );
 
 void CG_Bleed( vec3_t origin, int entityNum );
+qboolean CG_IsDroidEntity( int entityNum );
 
 localEntity_t *CG_MakeExplosion( vec3_t origin, vec3_t dir,
 								qhandle_t hModel, int numframes, qhandle_t shader, int msec,
