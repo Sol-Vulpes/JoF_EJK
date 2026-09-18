@@ -450,39 +450,21 @@ void UpdateForceUsed()
 		}
 	}
 
-	// Make sure that we're still legal.
+	// Recalculate without rewriting the selected ranks. A server-rule change
+	// can make a saved loadout exceed the current budget; keep that debt visible
+	// so the player decides which powers to lower.
 	for (curpower=0;curpower<NUM_FORCE_POWERS;curpower++)
-	{	// Make sure that our ranks are within legal limits.
+	{
 		if (uiForcePowersRank[curpower]<0)
 			uiForcePowersRank[curpower]=0;
 		else if (uiForcePowersRank[curpower]>=NUM_FORCE_POWER_LEVELS)
 			uiForcePowersRank[curpower]=(NUM_FORCE_POWER_LEVELS-1);
 
 		for (currank=FORCE_LEVEL_1;currank<=uiForcePowersRank[curpower];currank++)
-		{	// Check on this force power
-			if (uiForcePowersRank[curpower]>0)
-			{	// Do not charge the player for the one freebie in jump, or if there is one in saber.
-				if  (	(curpower == FP_LEVITATION && currank == FORCE_LEVEL_1) ||
-						(curpower == FP_SABER_OFFENSE && currank == FORCE_LEVEL_1 && ui_freeSaber.integer) ||
-						(curpower == FP_SABER_DEFENSE && currank == FORCE_LEVEL_1 && ui_freeSaber.integer) )
-				{
-					// Do nothing (written this way for clarity)
-				}
-				else
-				{	// Check if we can accrue the cost of this power.
-					if (UI_ForcePowerCost(curpower, currank) > uiForceAvailable)
-					{	// We can't afford this power.  Break to the next one.
-						// Remove this power from the player's roster.
-						uiForcePowersRank[curpower] = currank-1;
-						break;
-					}
-					else
-					{	// Sure we can afford it.
-						uiForceUsed += UI_ForcePowerCost(curpower, currank);
-						uiForceAvailable -= UI_ForcePowerCost(curpower, currank);
-					}
-				}
-			}
+		{
+			const int cost = UI_ForcePowerCost(curpower, currank);
+			uiForceUsed += cost;
+			uiForceAvailable -= cost;
 		}
 	}
 
