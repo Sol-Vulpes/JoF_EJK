@@ -2833,7 +2833,7 @@ void UpdateForceStatus(void)
 		}
 
 		//Moved this to happen after it's done with force power disabling stuff
-		if (uiForcePowersRank[FP_SABER_OFFENSE] > 0 || ui_freeSaber.integer)
+		if (uiForcePowersRank[FP_SABER_OFFENSE] > 0 || UI_FreeSaber())
 		{	// Show lightsaber stuff.
 			Menu_ShowItemByName(menu, "nosaber", qfalse);
 			Menu_ShowItemByName(menu, "yessaber", qtrue);
@@ -13500,8 +13500,7 @@ void UI_Init( qboolean inGameLoad ) {
 	Init_Display(&uiInfo.uiDC);
 
 	UI_RegisterCvars();
-	// Read the saved allocation after ui_freeSaber has its engine value.
-	// The zero-initialized cvar would otherwise trim valid saber ranks.
+	// Read the saved allocation after cvars and serverinfo are available.
 	UI_UpdateForcePowers();
 	UI_Set2DRatio();
 
@@ -13596,16 +13595,20 @@ void UI_Init( qboolean inGameLoad ) {
 
 static void UI_UpdateForceRules( int realtime )
 {
-	const qboolean hadFreeSaber = ui_freeSaber.integer != 0;
+	static qboolean rulesInitialized = qfalse;
+	static qboolean previousFreeSaber = qfalse;
+	const qboolean freeSaber = UI_FreeSaber();
 
 	UI_UpdateCvars();
-	if (hadFreeSaber != (ui_freeSaber.integer != 0) && !ui_rankChange.integer)
+	if (rulesInitialized && previousFreeSaber != freeSaber && !ui_rankChange.integer)
 	{
 		// Recalculate the new cost without choosing powers to delete. If the
 		// loadout is now over budget, the negative remainder tells the player
 		// exactly how many points must be removed.
 		UpdateForceUsed();
 	}
+	previousFreeSaber = freeSaber;
+	rulesInitialized = qtrue;
 
 	// Apply the server's budget before processing the rank-change allocation.
 	if (ui_rankChange.integer)
@@ -13657,11 +13660,11 @@ static void UI_UpdateForceRules( int realtime )
 			UI_ReadLegalForce();
 		}
 
-		if (ui_freeSaber.integer && uiForcePowersRank[FP_SABER_OFFENSE] < 1)
+		if (freeSaber && uiForcePowersRank[FP_SABER_OFFENSE] < 1)
 		{
 			uiForcePowersRank[FP_SABER_OFFENSE] = 1;
 		}
-		if (ui_freeSaber.integer && uiForcePowersRank[FP_SABER_DEFENSE] < 1)
+		if (freeSaber && uiForcePowersRank[FP_SABER_DEFENSE] < 1)
 		{
 			uiForcePowersRank[FP_SABER_DEFENSE] = 1;
 		}

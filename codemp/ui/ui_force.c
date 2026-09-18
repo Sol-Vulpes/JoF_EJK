@@ -30,17 +30,27 @@ FORCE INTERFACE
 
 // use this to get a demo build without an explicit demo build, i.e. to get the demo ui files to build
 #include "ui_local.h"
+#include "qcommon/qfiles.h"
+#include "ui_force.h"
+
+qboolean UI_FreeSaber(void) {
+	char info[MAX_INFO_STRING];
+	int gametype;
+
+	trap->GetConfigString(CS_SERVERINFO, info, sizeof(info));
+	gametype = atoi(Info_ValueForKey(info, "g_gametype"));
+	return UI_HasSetSaberOnly(info, gametype);
+}
+
 // Calculate UI costs from the current rule, without changing the shared table.
 // Server cvars can change before a refresh or force-template load.
 static int UI_ForcePowerCost(int power, int rank) {
-	if (ui_freeSaber.integer && rank == FORCE_LEVEL_1 &&
+	if (UI_FreeSaber() && rank == FORCE_LEVEL_1 &&
 		(power == FP_SABER_OFFENSE || power == FP_SABER_DEFENSE)) {
 		return 0;
 	}
 	return bgForcePowerCost[power][rank];
 }
-#include "qcommon/qfiles.h"
-#include "ui_force.h"
 
 int uiForceSide = FORCE_LIGHTSIDE;
 int uiJediNonJedi = -1;
@@ -401,7 +411,7 @@ void UpdateForceUsed()
 
 	menu = Menus_FindByName("ingame_playerforce");
 	// Set the cost of the saberattack according to whether its free.
-	if (ui_freeSaber.integer)
+	if (UI_FreeSaber())
 	{	// Make saber free
 		// Make sure that we have one freebie in saber if applicable.
 		if (uiForcePowersRank[FP_SABER_OFFENSE]<1)
@@ -522,7 +532,7 @@ void UI_ReadLegalForce(void)
 		}
 	}
 	//Second, legalize them.
-	if (!BG_LegalizedForcePowers2(fcfString, sizeof(fcfString), uiMaxRank, ui_freeSaber.integer, forceTeam, atoi(Info_ValueForKey(info, "g_gametype")), 0, ui_drawTeamForces.integer))
+	if (!BG_LegalizedForcePowers2(fcfString, sizeof(fcfString), uiMaxRank, UI_FreeSaber(), forceTeam, atoi(Info_ValueForKey(info, "g_gametype")), 0, ui_drawTeamForces.integer))
 	{ //if they were illegal, we should refresh them.
 		updateForceLater = qtrue;
 	}
@@ -624,11 +634,11 @@ void UI_ReadLegalForce(void)
 	{
 		uiForcePowersRank[FP_LEVITATION]=1;
 	}
-	if (uiForcePowersRank[FP_SABER_OFFENSE] < 1 && ui_freeSaber.integer)
+	if (uiForcePowersRank[FP_SABER_OFFENSE] < 1 && UI_FreeSaber())
 	{
 		uiForcePowersRank[FP_SABER_OFFENSE]=1;
 	}
-	if (uiForcePowersRank[FP_SABER_DEFENSE] < 1 && ui_freeSaber.integer)
+	if (uiForcePowersRank[FP_SABER_DEFENSE] < 1 && UI_FreeSaber())
 	{
 		uiForcePowersRank[FP_SABER_DEFENSE]=1;
 	}
@@ -711,14 +721,14 @@ void UI_UpdateForcePowers()
 
 				if (i_f == FP_SABER_OFFENSE &&
 					uiForcePowersRank[i_f] < 1 &&
-					ui_freeSaber.integer)
+					UI_FreeSaber())
 				{
 					uiForcePowersRank[i_f] = 1;
 				}
 
 				if (i_f == FP_SABER_DEFENSE &&
 					uiForcePowersRank[i_f] < 1 &&
-					ui_freeSaber.integer)
+					UI_FreeSaber())
 				{
 					uiForcePowersRank[i_f] = 1;
 				}
@@ -749,11 +759,11 @@ validitycheck:
 			{
 				uiForcePowersRank[i] = 1;
 			}
-			else if (i == FP_SABER_OFFENSE && ui_freeSaber.integer)
+			else if (i == FP_SABER_OFFENSE && UI_FreeSaber())
 			{
 				uiForcePowersRank[i] = 1;
 			}
-			else if (i == FP_SABER_DEFENSE && ui_freeSaber.integer)
+			else if (i == FP_SABER_DEFENSE && UI_FreeSaber())
 			{
 				uiForcePowersRank[i] = 1;
 			}
@@ -1081,11 +1091,11 @@ qboolean UI_ForcePowerRank_HandleKey(int flags, float *special, int key, int num
 		{
 			min += 1;
 		}
-		if (type == UI_FORCE_RANK_SABERATTACK && ui_freeSaber.integer)
+		if (type == UI_FORCE_RANK_SABERATTACK && UI_FreeSaber())
 		{
 			min += 1;
 		}
-		if (type == UI_FORCE_RANK_SABERDEFEND && ui_freeSaber.integer)
+		if (type == UI_FORCE_RANK_SABERDEFEND && UI_FreeSaber())
 		{
 			min += 1;
 		}
@@ -1273,7 +1283,7 @@ void UI_ForceConfigHandle( int oldindex, int newindex )
 		}
 	}
 
-	BG_LegalizedForcePowers(fcfBuffer, sizeof (fcfBuffer), uiMaxRank, ui_freeSaber.integer, forceTeam, atoi( Info_ValueForKey( info, "g_gametype" )), 0);
+	BG_LegalizedForcePowers(fcfBuffer, sizeof (fcfBuffer), uiMaxRank, UI_FreeSaber(), forceTeam, atoi( Info_ValueForKey( info, "g_gametype" )), 0);
 	//legalize the config based on the max rank
 
 	//now that we're done with the handle, it's time to parse our force data out of the string
@@ -1325,11 +1335,11 @@ void UI_ForceConfigHandle( int oldindex, int newindex )
 		{
 			uiForcePowersRank[c]=1;
 		}
-		else if (c==FP_SABER_OFFENSE && ui_freeSaber.integer)
+		else if (c==FP_SABER_OFFENSE && UI_FreeSaber())
 		{
 			uiForcePowersRank[c]=1;
 		}
-		else if (c==FP_SABER_DEFENSE && ui_freeSaber.integer)
+		else if (c==FP_SABER_DEFENSE && UI_FreeSaber())
 		{
 			uiForcePowersRank[c]=1;
 		}
@@ -1391,11 +1401,11 @@ void UI_ForceConfigHandle( int oldindex, int newindex )
 	{
 		uiForcePowersRank[FP_LEVITATION]=1;
 	}
-	if (uiForcePowersRank[FP_SABER_OFFENSE] < 1 && ui_freeSaber.integer)
+	if (uiForcePowersRank[FP_SABER_OFFENSE] < 1 && UI_FreeSaber())
 	{
 		uiForcePowersRank[FP_SABER_OFFENSE]=1;
 	}
-	if (uiForcePowersRank[FP_SABER_DEFENSE] < 1 && ui_freeSaber.integer)
+	if (uiForcePowersRank[FP_SABER_DEFENSE] < 1 && UI_FreeSaber())
 	{
 		uiForcePowersRank[FP_SABER_DEFENSE]=1;
 	}
