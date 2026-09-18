@@ -2469,7 +2469,6 @@ static void UI_DrawShowAllForce(rectDef_t* rect, float scale, vec4_t color, int 
 		trap->SE_GetStringTextString("MENUS_YES", s, sizeof(s));
 	}
 
-	UI_ReadLegalForce();
 	UpdateForceStatus();
 
 	Text_Paint(rect->x, rect->y, scale, color, s, 0, 0, textStyle, iMenuFont);
@@ -13588,16 +13587,13 @@ static void UI_UpdateForceRules( int realtime )
 	UI_UpdateCvars();
 	if (hadFreeSaber != (ui_freeSaber.integer != 0) && !ui_rankChange.integer)
 	{
-		// A direct free-saber change also changes the allocation cost.  Run the
-		// shared legalizer so an over-budget build is reduced by the normal
-		// force-power priority rules instead of whichever power UpdateForceUsed
-		// happens to visit last (usually saber defense).
-		// Rank changes legalize below, after applying the new point budget.
-		UI_ReadLegalForce();
+		// Recalculate the new cost without choosing powers to delete. If the
+		// loadout is now over budget, the negative remainder tells the player
+		// exactly how many points must be removed.
+		UpdateForceUsed();
 	}
 
-	// Apply the server's budget before painting: force ownerdraws can
-	// legalize and save the allocation, so an old budget can lose ranks.
+	// Apply the server's budget before processing the rank-change allocation.
 	if (ui_rankChange.integer)
 	{
 		FPMessageTime = realtime + 3000;
