@@ -237,7 +237,7 @@
 			name				clearbutton_glow
 			group				buttonglows
 			style				WINDOW_STYLE_SHADER
-			rect				24 348 102 26
+			rect				33 350 84 22
 			background			"gfx/menus/menu_buttonback"
 			forecolor			1 1 1 1
 			decoration
@@ -281,7 +281,7 @@
 			name				backbutton_glow
 			group				buttonglows
 			style				WINDOW_STYLE_SHADER
-			rect				294 348 102 26
+			rect				303 350 84 22
 			background			"gfx/menus/menu_buttonback"
 			forecolor			1 1 1 1
 			decoration
