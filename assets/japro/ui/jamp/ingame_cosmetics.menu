@@ -216,7 +216,7 @@
 				"Only Me" 2
 				@MENUS_OFF 0
 			}
-			rect				110 330 210 20
+			rect				110 330 195 20
 			textalign			ITEM_ALIGN_LEFT
 			textalignx			0
 			textaligny			0
