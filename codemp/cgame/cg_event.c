@@ -686,6 +686,92 @@ static void CG_ItemPickup( int itemNum ) {
 }
 
 
+// cg_tauntAntiSpam: model voice lines carry no rate limit of their own, so any line a player
+// can retrigger at will plays as often as the event fires - a taunt bind machine gunning the
+// same line, or a player bobbing at a water surface gasping on every frame the head clears.
+//
+// Lines fall into two classes:
+//   VOICE_LINE_TAUNT    every taunt family line shares one timer, so cycling between taunt,
+//                       bow, flourish and gloat does not get around the limit
+//   the rest            one timer per line, so a gasp spammed at a water surface does not
+//                       also silence that player's jump or roll grunts
+//
+// Only the audio is suppressed; the animation still plays.
+typedef enum {
+	VOICE_LINE_TAUNT,
+	VOICE_LINE_GASP,
+	VOICE_LINE_JUMP,
+	VOICE_LINE_ROLL,
+	VOICE_LINE_LAND,
+	NUM_VOICE_LINES
+} voiceLine_t;
+
+// The taunt limit is a deliberate one, long enough that a taunt bind is not worth holding.
+// The rest are roughly the length of the stock line, so a line never layers over itself
+// while ordinary play - a bunny hop, a hard landing - still gets its grunt.
+static const int cg_voiceLineDebounce[NUM_VOICE_LINES] = {
+	5000,	// VOICE_LINE_TAUNT
+	2000,	// VOICE_LINE_GASP
+	1000,	// VOICE_LINE_JUMP
+	1000,	// VOICE_LINE_ROLL
+	1000	// VOICE_LINE_LAND
+};
+
+static int cg_voiceLineDebounceTime[MAX_CLIENTS][NUM_VOICE_LINES];
+
+// Returns qtrue (suppress the voice line) if this player played this line too recently.
+// Updates the debounce timer when the line is allowed through.
+static qboolean CG_VoiceLineThrottled( int clientNum, voiceLine_t line ) {
+	int last;
+
+	if ( !cg_tauntAntiSpam.integer )
+		return qfalse;
+
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return qfalse; // NPCs and world entities have their own cooldowns
+
+	last = cg_voiceLineDebounceTime[clientNum][line];
+	if ( last && cg.time >= last && cg.time - last < cg_voiceLineDebounce[line] )
+		return qtrue; // suppress
+
+	cg_voiceLineDebounceTime[clientNum][line] = cg.time;
+	return qfalse;
+}
+
+// Model voice lines a player can fire off at will.  Servers that route these through a
+// generic sound event still land here, so they share the same per-player debounce.
+static qboolean CG_ClassifyVoiceLine( const char *soundName, voiceLine_t *line ) {
+	static const struct {
+		const char	*prefix;
+		voiceLine_t	line;
+	} voiceLines[] = {
+		{ "taunt",		VOICE_LINE_TAUNT },
+		{ "anger",		VOICE_LINE_TAUNT },
+		{ "gloat",		VOICE_LINE_TAUNT },
+		{ "victory",	VOICE_LINE_TAUNT },
+		{ "deflect",	VOICE_LINE_TAUNT },
+		{ "respect",	VOICE_LINE_TAUNT },
+		{ "meditate",	VOICE_LINE_TAUNT },
+		{ "gasp",		VOICE_LINE_GASP },
+		{ "jump",		VOICE_LINE_JUMP },
+		{ "roll",		VOICE_LINE_ROLL },
+		{ "land",		VOICE_LINE_LAND }
+	};
+	size_t i;
+
+	if ( !soundName || soundName[0] != '*' )
+		return qfalse;
+
+	soundName++;
+	for ( i = 0; i < ARRAY_LEN( voiceLines ); i++ ) {
+		if ( !Q_stricmpn( soundName, voiceLines[i].prefix, strlen( voiceLines[i].prefix ) ) ) {
+			*line = voiceLines[i].line;
+			return qtrue;
+		}
+	}
+	return qfalse;
+}
+
 /*
 ================
 CG_PainEvent
@@ -979,15 +1065,17 @@ void DoFall(centity_t *cent, entityState_t *es, int clientNum)
 	else if (delta > 50)
 	{
 		trap->S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.fallSound );
-		trap->S_StartSound( NULL, cent->currentState.number, CHAN_VOICE,
-			CG_CustomSound( cent->currentState.number, "*land1.wav" ) );
+		if ( !CG_VoiceLineThrottled( cent->currentState.number, VOICE_LINE_LAND ) )
+			trap->S_StartSound( NULL, cent->currentState.number, CHAN_VOICE,
+				CG_CustomSound( cent->currentState.number, "*land1.wav" ) );
 		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
 	}
 	else if (delta > 44)
 	{
 		trap->S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.fallSound );
-		trap->S_StartSound( NULL, cent->currentState.number, CHAN_VOICE,
-			CG_CustomSound( cent->currentState.number, "*land1.wav" ) );
+		if ( !CG_VoiceLineThrottled( cent->currentState.number, VOICE_LINE_LAND ) )
+			trap->S_StartSound( NULL, cent->currentState.number, CHAN_VOICE,
+				CG_CustomSound( cent->currentState.number, "*land1.wav" ) );
 		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
 	}
 	else
@@ -1587,6 +1675,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	int				eID = 0;
 	int				isnd = 0;
 	centity_t		*cl_ent;
+	voiceLine_t		voiceLine;
 
 	es = &cent->currentState;
 	event = es->event & ~EV_EVENT_BITS;
@@ -1872,6 +1961,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		if ((cg.time - cent->pe.painTime) < 500) //don't play immediately after pain/fall sound?
 			break;
 
+		if (CG_VoiceLineThrottled(es->number, VOICE_LINE_JUMP))
+			break;
+
 		//JAPRO - Clientside - Add jumpsounds options - Start
 		switch (cg_jumpSounds.integer)
 		{
@@ -1920,20 +2012,23 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		if (es->eventParm) //fall-roll-in-one event
 			DoFall(cent, es, clientNum);
 
-		switch (cg_rollSounds.integer)
+		if (cg_rollSounds.integer && !CG_VoiceLineThrottled(es->number, VOICE_LINE_ROLL))
 		{
-			default: break;
-			case 1://JAPRO - Clientside - Add rollsounds options
-				trap->S_StartSound(NULL, es->number, CHAN_VOICE, CG_CustomSound(es->number, "*roll"));
-				break;
-			case 2:
-				if (cg.snap->ps.clientNum != es->number)
+			switch (cg_rollSounds.integer)
+			{
+				default: break;
+				case 1://JAPRO - Clientside - Add rollsounds options
 					trap->S_StartSound(NULL, es->number, CHAN_VOICE, CG_CustomSound(es->number, "*roll"));
-				break;
-			case 3:
-				if (cg.snap->ps.clientNum == es->number)
-					trap->S_StartSound(NULL, es->number, CHAN_VOICE, CG_CustomSound(es->number, "*roll"));
-				break;
+					break;
+				case 2:
+					if (cg.snap->ps.clientNum != es->number)
+						trap->S_StartSound(NULL, es->number, CHAN_VOICE, CG_CustomSound(es->number, "*roll"));
+					break;
+				case 3:
+					if (cg.snap->ps.clientNum == es->number)
+						trap->S_StartSound(NULL, es->number, CHAN_VOICE, CG_CustomSound(es->number, "*roll"));
+					break;
+			}
 		}
 
 		trap->S_StartSound( NULL, es->number, CHAN_BODY, cgs.media.rollSound  );
@@ -2028,7 +2123,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			{
 				soundIndex = CG_CustomSound( es->number, "*taunt.wav" );
 			}
-			if ( soundIndex )
+			if ( soundIndex && !CG_VoiceLineThrottled( es->number, VOICE_LINE_TAUNT ) )
 			{
 				trap->S_StartSound (NULL, es->number, CHAN_VOICE, soundIndex );
 			}
@@ -2168,7 +2263,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_TAUNT2:
 	case EV_TAUNT3:
 		DEBUGNAME("EV_TAUNTx");
-		CG_TryPlayCustomSound( NULL, es->number, CHAN_VOICE, va("*taunt%i.wav", event - EV_TAUNT1 + 1) );
+		if ( !CG_VoiceLineThrottled( es->number, VOICE_LINE_TAUNT ) )
+			CG_TryPlayCustomSound( NULL, es->number, CHAN_VOICE, va("*taunt%i.wav", event - EV_TAUNT1 + 1) );
 		break;
 	case EV_JCHASE1:
 	case EV_JCHASE2:
@@ -2223,7 +2319,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		break;
 	case EV_WATER_CLEAR:
 		DEBUGNAME("EV_WATER_CLEAR");
-		trap->S_StartSound (NULL, es->number, CHAN_AUTO, CG_CustomSound( es->number, "*gasp.wav" ) );
+		if ( !CG_VoiceLineThrottled( es->number, VOICE_LINE_GASP ) )
+			trap->S_StartSound (NULL, es->number, CHAN_AUTO, CG_CustomSound( es->number, "*gasp.wav" ) );
 		break;
 
 	case EV_ITEM_PICKUP:
@@ -3791,6 +3888,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 						CG_ForceOwnSaberSound(es, es->number, cgs.gameSounds[ es->eventParm ]) );
 				} else {
 					s = CG_ConfigString( CS_SOUNDS + es->eventParm );
+					if ( CG_ClassifyVoiceLine( s, &voiceLine ) && CG_VoiceLineThrottled( es->number, voiceLine ) )
+						break;
 					trap->S_StartSound (NULL, es->number, es->saberEntityNum, CG_CustomSound( es->number, s ) );
 				}
 			}
@@ -3889,6 +3988,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 				CG_ForceOwnSaberSound(es, es->clientNum, cgs.gameSounds[ es->eventParm ]) );
 		} else {
 			s = CG_ConfigString( CS_SOUNDS + es->eventParm );
+			if ( CG_ClassifyVoiceLine( s, &voiceLine ) && CG_VoiceLineThrottled( es->clientNum, voiceLine ) )
+				break;
 			trap->S_StartSound (NULL, es->clientNum, es->trickedentindex, CG_CustomSound( es->clientNum, s ) );
 		}
 		break;

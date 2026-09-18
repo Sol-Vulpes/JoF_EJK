@@ -2134,12 +2134,48 @@
 			} 
 		}
 
+		itemDef 
+		{
+			name				tauntantispam
+			group				sound
+	  			type				ITEM_TYPE_MULTI
+			text				"Taunt Anti-Spam:"
+			cvar				"cg_tauntAntiSpam"
+			cvarFloatList		
+			{  
+				@MENUS_OFF 	0 
+				@MENUS_ON 	1 
+			}
+			rect				260 328 340 14
+				textalign			ITEM_ALIGN_RIGHT
+			textalignx			174
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			0.65 0.65 1 1
+			visible				0
+			descText			"Stop players repeating taunts and other model voice lines."
+			action 
+			{ 
+				play			"sound/interface/button1.wav"
+			}
+
+			mouseenter 
+			{ 
+				show			highlight11
+			}
+			mouseexit 
+			{ 
+				hide			highlight11
+			} 
+		}
+
 		itemDef
 		{
 			name				eax_icon
 			group				sound
 			style				WINDOW_STYLE_SHADER
-			rect				380 320 128 64
+			rect				380 348 128 64
 			background			"gfx/menus/eax"
 			forecolor			1 1 1 1
 			visible				1
