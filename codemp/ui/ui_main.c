@@ -13602,9 +13602,12 @@ static void UI_UpdateForceRules( int realtime )
 	UI_UpdateCvars();
 	if (hadFreeSaber != (ui_freeSaber.integer != 0) && !ui_rankChange.integer)
 	{
-		// A direct free-saber change also changes the allocation cost.
-		// Rank changes recalculate below, after applying the new point budget.
-		UpdateForceUsed();
+		// A direct free-saber change also changes the allocation cost.  Run the
+		// shared legalizer so an over-budget build is reduced by the normal
+		// force-power priority rules instead of whichever power UpdateForceUsed
+		// happens to visit last (usually saber defense).
+		// Rank changes legalize below, after applying the new point budget.
+		UI_ReadLegalForce();
 	}
 
 	// Apply the server's budget before painting: force ownerdraws can
