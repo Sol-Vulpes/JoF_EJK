@@ -495,11 +495,26 @@ static void CG_DrawBinocularDigits(float x, float y, const char *digits, float s
 	}
 }
 
+static qboolean CG_BinocularTargetLinked(int entityNum) {
+	int i;
+
+	if (cg.time < cg.missionPartyUpdateTime ||
+		cg.time - cg.missionPartyUpdateTime > MISSION_PARTY_EXPIRE_MSEC)
+		return qfalse;
+	for (i = 0; i < cg.missionPartyCount; i++) {
+		if (cg.missionParty[i].entityNum == entityNum)
+			return qtrue;
+	}
+	return qfalse;
+}
+
 static void CG_DrawBinocularTargets(void) {
 	vec4_t amber = { 1.0f, 0.74f, 0.30f, 0.95f };
+	vec4_t linkedColor = { 0.20f, 1.0f, 0.72f, 1.0f };
 	vec4_t healthColor = { 1.0f, 0.25f, 0.22f, 0.95f };
 	vec4_t shieldColor = { 0.30f, 1.0f, 0.40f, 0.95f };
 	vec4_t background = { 0.015f, 0.045f, 0.055f, 0.78f };
+	vec4_t linkedBackground = { 0.015f, 0.10f, 0.085f, 0.88f };
 	float placedX[MAX_BINOCULAR_TARGETS], placedY[MAX_BINOCULAR_TARGETS];
 	float scale = Q_max(25, Q_min(200, cg_binocularScanScale.integer)) * 0.01f;
 	qboolean compact = cg_binocularScanStyle.integer == 1;
@@ -525,6 +540,8 @@ static void CG_DrawBinocularTargets(void) {
 		trace_t trace;
 		float sx, sy, x, y, healthFraction, shieldCapacity;
 		float nameScale, nameWidth, nameAvailableWidth, nameAvailableHeight, nameY;
+		float *accent;
+		qboolean linked;
 		int j;
 		char label[MAX_NETNAME];
 		char healthDigits[16], shieldDigits[16];
@@ -542,6 +559,8 @@ static void CG_DrawBinocularTargets(void) {
 		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, point, cg.snap->ps.clientNum, MASK_SHOT);
 		if (trace.startsolid || trace.allsolid || (trace.fraction < 1.0f && trace.entityNum != target->entityNum))
 			continue;
+		linked = CG_BinocularTargetLinked(target->entityNum);
+		accent = linked ? linkedColor : amber;
 		if (compact) {
 			Com_sprintf(healthDigits, sizeof(healthDigits), "%i", target->health);
 			Com_sprintf(shieldDigits, sizeof(shieldDigits), "%i", target->armor);
@@ -562,25 +581,32 @@ static void CG_DrawBinocularTargets(void) {
 		placedX[placed] = x;
 		placedWidth[placed] = width;
 		placedY[placed++] = y;
-		CG_FillRect(x, y, width, height, background);
+		CG_FillRect(x, y, width, height, linked ? linkedBackground : background);
 		// Open corner brackets and a short leader evoke the existing macrobinocular optics.
-		CG_FillRect(sx - 3 * ratio, sy - 5 * scale, ratio, 10 * scale, amber);
-		CG_FillRect(sx - 3 * ratio, sy - 5 * scale, 6 * ratio, scale, amber);
-		CG_FillRect(sx - 3 * ratio, sy + 5 * scale, 6 * ratio, scale, amber);
+		CG_FillRect(sx - 3 * ratio, sy - 5 * scale, ratio, 10 * scale, accent);
+		CG_FillRect(sx - 3 * ratio, sy - 5 * scale, 6 * ratio, scale, accent);
+		CG_FillRect(sx - 3 * ratio, sy + 5 * scale, 6 * ratio, scale, accent);
+		if (linked) {
+			// Complete the reticle around linked contacts so the state remains
+			// recognizable even when the compact scanner is selected.
+			CG_FillRect(sx + 5 * ratio, sy - 8 * scale, ratio, 16 * scale, accent);
+			CG_FillRect(sx, sy - 8 * scale, 6 * ratio, scale, accent);
+			CG_FillRect(sx, sy + 8 * scale, 6 * ratio, scale, accent);
+		}
 		if (x > sx)
-			CG_FillRect(sx + 3 * ratio, sy, x - sx - 3 * ratio, scale, amber);
+			CG_FillRect(sx + 3 * ratio, sy, x - sx - 3 * ratio, scale, accent);
 		else if (x + width < sx - 3 * ratio)
-			CG_FillRect(x + width, sy, sx - 3 * ratio - x - width, scale, amber);
-		CG_FillRect(x, y, 14 * ratio, scale, amber);
-		CG_FillRect(x, y, ratio, 8 * scale, amber);
-		CG_FillRect(x + width - 14 * ratio, y + height - scale, 14 * ratio, scale, amber);
-		CG_FillRect(x + width - ratio, y + height - 8 * scale, ratio, 8 * scale, amber);
+			CG_FillRect(x + width, sy, sx - 3 * ratio - x - width, scale, accent);
+		CG_FillRect(x, y, 14 * ratio, scale, accent);
+		CG_FillRect(x, y, ratio, 8 * scale, accent);
+		CG_FillRect(x + width - 14 * ratio, y + height - scale, 14 * ratio, scale, accent);
+		CG_FillRect(x + width - ratio, y + height - 8 * scale, ratio, 8 * scale, accent);
 		if (compact) {
 			float separatorX = x + (6 + 7 * strlen(healthDigits)) * ratio;
 			CG_DrawBinocularDigits(x + 6 * ratio, y + 5 * scale, healthDigits, scale, healthColor);
 			// Font drawing rounds x/y to integers; keep the separator on the
 			// same floating-point image path as the digits to avoid relative jitter.
-			trap->R_SetColor(amber);
+			trap->R_SetColor(accent);
 			CG_DrawRotatePic2(separatorX + 6 * ratio, y + 11 * scale,
 				1.2f * ratio, 10 * scale, 20.0f, cgs.media.whiteShader);
 			CG_DrawBinocularDigits(separatorX + 12 * ratio, y + 5 * scale, shieldDigits, scale, shieldColor);
@@ -602,7 +628,7 @@ static void CG_DrawBinocularTargets(void) {
 		if (nameWidth > nameAvailableWidth)
 			nameScale *= nameAvailableWidth / nameWidth;
 		nameY = y + 3 * scale + Q_max(0.0f, nameAvailableHeight - CG_Text_Height(label, nameScale, FONT_SMALL)) * 0.5f;
-		CG_Text_Paint(x + 6 * ratio, nameY, nameScale, amber, label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		CG_Text_Paint(x + 6 * ratio, nameY, nameScale, accent, label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
 		healthFraction = (float)target->health / target->maxHealth;
 		CG_Text_Paint(x + 6 * ratio, y + 17 * scale, 0.5f * scale, healthColor,
 			va("HEALTH  %i", target->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
