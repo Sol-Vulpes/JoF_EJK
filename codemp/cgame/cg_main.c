@@ -1334,7 +1334,8 @@ static void CG_RegisterGraphics( void )
 
 	cgs.effects.forceLightning		= trap->FX_RegisterEffect( "effects/force/lightning.efx" );
 	cgs.effects.forceLightningWide	= trap->FX_RegisterEffect( "effects/force/lightningwide.efx" );
-	cgs.effects.demp2WallImpactEffectSmall = trap->FX_RegisterEffect( "effects/mp/wall_impact_small" ); // for force lightning
+	cgs.effects.demp2WallImpactEffectSmall = trap->FX_RegisterEffect( "effects/mp/wall_impact_small" );
+	cgs.effects.forceLightningBranch = trap->FX_RegisterEffect( "effects/mp/lightning_branch" );
 
 	cgs.media.forceLightningArcShader = trap->R_RegisterShader("gfx/misc/blueLine");
 	cgs.media.forceLightningFlashShader = trap->R_RegisterShader("gfx/misc/lightningFlash");
