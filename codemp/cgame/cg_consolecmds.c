@@ -414,6 +414,60 @@ static void CG_TellTarget_f( void ) {
 	trap->SendClientCommand( command );
 }
 
+static void CG_BinocularTag_f(void) {
+	int i, targetNum = ENTITYNUM_NONE;
+	float bestDistanceSq = 96.0f * 96.0f;
+
+	if (!cg.snap || cg.predictedPlayerState.zoomMode != 2 ||
+		cg.time < cg.binocularUpdateTime ||
+		cg.time - cg.binocularUpdateTime > BINOCULAR_EXPIRE_MSEC) {
+		trap->Print("^3MISSION: ^7Binocular uplink is not active.\n");
+		return;
+	}
+
+	// Prefer the actual crosshair trace. It remains live while binocular name
+	// labels are hidden, which also preserves tell_target/U behavior.
+	if (cg.crosshairClientNum >= 0 && cg.crosshairClientNum < ENTITYNUM_WORLD &&
+		cg.time - cg.crosshairClientTime <= 250) {
+		for (i = 0; i < cg.binocularTargetCount; i++) {
+			if (cg.binocularTargets[i].entityNum == cg.crosshairClientNum) {
+				targetNum = cg.crosshairClientNum;
+				break;
+			}
+		}
+	}
+
+	// Thin or animated models can miss the point trace. In that case select the
+	// scanned contact nearest the center of the optics, within a small reticle.
+	if (targetNum == ENTITYNUM_NONE) {
+		for (i = 0; i < cg.binocularTargetCount; i++) {
+			int entityNum = cg.binocularTargets[i].entityNum;
+			centity_t *cent = &cg_entities[entityNum];
+			vec3_t point;
+			float x, y, dx, dy, distanceSq;
+			if (!cent->currentValid)
+				continue;
+			VectorCopy(cent->lerpOrigin, point);
+			point[2] += 8.0f;
+			if (!CG_WorldCoordToScreenCoord(point, &x, &y))
+				continue;
+			dx = x - SCREEN_WIDTH * 0.5f;
+			dy = y - SCREEN_HEIGHT * 0.5f;
+			distanceSq = dx * dx + dy * dy;
+			if (distanceSq < bestDistanceSq) {
+				bestDistanceSq = distanceSq;
+				targetNum = entityNum;
+			}
+		}
+	}
+
+	if (targetNum == ENTITYNUM_NONE) {
+		trap->Print("^3MISSION: ^7No scanned contact in reticle.\n");
+		return;
+	}
+	trap->SendClientCommand(va("binotag %i", targetNum));
+}
+
 static void CG_TellAttacker_f( void ) {
 	int		clientNum;
 	char	command[MAX_SAY_TEXT + 10];
@@ -2866,6 +2920,7 @@ int cmdcmp( const void *a, const void *b ) {
 }
 
 static consoleCommand_t	commands[] = {
+	{ "binotag",				CG_BinocularTag_f },
 	{ "+scores",					CG_ScoresDown_f },
 	{ "-scores",					CG_ScoresUp_f },
 	{ "briefing",					CG_SiegeBriefing_f },
