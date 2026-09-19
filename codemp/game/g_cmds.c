@@ -8865,24 +8865,6 @@ static void Cmd_PickupReady_f(gentity_t *ent) {
 	}
 }
 
-static void Cmd_BinocularTag_f(gentity_t *ent) {
-	char arg[16];
-	int i, entityNum = 0;
-	if (trap->Argc() != 2)
-		return;
-	trap->Argv(1, arg, sizeof(arg));
-	if (!arg[0])
-		return;
-	for (i = 0; arg[i]; i++) {
-		if (arg[i] < '0' || arg[i] > '9')
-			return;
-		entityNum = entityNum * 10 + arg[i] - '0';
-		if (entityNum >= ENTITYNUM_WORLD)
-			return;
-	}
-	G_ToggleMissionPartyTag(ent, entityNum);
-}
-
 /* This array MUST be sorted correctly by alphabetical name field */
 command_t commands[] = {
 	{ "addbot",				Cmd_AddBot_f,				0 },
