@@ -23,6 +23,7 @@ typedef struct {
 	char choices[CG_DLG_MAX_CHOICES][CG_DLG_CHOICE_SIZE];
 	int selected;
 	qboolean awaitingResponse;
+	int responseTime;
 	int openTime;
 	float choiceY[CG_DLG_MAX_CHOICES];
 	float choiceH[CG_DLG_MAX_CHOICES];
@@ -93,8 +94,10 @@ void CG_DialogueServerCommand( void ) {
 }
 
 static void CG_DialogueSubmit( int selection ) {
-	if ( !s_dialogue.active || s_dialogue.awaitingResponse ) return;
+	if ( !s_dialogue.active ) return;
+	if ( s_dialogue.awaitingResponse && cg.time - s_dialogue.responseTime < 1000 ) return;
 	s_dialogue.awaitingResponse = qtrue;
+	s_dialogue.responseTime = cg.time;
 	trap->SendClientCommand( va( "dialogueresponse %u %d", s_dialogue.serial, selection ) );
 }
 
