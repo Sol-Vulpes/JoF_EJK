@@ -6251,7 +6251,7 @@ static void G_ToggleMissionPartyTag(gentity_t *viewer, int entityNum) {
 	// A tag must be centered in the optics. Range, concealment, PVS and line of
 	// sight are rechecked here before the party link changes.
 	if (!G_BinocularTargetVisible(viewer, target, eye, forward, 0.985f, NULL)) {
-		trap->SendServerCommand(viewer->s.number, "print \"^3MISSION: ^7No valid contact in reticle.\\n\"");
+		trap->SendServerCommand(viewer->s.number, "print \"^3BINOTAG: ^7No valid player in reticle.\n\"");
 		return;
 	}
 
@@ -6262,12 +6262,11 @@ static void G_ToggleMissionPartyTag(gentity_t *viewer, int entityNum) {
 			pers->missionPartyGenerations[i] == generation) {
 			G_RemoveMissionPartyMember(pers, i);
 			viewer->client->missionPartyNextUpdate = 0;
-			trap->SendServerCommand(viewer->s.number, "print \"^3MISSION: ^7Contact released.\\n\"");
 			return;
 		}
 	}
 	if (pers->missionPartyCount >= MAX_MISSION_PARTY) {
-		trap->SendServerCommand(viewer->s.number, "print \"^3MISSION: ^7Party uplink full (7 contacts).\\n\"");
+		trap->SendServerCommand(viewer->s.number, "print \"^3BINOTAG: ^7Party uplink full (7 contacts).\n\"");
 		return;
 	}
 	pers->missionPartyEntityNums[pers->missionPartyCount] = entityNum;
@@ -6275,7 +6274,6 @@ static void G_ToggleMissionPartyTag(gentity_t *viewer, int entityNum) {
 	pers->missionPartyDeadSince[pers->missionPartyCount] = 0;
 	pers->missionPartyCount++;
 	viewer->client->missionPartyNextUpdate = 0;
-	trap->SendServerCommand(viewer->s.number, "print \"^3MISSION: ^7Contact linked.\\n\"");
 }
 
 static void G_TryMissionPartyTag(gentity_t *viewer) {
@@ -6296,7 +6294,7 @@ static void G_TryMissionPartyTag(gentity_t *viewer) {
 	}
 	if (targetNum == ENTITYNUM_NONE) {
 		trap->SendServerCommand(viewer->s.number,
-			"print \"^3MISSION: ^7No valid contact in reticle.\\n\"");
+			"print \"^3BINOTAG: ^7No valid player in reticle.\n\"");
 		return;
 	}
 	G_ToggleMissionPartyTag(viewer, targetNum);
