@@ -6144,11 +6144,23 @@ static void G_RemoveMissionPartyMember(clientPersistant_t *pers, int slot) {
 	pers->missionPartyDeadSince[pers->missionPartyCount] = 0;
 }
 
-static void G_ClearMissionParty(clientPersistant_t *pers) {
+void G_ClearMissionPartyTags(gentity_t *viewer) {
+	clientPersistant_t *pers;
+
+	if (!viewer || !viewer->client || viewer->s.number >= MAX_CLIENTS)
+		return;
+	pers = &viewer->client->pers;
+	if (!pers->missionPartyCount)
+		return;
+
 	memset(pers->missionPartyEntityNums, 0, sizeof(pers->missionPartyEntityNums));
 	memset(pers->missionPartyGenerations, 0, sizeof(pers->missionPartyGenerations));
 	memset(pers->missionPartyDeadSince, 0, sizeof(pers->missionPartyDeadSince));
 	pers->missionPartyCount = 0;
+	viewer->client->missionPartyNextUpdate = 0;
+	viewer->client->missionPartyLastCount = 0;
+	viewer->client->missionPartyTagHeld = qfalse;
+	trap->SendServerCommand(viewer->s.number, va("partyStats %i 0", level.time));
 }
 
 static qboolean G_MissionPartyMemberValid(clientPersistant_t *pers, int slot) {
@@ -6177,9 +6189,7 @@ static void G_UpdateMissionParty(gentity_t *viewer) {
 	if (viewer->s.number < MAX_CLIENTS && pers->missionPartyCount &&
 		(viewer->health <= 0 || client->ps.pm_type == PM_DEAD ||
 		(client->ps.eFlags & EF_DEAD))) {
-		G_ClearMissionParty(pers);
-		client->missionPartyNextUpdate = 0;
-		client->missionPartyTagHeld = qfalse;
+		G_ClearMissionPartyTags(viewer);
 	}
 
 	if (viewer->s.number >= MAX_CLIENTS || (viewer->r.svFlags & SVF_BOT) ||
