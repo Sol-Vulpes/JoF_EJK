@@ -25,7 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "cg_local.h"
 #include "fx_local.h"
 
-// A shared time-window budget bounds work even at very high frame rates.
+// Shared per-window budget so trace/effect work stays bounded at high FPS.
 #define LIGHTNING_INTERVAL 40
 #define LIGHTNING_EMIT_INTERVAL 10
 #define LIGHTNING_TRACE_BUDGET 192
@@ -55,6 +55,8 @@ static qboolean FX_LightningSurface(const trace_t *tr) {
 		 cg_entities[tr->entityNum].currentState.solid == SOLID_BMODEL);
 }
 
+// Draws a thin electricity arc between two points. Only used for the nest
+// link now; the main beam and nest strikes use native engine effects.
 static void FX_LightningArc(vec3_t start, vec3_t end, float width, float chaos, qboolean mainBolt) {
 	addElectricityArgStruct_t arc;
 	vec3_t delta;
@@ -69,23 +71,16 @@ static void FX_LightningArc(vec3_t start, vec3_t end, float width, float chaos, 
 	VectorCopy(arc.sRGB, arc.eRGB);
 	arc.size1 = mainBolt ? width : width * 0.5f;
 	arc.size2 = mainBolt ? 1.0f : 0.5f;
-	// The start end stays dim for non-main bolts: this function is now only
-	// used for the nest link, whose start sits mid-air on the main beam's
-	// own trunk (the "branch point") - full brightness/width there read as
-	// a small persistent flash floating on the beam. The end (touching the
-	// nest) stays fully opaque, since fading THAT was what made links
-	// invisible right where they needed to be visible (at the wall).
+	// Dim the start for non-main bolts so the branch point doesn't look like
+	// its own little flash; the end stays bright since it's the visible hit.
 	arc.alpha1 = mainBolt ? 1.0f : 0.25f;
 	arc.alpha2 = 1.0f;
 	arc.chaos = chaos;
 	arc.killTime = mainBolt ? 65 : 55;
 	arc.shader = cgs.media.forceLightningArcShader;
 	arc.flags = FX_ALPHA_LINEAR | FX_SIZE_LINEAR;
-	if (mainBolt) {
-		// Stock electricity's TAPER / BRANCH / GROW flags provide its familiar
-		// dense, animated silhouette. Surface arcs stay small and unbranched.
-		arc.flags |= 0x01000000 | 0x02000000 | 0x04000000;
-	}
+	if (mainBolt)
+		arc.flags |= 0x01000000 | 0x02000000 | 0x04000000; // TAPER/BRANCH/GROW
 	trap->FX_AddElectricity(&arc);
 }
 
@@ -104,98 +99,46 @@ static void FX_LightningFlash(vec3_t origin, float size) {
 	trap->FX_AddSprite(&flash);
 }
 
-// --- Nests --------------------------------------------------------------
-// A nest is a point out in the environment - a wall, floor or ceiling -
-// that the main beam periodically strikes. Nests do NOT connect to each
-// other and do NOT spawn their own sub-branches - they're purely a
-// destination a branch reaches out and hits. A thin arc is redrawn to each
-// active nest every so often so the connection reads as continuous, while
-// a stronger "strike" (impact visual + sound, the real DEMP2 wall-impact
-// effect) fires on its own slower per-nest timer. A nest lives until its
-// expireTime, refilling its strike queue as needed rather than dying when
-// strikes run out.
+// --- Nests ---------------------------------------------------------------
+// A nest is a short-lived point on a wall/floor/ceiling that the main beam
+// periodically strikes: a thin link arc keeps it visibly connected, and a
+// stronger "strike" (native lightning effect + DEMP2 impact) fires on its
+// own timer. Nests live until expireTime, refilling their strike queue as
+// needed instead of dying when strikes run out.
 #define LIGHTNING_MAX_NESTS 8
 #define LIGHTNING_NESTS_PER_OWNER 3
-// Much shorter than before (was 900-2000ms, long enough to sit and stare
-// at). MB2-style chaotic lightning barely gives you time to register a
-// bounce before it's gone - short life + a higher spawn chance below is
-// what gives that erratic, always-something-jumping-around feel instead
-// of a few calm, lingering points.
 #define LIGHTNING_NEST_MIN_LIFE 120
 #define LIGHTNING_NEST_MAX_LIFE 280
-// Nests are now searched for in random 3D directions from the caster's
-// hand (see FX_LightningScatterNest) rather than scattered laterally near
-// wherever the aim beam happens to hit - that's what lets a strike land on
-// the floor or ceiling even while you're aiming levelly at a wall. This is
-// the max probe distance from the hand, not a lateral offset.
 #define LIGHTNING_NEST_SCATTER_RADIUS 280.0f
-// Random directions that miss all geometry are common (aiming out into
-// open space along that particular ray) - try a few per spawn attempt
-// instead of relying on a single probe.
 #define LIGHTNING_NEST_SCATTER_ATTEMPTS 4
-// Ignore hits closer than this to the caster - a "strike" essentially on
-// top of the player's own model doesn't read as a branch reaching out.
 #define LIGHTNING_NEST_SCATTER_MIN_DIST 40.0f
-// Reject candidate directions pointing this far behind the caster's facing
-// (dot product against the beam's forward direction). A full random sphere
-// let nests land directly behind the player, which reads as broken/out of
-// place since you never see it happen. This still allows floor/ceiling
-// (roughly perpendicular to forward, dot near 0) - only the rearmost cone
-// is cut off.
+// Rejects scatter directions this far behind the caster's facing, so a
+// nest never lands somewhere the player can't see it strike.
 #define LIGHTNING_NEST_FORWARD_MIN_DOT -0.15f
-// Chance per cycle that a new nest attempts to spawn at all - the main
-// knob on how often fresh nests appear. Raised alongside the much shorter
-// life above, so nests keep getting replaced quickly instead of the
-// overall effect going quiet between the rarer, longer-lived ones before.
 #define LIGHTNING_NEST_SPAWN_CHANCE 0.7f
-// Each nest gets a random number of individual strikes queued up at spawn
-// time (and refilled whenever it runs out - see FX_LightningUpdateNests),
-// then fires them one at a time (not as a simultaneous burst).
 #define LIGHTNING_NEST_MIN_STRIKES 10
 #define LIGHTNING_NEST_MAX_STRIKES 18
 #define LIGHTNING_NEST_STRIKE_MIN_GAP 15
 #define LIGHTNING_NEST_STRIKE_MAX_GAP 45
-// Width/chaos of the thin, continuously-redrawn arc that keeps a nest
-// visibly connected to the main beam between strikes. Chaos kept low - the
-// electricity renderer already adds its own wave noise along the arc's
-// length, and stacking manual jitter on top of that is what made links
-// look like tangled "spaghetti" rather than a bolt.
 #define LIGHTNING_NEST_LINK_WIDTH 4.0f
-// Wider chaos range than before (was a flat 0.08, then a mild 0.3-0.65) - a
-// low value drew an identical, gentle sine-like curve every redraw, which
-// read as a uniform wavy line rather than lightning. This range now
-// matches the same order of magnitude the main bolt itself uses.
 #define LIGHTNING_NEST_LINK_CHAOS_MIN 1.8f
 #define LIGHTNING_NEST_LINK_CHAOS_MAX 3.2f
-// How often the link arc is redrawn. Must be close to (not much shorter
-// than) the non-mainBolt killTime used in FX_LightningArc (55ms) - drawing
-// a fresh, independently-random link far more often than the old one dies
-// leaves several different random shapes alive on screen at once, which is
-// what actually caused the "spaghetti" look, not the chaos value alone.
+// Kept close to the arc's own killTime (55ms) so redraws don't overlap.
 #define LIGHTNING_NEST_LINK_INTERVAL 55
-// How far the link's origin is allowed to wander around its branch point
-// each redraw (perpendicular to the link direction).
 #define LIGHTNING_NEST_LINK_ORIGIN_JITTER 6.0f
-// A branch off a real lightning channel doesn't only ever leave from the
-// exact tip - it leaves from various points along the channel. Picking the
-// branch point as a random fraction along the main beam's own segment
-// (hand -> beam tip) breaks the "everything meets at one exact end point"
-// look, and works regardless of which direction the nest itself is in
-// (floor, ceiling or a side wall).
+// Branch point is a random fraction along the main beam's own segment
+// (hand -> tip), not always the tip - keeps it close to the hand here.
 #define LIGHTNING_NEST_BRANCH_FRAC_MIN 0.03f
 #define LIGHTNING_NEST_BRANCH_FRAC_MAX 0.2f
-// A nest slowly slides across the surface it's stuck to instead of sitting
-// dead still for its whole life. Kept infrequent/slow since each crawl step
-// spends from the same shared trace budget as everything else this frame.
+// Slow surface crawl so a nest isn't perfectly static for its whole life.
 #define LIGHTNING_NEST_CRAWL_SPEED 6.0f
 #define LIGHTNING_NEST_CRAWL_INTERVAL 90
-// Max radians the crawl direction drifts per step - gives an organic
-// wander instead of a dead-straight line across the wall.
 #define LIGHTNING_NEST_CRAWL_TURN 0.5f
-// How far out/in (along the old normal) to re-probe for the surface after
-// each crawl step, to stay stuck to it (and to pick up a new normal on a
-// curved or angled surface) rather than drifting off into open air.
 #define LIGHTNING_NEST_CRAWL_PROBE 24.0f
+// Throttle for a nest's own impact sound - independent of strike frequency,
+// so a short-lived, fast-striking nest plays roughly one sound, not one
+// per strike.
+#define LIGHTNING_NEST_SOUND_INTERVAL 200
 
 typedef struct {
 	qboolean active;
@@ -208,6 +151,7 @@ typedef struct {
 	int nextStrikeTime;
 	int nextLinkTime;
 	int nextCrawlTime;
+	int nextSoundTime;
 } lightningNest_t;
 
 static lightningNest_t lightningNests[LIGHTNING_MAX_NESTS];
@@ -220,9 +164,6 @@ static int FX_LightningCountOwnerNests(int owner) {
 	return n;
 }
 
-// Nests die purely from their expireTime - running out of queued strikes
-// doesn't end a nest (FX_LightningUpdateNests refills the queue instead),
-// so this only needs to check the clock.
 static void FX_LightningExpireNests(int owner) {
 	int i;
 	for (i = 0; i < LIGHTNING_MAX_NESTS; i++)
@@ -231,11 +172,7 @@ static void FX_LightningExpireNests(int owner) {
 			lightningNests[i].active = qfalse;
 }
 
-// Finds a fresh nest point by probing random directions from the caster's
-// hand out to LIGHTNING_NEST_SCATTER_RADIUS. Directions are still fully
-// random in the hemisphere/floor/ceiling sense, but candidates pointing too
-// far behind the caster's facing (see LIGHTNING_NEST_FORWARD_MIN_DOT) are
-// rejected, so a nest never lands somewhere the player can't see it strike.
+// Probes random 3D directions from the hand for a valid surface point.
 static qboolean FX_LightningScatterNest(vec3_t origin, vec3_t forward, int owner, vec3_t outPos, vec3_t outNormal) {
 	int attempt;
 	vec3_t dir, end;
@@ -263,10 +200,6 @@ static qboolean FX_LightningScatterNest(vec3_t origin, vec3_t forward, int owner
 	return qfalse;
 }
 
-// Tries to add one new nest this cycle (subject to the per-owner cap).
-// No "always keep at least one alive" guarantee here on purpose - unlike
-// a persistent-contact system, it's fine for a caster to occasionally have
-// zero nests active; they'll reappear as chance allows.
 static void FX_LightningSpawnNest(vec3_t origin, vec3_t forward, int owner) {
 	int slot, s;
 	vec3_t pos, nrm;
@@ -288,9 +221,6 @@ static void FX_LightningSpawnNest(vec3_t origin, vec3_t forward, int owner) {
 	lightningNests[slot].owner = owner;
 	VectorCopy(pos, lightningNests[slot].pos);
 	VectorCopy(nrm, lightningNests[slot].normal);
-	// Random initial crawl direction, tangent to the surface (built from two
-	// perpendicular basis vectors so it can point any way across the wall,
-	// not just along one axis).
 	{
 		vec3_t tangent, side;
 		PerpendicularVector(tangent, nrm);
@@ -303,28 +233,22 @@ static void FX_LightningSpawnNest(vec3_t origin, vec3_t forward, int owner) {
 	lightningNests[slot].expireTime = cg.time + (int)Q_flrand(LIGHTNING_NEST_MIN_LIFE, LIGHTNING_NEST_MAX_LIFE);
 	lightningNests[slot].strikesLeft = LIGHTNING_NEST_MIN_STRIKES +
 		(rand() % (LIGHTNING_NEST_MAX_STRIKES - LIGHTNING_NEST_MIN_STRIKES + 1));
-	// first strike goes out almost immediately, subsequent ones use the gap
 	lightningNests[slot].nextStrikeTime = cg.time;
 	lightningNests[slot].nextLinkTime = cg.time;
 	lightningNests[slot].nextCrawlTime = cg.time + LIGHTNING_NEST_CRAWL_INTERVAL;
+	lightningNests[slot].nextSoundTime = cg.time;
 }
 
-// Slides a nest a small step across the surface it's stuck to, then
-// re-probes along its (old) normal to snap back onto that surface - this
-// is what lets it follow a curved wall or stop cleanly at an edge rather
-// than floating off into open air. If the probe fails (walked off the
-// edge of the surface, or the shared trace budget is exhausted this
-// window), the crawl direction is reversed so it wanders back rather than
-// getting stuck pointed at empty space.
+// Slides a nest along its surface, re-probing to stay stuck to it (or
+// reversing direction if it walks off the edge).
 static void FX_LightningCrawlNest(lightningNest_t *nest, int owner) {
 	vec3_t tangent, side, candidate, probeStart, probeEnd;
 	trace_t tr;
 	float angle, c, s, dt, ds;
 
 	if (lightningTraces >= LIGHTNING_TRACE_BUDGET)
-		return; // no budget left this window - hold position, try again next tick
+		return;
 
-	// Drift the crawl direction a little each step instead of a dead-straight line.
 	PerpendicularVector(tangent, nest->normal);
 	CrossProduct(nest->normal, tangent, side);
 	angle = Q_flrand(-LIGHTNING_NEST_CRAWL_TURN, LIGHTNING_NEST_CRAWL_TURN);
@@ -350,30 +274,29 @@ static void FX_LightningCrawlNest(lightningNest_t *nest, int owner) {
 	VectorCopy(tr.plane.normal, nest->normal);
 }
 
-// Real DEMP2 wall-impact visual, matching the WP_DEMP2 case in
-// CG_MissileHitWall (cg_weapons.c): normal (non-alt) DEMP2 missiles call
-// FX_DEMP2_HitWall directly rather than going through FX_PlayEffectID -
-// it's a normal function, already declared via fx_local.h (same header
-// this file includes), not an effect ID. Using that exact call (instead
-// of a custom sprite pair) makes a struck nest read as the regular DEMP2
-// bolt impact rather than the bigger alt-fire detonation. This plays the
-// scaled-down variant (demp2/wall_impact_small.efx), registered alongside
-// the full-size one in CG_RegisterWeapon, so base assets stay untouched.
+// Small DEMP2 wall-impact spark for a struck nest.
 static void FX_LightningNestVisual(vec3_t origin, vec3_t normal) {
-	trap->FX_PlayEffectID( cgs.effects.demp2WallImpactEffectSmall, origin, normal, -1, -1, qfalse );
+	trap->FX_PlayEffectID(cgs.effects.demp2WallImpactEffectSmall, origin, normal, -1, -1, qfalse);
 }
 
-// Impact sound for the main beam hitting a surface - the only impact sound
-// in the whole system now (nests deliberately don't play their own, to
-// match the reference behavior of a single, well-throttled sound rather
-// than two overlapping sources). Budgeted via lightningSoundBudgetTime /
-// lightningSounds / LIGHTNING_SOUND_INTERVAL / LIGHTNING_SOUND_BUDGET.
-// Gated first by its own per-entity timer (cent->lightningImpactSoundTime)
-// so one caster's beam doesn't retrigger every single update while
-// continuously hitting the same wall. Sound choice is fixed to index 2
-// (lightninghit3) per the user's preference - a deterministic time+entity
-// based formula was tried first but landed on the same index (or the same
-// pair of indices) repeatedly depending on the exact timing arithmetic.
+// Nest impact sound - one random variant, shares the global sound budget
+// with the main beam impact sound. Called only when nest->nextSoundTime
+// allows it (see FX_LightningStrikeNest), not on every strike.
+static void FX_LightningNestImpactSound(vec3_t pos) {
+	if (cg.time < lightningSoundBudgetTime ||
+		cg.time - lightningSoundBudgetTime >= LIGHTNING_SOUND_INTERVAL) {
+		lightningSoundBudgetTime = cg.time;
+		lightningSounds = 0;
+	}
+	if (lightningSounds >= LIGHTNING_SOUND_BUDGET)
+		return;
+	lightningSounds++;
+	trap->S_StartSound(pos, ENTITYNUM_WORLD, CHAN_AUTO,
+		cgs.media.forceLightningImpactSounds[rand() % 3]);
+}
+
+// Main beam impact sound - single variant, chosen by time+entity (matches
+// the reference implementation this was ported from).
 static void FX_LightningImpactSound(centity_t *cent, const trace_t *hit) {
 	vec3_t contact;
 	int sound;
@@ -389,8 +312,8 @@ static void FX_LightningImpactSound(centity_t *cent, const trace_t *hit) {
 	if (lightningSounds >= LIGHTNING_SOUND_BUDGET)
 		return;
 
-	sound = 2;
-	cent->lightningImpactSoundTime = cg.time + LIGHTNING_SOUND_INTERVAL;
+	sound = (cg.time / LIGHTNING_INTERVAL + cent->currentState.number) % 3;
+	cent->lightningImpactSoundTime = cg.time + LIGHTNING_SOUND_INTERVAL + sound * 30;
 	if (!cgs.media.forceLightningImpactSounds[sound])
 		return;
 
@@ -399,29 +322,17 @@ static void FX_LightningImpactSound(centity_t *cent, const trace_t *hit) {
 	trap->S_StartSound(contact, ENTITYNUM_WORLD, CHAN_AUTO, cgs.media.forceLightningImpactSounds[sound]);
 }
 
-// Picks a point along the main beam's own segment (hand -> beam tip) to
-// branch off from. Using a random fraction of the whole segment - rather
-// than always the tip, or always a fixed offset from wherever the beam's
-// own hit point is - means this works the same whether the nest ends up
-// on a wall, the floor or the ceiling.
+// Random point along the main beam's hand->tip segment to branch off from.
 static void FX_LightningBranchBase(vec3_t beamStart, vec3_t beamEnd, vec3_t outBase) {
 	vec3_t seg;
 	VectorSubtract(beamEnd, beamStart, seg);
 	VectorMA(beamStart, Q_flrand(LIGHTNING_NEST_BRANCH_FRAC_MIN, LIGHTNING_NEST_BRANCH_FRAC_MAX), seg, outBase);
 }
 
-// Fires ONE strike from a point along the main beam into the nest, using
-// effects/force/lightning_branch.efx - a copy of the game's native
-// forceLightning effect with its origin flash Particle stripped out (the
-// full lightning.efx used for the main beam includes that flash, which
-// belongs at the hand but looked wrong appearing mid-air at the branch
-// point). Its Electricity block still uses spawnflags org2fromTrace,
-// meaning the engine performs its own trace from origin along dir and
-// draws the bolt wherever that lands - so we only hand it a direction, not
-// two endpoints. Real lightning striking a target repeatedly doesn't fire
-// every strike at once - it flickers, pauses, flickers again. That
-// per-strike pacing lives in FX_LightningUpdateNests below (via
-// nextStrikeTime); this function just fires one strike when called.
+// Fires one strike into a nest using effects/force/lightning_branch.efx
+// (forceLightning without its origin flash particle). Its Electricity
+// block uses spawnflags org2fromTrace, so the engine traces from origin
+// along dir itself - we only supply a direction.
 static void FX_LightningStrikeNest(vec3_t beamStart, vec3_t beamEnd, lightningNest_t *nest) {
 	vec3_t branchBase, dir, tangent, side;
 
@@ -430,9 +341,6 @@ static void FX_LightningStrikeNest(vec3_t beamStart, vec3_t beamEnd, lightningNe
 	VectorSubtract(nest->pos, branchBase, dir);
 	VectorNormalize(dir);
 
-	// Small direction jitter so consecutive strikes at the same nest don't
-	// all trace the exact same line - the engine's own trace still lands
-	// at (or very near) nest->pos regardless, since it's the same wall.
 	PerpendicularVector(tangent, dir);
 	CrossProduct(dir, tangent, side);
 	VectorMA(dir, Q_flrand(-0.03f, 0.03f), tangent, dir);
@@ -440,19 +348,16 @@ static void FX_LightningStrikeNest(vec3_t beamStart, vec3_t beamEnd, lightningNe
 	VectorNormalize(dir);
 
 	trap->FX_PlayEffectID(cgs.effects.forceLightningBranch, branchBase, dir, -1, -1, qfalse);
-	// No sound here on purpose - only the main beam's own impact sound
-	// (FX_LightningImpactSound) plays, matching the reference behavior
-	// where there's a single, well-throttled impact sound rather than a
-	// second overlapping source from nest strikes.
 	FX_LightningNestVisual(nest->pos, nest->normal);
+	if (cg.time >= nest->nextSoundTime) {
+		nest->nextSoundTime = cg.time + LIGHTNING_NEST_SOUND_INTERVAL;
+		FX_LightningNestImpactSound(nest->pos);
+	}
 }
 
-// Called every update - not just while the aim beam currently hits a
-// surface - so nests keep animating (links redrawn, strikes fired,
-// expiry checked) even during a frame where you're aiming at open air or
-// another player. beamStart/beamEnd describe the main beam's own segment
-// this update, used purely to pick each branch's origin point (see
-// FX_LightningBranchBase); they don't need to represent a surface hit.
+// Updates every active nest owned by owner: redraws its link arc on its
+// own cadence, fires due strikes, and paces the next strike. Runs every
+// call regardless of whether the main beam currently hits a surface.
 static void FX_LightningUpdateNests(vec3_t beamStart, vec3_t beamEnd, int owner) {
 	int slot;
 	for (slot = 0; slot < LIGHTNING_MAX_NESTS; slot++) {
@@ -465,11 +370,6 @@ static void FX_LightningUpdateNests(vec3_t beamStart, vec3_t beamEnd, int owner)
 			FX_LightningCrawlNest(nest, owner);
 		}
 
-		// Connecting arc: redrawn on its own cadence (LIGHTNING_NEST_LINK_INTERVAL,
-		// matched to its killTime) rather than on every call. Redrawing far more
-		// often than each drawn arc's own lifetime meant several independently-
-		// random copies were alive on screen simultaneously, which is what
-		// actually produced the tangled "spaghetti" look - not the chaos value.
 		if (cg.time >= nest->nextLinkTime) {
 			vec3_t linkDir, linkTangent, linkSide, linkOrigin, branchBase;
 			nest->nextLinkTime = cg.time + LIGHTNING_NEST_LINK_INTERVAL;
@@ -492,8 +392,6 @@ static void FX_LightningUpdateNests(vec3_t beamStart, vec3_t beamEnd, int owner)
 		FX_LightningStrikeNest(beamStart, beamEnd, nest);
 		nest->strikesLeft--;
 		if (nest->strikesLeft <= 0) {
-			// Refill instead of letting the nest go idle - it now only
-			// dies from expireTime, not from running out of strikes.
 			nest->strikesLeft = LIGHTNING_NEST_MIN_STRIKES +
 				(rand() % (LIGHTNING_NEST_MAX_STRIKES - LIGHTNING_NEST_MIN_STRIKES + 1));
 		}
@@ -502,12 +400,12 @@ static void FX_LightningUpdateNests(vec3_t beamStart, vec3_t beamEnd, int owner)
 			(rand() % (LIGHTNING_NEST_STRIKE_MAX_GAP - LIGHTNING_NEST_STRIKE_MIN_GAP + 1));
 	}
 }
-// ------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
-// Traces the main beam (for hit detection the nest system needs) and draws
-// it using the real forceLightning/forceLightningWide effect, then drives
-// the nest system on top of that. If the shared trace/effect budget is
-// exhausted, the caller falls back to vanilla lightning entirely.
+// Traces the main beam for hit detection, draws it via the native
+// forceLightning/forceLightningWide effect, and drives the nest system.
+// If the shared trace/effect budget is exhausted, the caller falls back
+// to vanilla lightning entirely.
 qboolean FX_ForceLightningEnvironment(centity_t *cent, vec3_t origin, matrix3_t axis, qboolean wide) {
 	int ray, rays, surfaceRay = -1;
 	float phase;
@@ -526,8 +424,6 @@ qboolean FX_ForceLightningEnvironment(centity_t *cent, vec3_t origin, matrix3_t 
 		lightningTraces = lightningEffects = 0;
 	}
 	rays = wide ? 2 + ((cg.time / 10 + cent->currentState.number) % 3) : 1;
-	// Reserve the entire hand spray before drawing anything. Falling back
-	// midway would double up custom and stock bolts in the same frame.
 	if (lightningTraces + rays > LIGHTNING_TRACE_BUDGET ||
 		lightningEffects + rays + 1 > LIGHTNING_EFFECT_BUDGET)
 		return qfalse;
@@ -550,31 +446,19 @@ qboolean FX_ForceLightningEnvironment(centity_t *cent, vec3_t origin, matrix3_t 
 		VectorCopy(hits[ray].endpos, end);
 		if (FX_LightningSurface(&hits[ray])) {
 			VectorMA(end, 2.0f, hits[ray].plane.normal, end);
-			// At most one impact is used as the beam's "tip" reference below.
 			if (surfaceRay < 0 || hits[ray].fraction < hits[surfaceRay].fraction)
 				surfaceRay = ray;
 		}
 	}
-	// Main beam visual: the real forceLightning/forceLightningWide effect,
-	// fired ONCE (not per spread ray - lightningwide.efx already fans out
-	// into several strands internally via its own Electricity blocks, so
-	// firing once per ray compounded two spreads into an overly splayed
-	// look). Uses FX_PlayEntityEffectID with the full axis matrix, matching
-	// the stock call site exactly - passing only a direction vector through
-	// FX_PlayEffectID left the engine to invent its own up/side axes from
-	// that single vector, which rotated with the camera instead of staying
-	// fixed (the "steering wheel" spin). The per-ray trace loop above is
-	// untouched and still drives hit detection/nests exactly as before;
-	// only the draw call changed.
+
+	// Main beam visual: fired once (not per ray - forceLightningWide already
+	// fans out internally), via FX_PlayEntityEffectID with the full axis
+	// matrix so the effect's own up/side orientation stays fixed to the
+	// player instead of spinning with the camera.
 	trap->FX_PlayEntityEffectID(wide ? cgs.effects.forceLightningWide : cgs.effects.forceLightning,
 		origin, axis, -1, -1, -1, -1);
-	// Keep the small hand flash which was absent in the first prototype.
 	FX_LightningFlash(origin, 18.0f);
 
-	// A representative tip for the main beam, used only to pick branch
-	// points along it (FX_LightningBranchBase) - falls back to whatever
-	// ray 0 actually reached (surface or not) so nests keep animating even
-	// when the beam itself isn't currently hitting anything solid.
 	if (surfaceRay >= 0) {
 		VectorMA(hits[surfaceRay].endpos, 2.0f, hits[surfaceRay].plane.normal, beamEnd);
 		FX_LightningImpactSound(cent, &hits[surfaceRay]);
@@ -585,19 +469,11 @@ qboolean FX_ForceLightningEnvironment(centity_t *cent, vec3_t origin, matrix3_t 
 
 	{
 		int owner = cent->currentState.number;
-
-		// Nests are updated/expired every call regardless of whether the
-		// beam currently hits a surface, so they don't freeze mid-life
-		// just because you glanced away from a wall for a moment.
 		FX_LightningExpireNests(owner);
 		FX_LightningUpdateNests(origin, beamEnd, owner);
 
 		if (cent->lightningSurfaceTime <= cg.time) {
 			cent->lightningSurfaceTime = cg.time + LIGHTNING_INTERVAL;
-			// Scatters around the caster's hand in random 3D directions,
-			// biased away from directly behind (see LIGHTNING_NEST_FORWARD_MIN_DOT),
-			// so this can land on a wall, the floor or the ceiling roughly
-			// in front of/around the player, never somewhere unseen behind them.
 			FX_LightningSpawnNest(origin, axis[0], owner);
 		}
 	}
