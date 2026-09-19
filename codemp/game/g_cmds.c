@@ -8882,7 +8882,6 @@ static void Cmd_BinocularTag_f(gentity_t *ent) {
 	}
 	G_ToggleMissionPartyTag(ent, entityNum);
 }
-}
 
 /* This array MUST be sorted correctly by alphabetical name field */
 command_t commands[] = {
