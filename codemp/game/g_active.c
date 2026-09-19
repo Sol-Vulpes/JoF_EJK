@@ -3442,6 +3442,7 @@ void ClientThink_real( gentity_t *ent ) {
 	qboolean	killJetFlags = qtrue;
 	qboolean	isFollowing;
 	qboolean	missionPartyTagPressed = qfalse;
+	qboolean	missionPartyClearPressed = qfalse;
 
 	client = ent->client;
 
@@ -4810,17 +4811,23 @@ void ClientThink_real( gentity_t *ent ) {
 	G_AddPushVecToUcmd( ent, ucmd );
 
 	// With binoculars active and the saber fully down, primary fire operates
-	// the mission-party uplink. Consume the attack before pmove so it cannot
-	// ignite the saber, and trigger only once per physical button press.
+	// the mission-party uplink and alt fire clears it. Consume both attacks
+	// before pmove so they cannot ignite the saber, and trigger each action only
+	// once per physical button press.
 	if (!isNPC && client->ps.zoomMode == 2 && client->ps.weapon == WP_SABER &&
 		client->ps.saberHolstered == 2) {
 		qboolean attackHeld = (ucmd->buttons & BUTTON_ATTACK) != 0;
+		qboolean altAttackHeld = (ucmd->buttons & BUTTON_ALT_ATTACK) != 0;
 		if (attackHeld && !client->missionPartyTagHeld)
 			missionPartyTagPressed = qtrue;
+		if (altAttackHeld && !client->missionPartyClearHeld)
+			missionPartyClearPressed = qtrue;
 		client->missionPartyTagHeld = attackHeld;
-		ucmd->buttons &= ~BUTTON_ATTACK;
+		client->missionPartyClearHeld = altAttackHeld;
+		ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_ALT_ATTACK);
 	} else {
 		client->missionPartyTagHeld = qfalse;
+		client->missionPartyClearHeld = qfalse;
 	}
 
 	//play/stop any looping sounds tied to controlled movement
@@ -5094,8 +5101,11 @@ void ClientThink_real( gentity_t *ent ) {
 	Pmove (&pmove);
 
 	// Pmove applies the command's view angles, so resolve the contact using the
-	// same frame the player actually aimed and pressed primary fire.
-	if (missionPartyTagPressed)
+	// same frame the player actually aimed and pressed primary fire. Alt fire
+	// wins if both buttons were pressed together.
+	if (missionPartyClearPressed)
+		G_ClearMissionPartyTags(ent);
+	else if (missionPartyTagPressed)
 		G_TryMissionPartyTag(ent);
 
 	if (ent->client->solidHack)
@@ -6159,7 +6169,6 @@ void G_ClearMissionPartyTags(gentity_t *viewer) {
 	pers->missionPartyCount = 0;
 	viewer->client->missionPartyNextUpdate = 0;
 	viewer->client->missionPartyLastCount = 0;
-	viewer->client->missionPartyTagHeld = qfalse;
 	trap->SendServerCommand(viewer->s.number, va("partyStats %i 0", level.time));
 }
 

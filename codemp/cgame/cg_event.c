@@ -467,15 +467,23 @@ clientkilled:
 
 void CG_ToggleBinoculars(centity_t *cent, int forceZoom)
 {
+	playerState_t *eventPlayerState;
+
 	if (cent->currentState.number != cg.snap->ps.clientNum)
 	{
 		return;
 	}
 
-	if (cg.snap->ps.weaponTime > 0 ||
-		cg.snap->ps.weaponstate == WEAPON_CHARGING ||
-		cg.snap->ps.weaponstate == WEAPON_CHARGING_ALT)
-	{ //Block genuine weapon activity without getting stuck on a stale state after an emote or knockdown.
+	eventPlayerState = cent->playerState ? cent->playerState : &cg.snap->ps;
+
+	// A nonzero forceZoom comes from the server after ItemUse_Binoculars has
+	// already accepted and applied the toggle. Do not reject its sound because
+	// another snapshot still carries a transient forced-state weapon timer. For
+	// predicted item use, validate the player state that produced the event.
+	if (!forceZoom && (eventPlayerState->weaponTime > 0 ||
+		eventPlayerState->weaponstate == WEAPON_CHARGING ||
+		eventPlayerState->weaponstate == WEAPON_CHARGING_ALT))
+	{ //Still block unconfirmed predicted uses during genuine weapon activity.
 		return;
 	}
 

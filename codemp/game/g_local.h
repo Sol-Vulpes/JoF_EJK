@@ -970,6 +970,7 @@ struct gclient_s {
 	int missionPartyNextUpdate;
 	int missionPartyLastCount;
 	qboolean missionPartyTagHeld;
+	qboolean missionPartyClearHeld;
 
 	saberInfo_t	saber[MAX_SABERS];
 	void		*weaponGhoul2[MAX_SABERS];
