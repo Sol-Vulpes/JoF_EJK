@@ -31,6 +31,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #define MAX_MISSION_PARTY 7
 #define MISSION_PARTY_UPDATE_MSEC 250
 #define MISSION_PARTY_EXPIRE_MSEC 1500
+#define MISSION_PARTY_DEAD_MSEC 8000
 
 typedef struct binocularTarget_s {
 	int entityNum;

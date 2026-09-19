@@ -791,6 +791,7 @@ typedef struct clientPersistant_s {
 	int			enterTime;			// level.time the client entered the game
 	int			missionPartyEntityNums[MAX_MISSION_PARTY];
 	int			missionPartyGenerations[MAX_MISSION_PARTY];
+	int			missionPartyDeadSince[MAX_MISSION_PARTY];
 	int			missionPartyCount;
 	playerTeamState_t teamState;	// status in teamplay games
 	qboolean	teamInfo;			// send team overlay updates?
@@ -968,6 +969,7 @@ struct gclient_s {
 	qboolean binocularScanActive;
 	int missionPartyNextUpdate;
 	int missionPartyLastCount;
+	qboolean missionPartyTagHeld;
 
 	saberInfo_t	saber[MAX_SABERS];
 	void		*weaponGhoul2[MAX_SABERS];
@@ -1621,7 +1623,6 @@ void	TryUse( gentity_t *ent );
 void	G_SendG2KillQueue(void);
 void	G_KillG2Queue(int entNum);
 void	G_FreeEntity( gentity_t *e );
-void	G_ToggleMissionPartyTag( gentity_t *viewer, int entityNum );
 qboolean	G_EntitiesFree( void );
 
 qboolean G_ActivateBehavior (gentity_t *self, int bset );

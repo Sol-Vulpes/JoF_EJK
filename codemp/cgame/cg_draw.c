@@ -623,63 +623,85 @@ static void CG_DrawBinocularTargets(void) {
 
 static qhandle_t CG_MissionPartyPortrait(int entityNum) {
 	centity_t *cent;
+	qhandle_t icon;
 	if (entityNum < 0 || entityNum >= ENTITYNUM_WORLD)
-		return cgs.media.binocularCircle;
+		return 0;
 	if (entityNum < MAX_CLIENTS && cgs.clientinfo[entityNum].infoValid &&
 		cgs.clientinfo[entityNum].modelIcon)
 		return cgs.clientinfo[entityNum].modelIcon;
 	cent = &cg_entities[entityNum];
 	if (cent->npcClient && cent->npcClient->modelIcon)
 		return cent->npcClient->modelIcon;
-	return cgs.media.binocularCircle;
+
+	// NPC clientInfo does not normally register a portrait. Recover the icon
+	// from its model configstring so the party roster still shows its skin.
+	if (cent->currentState.modelindex > 0) {
+		char modelPath[MAX_QPATH], skinName[MAX_QPATH];
+		char *skin, *slash, *part;
+		const char *configured = CG_ConfigString(CS_MODELS + cent->currentState.modelindex);
+		Q_strncpyz(modelPath, configured, sizeof(modelPath));
+		Q_strncpyz(skinName, "default", sizeof(skinName));
+		skin = Q_strrchr(modelPath, '*');
+		if (skin) {
+			*skin++ = '\0';
+			if (skin[0])
+				Q_strncpyz(skinName, skin, sizeof(skinName));
+		}
+		part = strchr(skinName, '|');
+		if (part)
+			*part = '\0';
+		slash = Q_strrchr(modelPath, '/');
+		if (slash) {
+			*slash = '\0';
+			icon = trap->R_RegisterShaderNoMip(va("%s/icon_%s", modelPath, skinName));
+			if (!icon && Q_stricmp(skinName, "default"))
+				icon = trap->R_RegisterShaderNoMip(va("%s/icon_default", modelPath));
+			if (icon && cent->npcClient)
+				cent->npcClient->modelIcon = icon;
+			return icon;
+		}
+	}
+	return 0;
+}
+
+static qboolean CG_MissionPartyVisible(void) {
+	return cg_drawMissionParty.integer && cg.snap && !cg.intermissionStarted &&
+		cg.snap->ps.persistant[PERS_TEAM] != TEAM_SPECTATOR &&
+		cg.missionPartyCount > 0 && cg.time >= cg.missionPartyUpdateTime &&
+		cg.time - cg.missionPartyUpdateTime <= MISSION_PARTY_EXPIRE_MSEC;
 }
 
 static void CG_DrawMissionParty(void) {
-	vec4_t panel = { 0.012f, 0.035f, 0.055f, 0.86f };
-	vec4_t row = { 0.025f, 0.075f, 0.105f, 0.88f };
-	vec4_t rowDead = { 0.12f, 0.025f, 0.025f, 0.88f };
-	vec4_t amber = { 1.0f, 0.68f, 0.22f, 0.96f };
+	vec4_t row = { 0.018f, 0.048f, 0.063f, 0.82f };
+	vec4_t rowDead = { 0.09f, 0.018f, 0.018f, 0.82f };
+	vec4_t portraitBack = { 0.006f, 0.014f, 0.018f, 0.95f };
+	vec4_t amber = { 1.0f, 0.67f, 0.20f, 0.78f };
 	vec4_t pale = { 0.74f, 0.90f, 0.94f, 0.96f };
-	vec4_t health = { 0.96f, 0.25f, 0.16f, 0.96f };
-	vec4_t shield = { 0.15f, 0.68f, 1.0f, 0.96f };
-	vec4_t force = { 0.62f, 0.40f, 1.0f, 0.96f };
+	vec4_t health = { 1.0f, 0.18f, 0.14f, 0.96f };
+	vec4_t shield = { 0.20f, 1.0f, 0.36f, 0.96f };
+	vec4_t force = { 0.18f, 0.55f, 1.0f, 0.96f };
 	vec4_t empty = { 0.08f, 0.14f, 0.17f, 0.92f };
-	vec4_t deadTint = { 0.85f, 0.30f, 0.25f, 0.72f };
 	float ratio = cgs.widthRatioCoef;
-	float width = 158.0f * ratio, headerHeight = 18.0f;
-	float rowHeight = 43.0f, gap = 2.0f;
-	float x, y = 70.0f, totalHeight;
+	float scale = 0.85f;
+	float width = 164.0f * scale * ratio;
+	float rowHeight = 42.0f * scale, gap = 3.0f * scale;
+	float x, y = 66.0f;
 	int i;
 
-	if (!cg_drawMissionParty.integer || !cg.snap || cg.intermissionStarted ||
-		cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
-		cg.missionPartyCount <= 0 || cg.time < cg.missionPartyUpdateTime ||
-		cg.time - cg.missionPartyUpdateTime > MISSION_PARTY_EXPIRE_MSEC)
+	if (!CG_MissionPartyVisible())
 		return;
 
-	totalHeight = headerHeight + cg.missionPartyCount * (rowHeight + gap) + 5.0f;
-	x = cg_missionPartySide.integer ? SCREEN_WIDTH - width - 10.0f * ratio : 10.0f * ratio;
-	CG_FillRect(x, y, width, totalHeight, panel);
-	CG_FillRect(x, y, 32.0f * ratio, 1.5f, amber);
-	CG_FillRect(x, y, 1.5f * ratio, 10.0f, amber);
-	CG_FillRect(x + width - 18.0f * ratio, y + totalHeight - 1.5f,
-		18.0f * ratio, 1.5f, amber);
-	CG_FillRect(x + width - 1.5f * ratio, y + totalHeight - 8.0f,
-		1.5f * ratio, 8.0f, amber);
-	CG_Text_Paint(x + 7.0f * ratio, y + 3.0f, 0.47f, amber,
-		"MISSION // UNIT LINK", 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
-	CG_FillRect(x + width - 29.0f * ratio, y + 8.0f, 4.0f * ratio, 2.0f, amber);
-	CG_FillRect(x + width - 21.0f * ratio, y + 8.0f, 4.0f * ratio, 2.0f, amber);
-	CG_FillRect(x + width - 13.0f * ratio, y + 8.0f, 4.0f * ratio, 2.0f, amber);
+	x = SCREEN_WIDTH - width - 8.0f * ratio;
 
 	for (i = 0; i < cg.missionPartyCount; i++) {
 		binocularTarget_t *member = &cg.missionParty[i];
-		float rowY = y + headerHeight + i * (rowHeight + gap);
-		float portraitX = x + 5.0f * ratio;
-		float textX = x + 42.0f * ratio;
-		float barX = x + 50.0f * ratio;
-		float barWidth = width - 82.0f * ratio;
-		float nameAvailableWidth = width - 49.0f * ratio;
+		float rowY = y + i * (rowHeight + gap);
+		float portraitX = x + 4.0f * scale * ratio;
+		float textX = x + 41.0f * scale * ratio;
+		float barX = x + 57.0f * scale * ratio;
+		float valueX = x + width - 25.0f * scale * ratio;
+		float barWidth = valueX - barX - 3.0f * scale * ratio;
+		float nameAvailableWidth = width - 47.0f * scale * ratio;
 		float hpFraction = Q_max(0.0f, Q_min(1.0f, (float)member->health / member->maxHealth));
 		float shieldFraction = Q_max(0.0f, Q_min(1.0f, (float)member->armor / member->maxHealth));
 		float forceFraction = Q_max(0.0f, Q_min(1.0f, (float)member->force / member->maxForce));
@@ -696,43 +718,63 @@ static void CG_DrawMissionParty(void) {
 			Q_strncpyz(label, "UNKNOWN CONTACT", sizeof(label));
 		}
 
-		CG_FillRect(x + 3.0f * ratio, rowY, width - 6.0f * ratio, rowHeight,
-			member->health > 0 ? row : rowDead);
-		CG_FillRect(x + 3.0f * ratio, rowY, 2.0f * ratio, rowHeight, amber);
-		trap->R_SetColor(member->health > 0 ? NULL : deadTint);
-		CG_DrawPic(portraitX, rowY + 5.0f, 32.0f * ratio, 30.0f, portrait);
-		trap->R_SetColor(NULL);
-		CG_FillRect(portraitX, rowY + 4.0f, 10.0f * ratio, 1.0f, amber);
-		CG_FillRect(portraitX, rowY + 4.0f, 1.0f * ratio, 7.0f, amber);
-		CG_FillRect(portraitX + 22.0f * ratio, rowY + 35.0f,
-			10.0f * ratio, 1.0f, amber);
+		CG_FillRect(x, rowY, width, rowHeight, member->health > 0 ? row : rowDead);
+		CG_FillRect(x, rowY, 1.25f * scale * ratio, rowHeight, amber);
+		CG_FillRect(x, rowY, 14.0f * scale * ratio, scale, amber);
+		CG_FillRect(portraitX - scale * ratio, rowY + 3.0f * scale,
+			34.0f * scale * ratio, 36.0f * scale, portraitBack);
+		if (portrait) {
+			CG_DrawPic(portraitX, rowY + 4.0f * scale,
+				32.0f * scale * ratio, 34.0f * scale, portrait);
+		} else if (member->entityNum >= 0 && member->entityNum < ENTITYNUM_WORLD &&
+			cg_entities[member->entityNum].ghoul2) {
+			vec3_t origin = { 78.0f, 0.0f, -4.0f };
+			vec3_t angles = { 0.0f, 180.0f, 0.0f };
+			CG_Draw3DModel(portraitX, rowY + 4.0f * scale,
+				32.0f * scale * ratio, 34.0f * scale, 0,
+				cg_entities[member->entityNum].ghoul2,
+				cg_entities[member->entityNum].currentState.g2radius, 0, origin, angles);
+		} else {
+			CG_Text_Paint(portraitX + 11.0f * scale * ratio, rowY + 10.0f * scale,
+				0.50f * scale, amber,
+				"?", 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		}
 
-		nameScale = 0.45f;
+		nameScale = 0.42f * scale;
 		nameWidth = CG_Text_Width(label, nameScale, FONT_SMALL);
 		if (nameWidth > nameAvailableWidth)
 			nameScale *= nameAvailableWidth / nameWidth;
-		CG_Text_Paint(textX, rowY + 2.0f, nameScale, member->health > 0 ? pale : health,
+		CG_Text_Paint(textX, rowY + 1.0f * scale, nameScale, member->health > 0 ? pale : health,
 			label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
-		CG_Text_Paint(textX, rowY + 14.0f, 0.30f, health, "H", 0, 0,
+		if (member->health <= 0) {
+			float deadScale = 0.68f * scale;
+			float deadWidth = CG_Text_Width("DEAD", deadScale, FONT_MEDIUM);
+			float deadAreaWidth = width - (textX - x) - 4.0f * scale * ratio;
+			CG_Text_Paint(textX + (deadAreaWidth - deadWidth) * 0.5f,
+				rowY + 18.0f * scale, deadScale, health, "DEAD", 0, 0,
+				ITEM_TEXTSTYLE_SHADOWEDMORE, FONT_MEDIUM);
+			continue;
+		}
+		CG_Text_Paint(textX, rowY + 13.0f * scale, 0.28f * scale, health, "HP", 0, 0,
 			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
-		CG_FillRect(barX, rowY + 17.0f, barWidth, 2.5f, empty);
-		CG_FillRect(barX, rowY + 17.0f, barWidth * hpFraction, 2.5f, health);
-		CG_Text_Paint(x + width - 28.0f * ratio, rowY + 14.0f, 0.30f, health,
+		CG_FillRect(barX, rowY + 16.0f * scale, barWidth, 2.0f * scale, empty);
+		CG_FillRect(barX, rowY + 16.0f * scale, barWidth * hpFraction, 2.0f * scale, health);
+		CG_Text_Paint(valueX, rowY + 13.0f * scale, 0.28f * scale, health,
 			member->health > 0 ? va("%i", member->health) : "--", 0, 0,
 			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
 
-		CG_Text_Paint(textX, rowY + 23.0f, 0.30f, shield, "S", 0, 0,
+		CG_Text_Paint(textX, rowY + 22.0f * scale, 0.28f * scale, shield, "SH", 0, 0,
 			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
-		CG_FillRect(barX, rowY + 26.0f, barWidth, 2.5f, empty);
-		CG_FillRect(barX, rowY + 26.0f, barWidth * shieldFraction, 2.5f, shield);
-		CG_Text_Paint(x + width - 28.0f * ratio, rowY + 23.0f, 0.30f, shield,
+		CG_FillRect(barX, rowY + 25.0f * scale, barWidth, 2.0f * scale, empty);
+		CG_FillRect(barX, rowY + 25.0f * scale, barWidth * shieldFraction, 2.0f * scale, shield);
+		CG_Text_Paint(valueX, rowY + 22.0f * scale, 0.28f * scale, shield,
 			va("%i", member->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
 
-		CG_Text_Paint(textX, rowY + 32.0f, 0.30f, force, "F", 0, 0,
+		CG_Text_Paint(textX, rowY + 31.0f * scale, 0.28f * scale, force, "FP", 0, 0,
 			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
-		CG_FillRect(barX, rowY + 35.0f, barWidth, 2.5f, empty);
-		CG_FillRect(barX, rowY + 35.0f, barWidth * forceFraction, 2.5f, force);
-		CG_Text_Paint(x + width - 28.0f * ratio, rowY + 32.0f, 0.30f, force,
+		CG_FillRect(barX, rowY + 34.0f * scale, barWidth, 2.0f * scale, empty);
+		CG_FillRect(barX, rowY + 34.0f * scale, barWidth * forceFraction, 2.0f * scale, force);
+		CG_Text_Paint(valueX, rowY + 31.0f * scale, 0.28f * scale, force,
 			va("%i", member->force), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
 	}
 	trap->R_SetColor(NULL);
@@ -741,13 +783,17 @@ static void CG_DrawMissionParty(void) {
 static void CG_DrawBinocularTagPrompt(void) {
 	vec4_t amber = { 1.0f, 0.68f, 0.22f, 0.82f };
 	const char *text;
-	float scale = 0.42f, width;
+	float scale = 0.36f, width;
 	if (cg.predictedPlayerState.zoomMode != 2)
 		return;
-	text = trap->Key_GetKey("binotag") < 0 ?
-		"UPLINK CONTROL UNBOUND // BIND BINOTAG" : "RETICLE LINK READY // TAG CONTACT";
+	if (cg.predictedPlayerState.weapon != WP_SABER)
+		text = "TACTICAL LINK // SABER REQUIRED";
+	else if (cg.predictedPlayerState.saberHolstered != 2)
+		text = "TACTICAL LINK // LOWER SABER";
+	else
+		text = "PRIMARY FIRE // LINK CONTACT";
 	width = CG_Text_Width(text, scale, FONT_SMALL);
-	CG_Text_Paint((SCREEN_WIDTH - width) * 0.5f, 420.0f, scale, amber, text,
+	CG_Text_Paint((SCREEN_WIDTH - width) * 0.5f, 424.0f, scale, amber, text,
 		0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
 }
 
@@ -4375,6 +4421,13 @@ static float CG_DrawEnemyInfo ( float y )
 	}
 	else
 	{
+		// The mission roster owns the upper-right contact area while it has
+		// tagged members. Restore the normal leader card as soon as it clears.
+		if (CG_MissionPartyVisible())
+		{
+			return y;
+		}
+
 		/*
 		title = "Attacker";
 		clientNum = cg.predictedPlayerState.persistant[PERS_ATTACKER];
