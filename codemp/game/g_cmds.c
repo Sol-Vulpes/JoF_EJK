@@ -8943,7 +8943,6 @@ command_t commands[] = {
 	{ "amvstr",				Cmd_Amvstr_f,				CMD_NOINTERMISSION },
 
 	//{ "best",				Cmd_PersonalBest_f,			CMD_NOINTERMISSION },
-	{ "binotag",			Cmd_BinocularTag_f,		CMD_NOINTERMISSION|CMD_ALIVE },
 	{ "blink",				Cmd_Blink_f,				CMD_NOINTERMISSION },//change for admin?
 
 	{ "callteamvote",		Cmd_CallTeamVote_f,			CMD_NOINTERMISSION },
