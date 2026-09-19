@@ -1869,7 +1869,8 @@ static void CG_BinocularNames_f(void) {
 	}
 }
 
-// partyStats <server time> <count> [<entity> <health> <max health> <armor>]...
+// partyStats <server time> <count>
+// [<entity> <health> <max health> <armor> <force> <max force>]...
 static void CG_MissionPartyStats_f(void) {
 	int i, count, serverTime;
 	binocularTarget_t members[MAX_MISSION_PARTY];
@@ -1879,16 +1880,19 @@ static void CG_MissionPartyStats_f(void) {
 	serverTime = CG_BinocularIntArg(1);
 	count = CG_BinocularIntArg(2);
 	if (serverTime < 0 || count < 0 || count > MAX_MISSION_PARTY ||
-		trap->Cmd_Argc() != 3 + count * 4)
+		trap->Cmd_Argc() != 3 + count * 6)
 		return;
 	for (i = 0; i < count; i++) {
 		binocularTarget_t *member = &members[i];
-		member->entityNum = CG_BinocularIntArg(3 + i * 4);
-		member->health = CG_BinocularIntArg(4 + i * 4);
-		member->maxHealth = CG_BinocularIntArg(5 + i * 4);
-		member->armor = CG_BinocularIntArg(6 + i * 4);
+		member->entityNum = CG_BinocularIntArg(3 + i * 6);
+		member->health = CG_BinocularIntArg(4 + i * 6);
+		member->maxHealth = CG_BinocularIntArg(5 + i * 6);
+		member->armor = CG_BinocularIntArg(6 + i * 6);
+		member->force = CG_BinocularIntArg(7 + i * 6);
+		member->maxForce = CG_BinocularIntArg(8 + i * 6);
 		if (member->entityNum < 0 || member->entityNum >= ENTITYNUM_WORLD ||
-			member->health < 0 || member->maxHealth <= 0 || member->armor < 0)
+			member->health < 0 || member->maxHealth <= 0 || member->armor < 0 ||
+			member->force < 0 || member->maxForce <= 0)
 			return;
 		// Player display names are already available locally and do not need to
 		// consume reliable-command bandwidth.

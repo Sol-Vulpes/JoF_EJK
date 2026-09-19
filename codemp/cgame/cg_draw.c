@@ -642,12 +642,13 @@ static void CG_DrawMissionParty(void) {
 	vec4_t pale = { 0.74f, 0.90f, 0.94f, 0.96f };
 	vec4_t health = { 0.96f, 0.25f, 0.16f, 0.96f };
 	vec4_t shield = { 0.15f, 0.68f, 1.0f, 0.96f };
+	vec4_t force = { 0.62f, 0.40f, 1.0f, 0.96f };
 	vec4_t empty = { 0.08f, 0.14f, 0.17f, 0.92f };
 	vec4_t deadTint = { 0.85f, 0.30f, 0.25f, 0.72f };
 	float ratio = cgs.widthRatioCoef;
 	float width = 158.0f * ratio, headerHeight = 18.0f;
-	float rowHeight = 40.0f, gap = 3.0f;
-	float x, y = 78.0f, totalHeight;
+	float rowHeight = 43.0f, gap = 2.0f;
+	float x, y = 70.0f, totalHeight;
 	int i;
 
 	if (!cg_drawMissionParty.integer || !cg.snap || cg.intermissionStarted ||
@@ -676,9 +677,12 @@ static void CG_DrawMissionParty(void) {
 		float rowY = y + headerHeight + i * (rowHeight + gap);
 		float portraitX = x + 5.0f * ratio;
 		float textX = x + 42.0f * ratio;
-		float barWidth = width - 49.0f * ratio;
+		float barX = x + 50.0f * ratio;
+		float barWidth = width - 82.0f * ratio;
+		float nameAvailableWidth = width - 49.0f * ratio;
 		float hpFraction = Q_max(0.0f, Q_min(1.0f, (float)member->health / member->maxHealth));
 		float shieldFraction = Q_max(0.0f, Q_min(1.0f, (float)member->armor / member->maxHealth));
+		float forceFraction = Q_max(0.0f, Q_min(1.0f, (float)member->force / member->maxForce));
 		char label[64];
 		qhandle_t portrait = CG_MissionPartyPortrait(member->entityNum);
 		float nameScale, nameWidth;
@@ -705,19 +709,31 @@ static void CG_DrawMissionParty(void) {
 
 		nameScale = 0.45f;
 		nameWidth = CG_Text_Width(label, nameScale, FONT_SMALL);
-		if (nameWidth > barWidth)
-			nameScale *= barWidth / nameWidth;
+		if (nameWidth > nameAvailableWidth)
+			nameScale *= nameAvailableWidth / nameWidth;
 		CG_Text_Paint(textX, rowY + 2.0f, nameScale, member->health > 0 ? pale : health,
 			label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
-		CG_FillRect(textX, rowY + 17.0f, barWidth, 3.0f, empty);
-		CG_FillRect(textX, rowY + 17.0f, barWidth * hpFraction, 3.0f, health);
-		CG_FillRect(textX, rowY + 27.0f, barWidth, 3.0f, empty);
-		CG_FillRect(textX, rowY + 27.0f, barWidth * shieldFraction, 3.0f, shield);
-		CG_Text_Paint(textX, rowY + 31.0f, 0.35f, health,
-			member->health > 0 ? va("H %i", member->health) : "DOWN", 0, 0,
+		CG_Text_Paint(textX, rowY + 14.0f, 0.30f, health, "H", 0, 0,
 			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
-		CG_Text_Paint(x + width - 37.0f * ratio, rowY + 31.0f, 0.35f, shield,
-			va("S %i", member->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		CG_FillRect(barX, rowY + 17.0f, barWidth, 2.5f, empty);
+		CG_FillRect(barX, rowY + 17.0f, barWidth * hpFraction, 2.5f, health);
+		CG_Text_Paint(x + width - 28.0f * ratio, rowY + 14.0f, 0.30f, health,
+			member->health > 0 ? va("%i", member->health) : "--", 0, 0,
+			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+
+		CG_Text_Paint(textX, rowY + 23.0f, 0.30f, shield, "S", 0, 0,
+			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		CG_FillRect(barX, rowY + 26.0f, barWidth, 2.5f, empty);
+		CG_FillRect(barX, rowY + 26.0f, barWidth * shieldFraction, 2.5f, shield);
+		CG_Text_Paint(x + width - 28.0f * ratio, rowY + 23.0f, 0.30f, shield,
+			va("%i", member->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+
+		CG_Text_Paint(textX, rowY + 32.0f, 0.30f, force, "F", 0, 0,
+			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		CG_FillRect(barX, rowY + 35.0f, barWidth, 2.5f, empty);
+		CG_FillRect(barX, rowY + 35.0f, barWidth * forceFraction, 2.5f, force);
+		CG_Text_Paint(x + width - 28.0f * ratio, rowY + 32.0f, 0.30f, force,
+			va("%i", member->force), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
 	}
 	trap->R_SetColor(NULL);
 }

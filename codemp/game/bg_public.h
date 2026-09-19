@@ -37,6 +37,8 @@ typedef struct binocularTarget_s {
 	int health;
 	int maxHealth;
 	int armor;
+	int force;
+	int maxForce;
 	char name[64]; // Optional binoNames extension; empty when unavailable.
 } binocularTarget_t;
 

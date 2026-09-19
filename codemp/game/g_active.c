@@ -6165,10 +6165,12 @@ static void G_UpdateMissionParty(gentity_t *viewer) {
 	payload[0] = '\0';
 	for (i = 0; i < pers->missionPartyCount; i++) {
 		gentity_t *target = &g_entities[pers->missionPartyEntityNums[i]];
-		char record[64];
-		Com_sprintf(record, sizeof(record), " %i %i %i %i", target->s.number,
+		char record[96];
+		Com_sprintf(record, sizeof(record), " %i %i %i %i %i %i", target->s.number,
 			Q_max(0, target->health), Q_max(1, target->client->ps.stats[STAT_MAX_HEALTH]),
-			Q_max(0, target->client->ps.stats[STAT_ARMOR]));
+			Q_max(0, target->client->ps.stats[STAT_ARMOR]),
+			Q_max(0, target->client->ps.fd.forcePower),
+			Q_max(1, target->client->ps.fd.forcePowerMax));
 		Q_strcat(payload, sizeof(payload), record);
 	}
 	Com_sprintf(command, sizeof(command), "partyStats %i %i%s", level.time,
