@@ -6276,7 +6276,6 @@ static void G_ToggleMissionPartyTag(gentity_t *viewer, int entityNum) {
 	// A tag must be centered in the optics. Range, concealment, PVS and line of
 	// sight are rechecked here before the party link changes.
 	if (!G_BinocularTargetVisible(viewer, target, eye, forward, 0.985f, NULL)) {
-		trap->SendServerCommand(viewer->s.number, "print \"^3BINOTAG: ^7No valid player in reticle.\n\"");
 		return;
 	}
 
@@ -6291,7 +6290,6 @@ static void G_ToggleMissionPartyTag(gentity_t *viewer, int entityNum) {
 		}
 	}
 	if (pers->missionPartyCount >= MAX_MISSION_PARTY) {
-		trap->SendServerCommand(viewer->s.number, "print \"^3BINOTAG: ^7Party uplink full (7 contacts).\n\"");
 		return;
 	}
 	pers->missionPartyEntityNums[pers->missionPartyCount] = entityNum;
@@ -6318,8 +6316,6 @@ static void G_TryMissionPartyTag(gentity_t *viewer) {
 		}
 	}
 	if (targetNum == ENTITYNUM_NONE) {
-		trap->SendServerCommand(viewer->s.number,
-			"print \"^3BINOTAG: ^7No valid player in reticle.\n\"");
 		return;
 	}
 	G_ToggleMissionPartyTag(viewer, targetNum);
