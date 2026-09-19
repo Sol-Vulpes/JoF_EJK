@@ -1096,6 +1096,8 @@ void CG_KillCEntityG2(int entNum)
 
 			j++;
 		}
+
+		CG_CleanHolsteredSabers( ci );
 	}
 
 	if (cent->ghoul2 && trap->G2_HaveWeGhoul2Models(cent->ghoul2))
