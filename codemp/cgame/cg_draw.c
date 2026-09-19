@@ -621,6 +621,120 @@ static void CG_DrawBinocularTargets(void) {
 	trap->R_SetColor(NULL);
 }
 
+static qhandle_t CG_MissionPartyPortrait(int entityNum) {
+	centity_t *cent;
+	if (entityNum < 0 || entityNum >= ENTITYNUM_WORLD)
+		return cgs.media.binocularCircle;
+	if (entityNum < MAX_CLIENTS && cgs.clientinfo[entityNum].infoValid &&
+		cgs.clientinfo[entityNum].modelIcon)
+		return cgs.clientinfo[entityNum].modelIcon;
+	cent = &cg_entities[entityNum];
+	if (cent->npcClient && cent->npcClient->modelIcon)
+		return cent->npcClient->modelIcon;
+	return cgs.media.binocularCircle;
+}
+
+static void CG_DrawMissionParty(void) {
+	vec4_t panel = { 0.012f, 0.035f, 0.055f, 0.86f };
+	vec4_t row = { 0.025f, 0.075f, 0.105f, 0.88f };
+	vec4_t rowDead = { 0.12f, 0.025f, 0.025f, 0.88f };
+	vec4_t amber = { 1.0f, 0.68f, 0.22f, 0.96f };
+	vec4_t pale = { 0.74f, 0.90f, 0.94f, 0.96f };
+	vec4_t health = { 0.96f, 0.25f, 0.16f, 0.96f };
+	vec4_t shield = { 0.15f, 0.68f, 1.0f, 0.96f };
+	vec4_t empty = { 0.08f, 0.14f, 0.17f, 0.92f };
+	vec4_t deadTint = { 0.85f, 0.30f, 0.25f, 0.72f };
+	float ratio = cgs.widthRatioCoef;
+	float width = 158.0f * ratio, headerHeight = 18.0f;
+	float rowHeight = 40.0f, gap = 3.0f;
+	float x, y = 78.0f, totalHeight;
+	int i;
+
+	if (!cg_drawMissionParty.integer || !cg.snap || cg.intermissionStarted ||
+		cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
+		cg.missionPartyCount <= 0 || cg.time < cg.missionPartyUpdateTime ||
+		cg.time - cg.missionPartyUpdateTime > MISSION_PARTY_EXPIRE_MSEC)
+		return;
+
+	totalHeight = headerHeight + cg.missionPartyCount * (rowHeight + gap) + 5.0f;
+	x = cg_missionPartySide.integer ? SCREEN_WIDTH - width - 10.0f * ratio : 10.0f * ratio;
+	CG_FillRect(x, y, width, totalHeight, panel);
+	CG_FillRect(x, y, 32.0f * ratio, 1.5f, amber);
+	CG_FillRect(x, y, 1.5f * ratio, 10.0f, amber);
+	CG_FillRect(x + width - 18.0f * ratio, y + totalHeight - 1.5f,
+		18.0f * ratio, 1.5f, amber);
+	CG_FillRect(x + width - 1.5f * ratio, y + totalHeight - 8.0f,
+		1.5f * ratio, 8.0f, amber);
+	CG_Text_Paint(x + 7.0f * ratio, y + 3.0f, 0.47f, amber,
+		"MISSION // UNIT LINK", 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+	CG_FillRect(x + width - 29.0f * ratio, y + 8.0f, 4.0f * ratio, 2.0f, amber);
+	CG_FillRect(x + width - 21.0f * ratio, y + 8.0f, 4.0f * ratio, 2.0f, amber);
+	CG_FillRect(x + width - 13.0f * ratio, y + 8.0f, 4.0f * ratio, 2.0f, amber);
+
+	for (i = 0; i < cg.missionPartyCount; i++) {
+		binocularTarget_t *member = &cg.missionParty[i];
+		float rowY = y + headerHeight + i * (rowHeight + gap);
+		float portraitX = x + 5.0f * ratio;
+		float textX = x + 42.0f * ratio;
+		float barWidth = width - 49.0f * ratio;
+		float hpFraction = Q_max(0.0f, Q_min(1.0f, (float)member->health / member->maxHealth));
+		float shieldFraction = Q_max(0.0f, Q_min(1.0f, (float)member->armor / member->maxHealth));
+		char label[64];
+		qhandle_t portrait = CG_MissionPartyPortrait(member->entityNum);
+		float nameScale, nameWidth;
+
+		if (member->entityNum < MAX_CLIENTS && cgs.clientinfo[member->entityNum].infoValid) {
+			Q_strncpyz(label, cgs.clientinfo[member->entityNum].name, sizeof(label));
+			Q_CleanStr(label);
+		} else if (member->name[0]) {
+			Q_strncpyz(label, member->name, sizeof(label));
+		} else {
+			Q_strncpyz(label, "UNKNOWN CONTACT", sizeof(label));
+		}
+
+		CG_FillRect(x + 3.0f * ratio, rowY, width - 6.0f * ratio, rowHeight,
+			member->health > 0 ? row : rowDead);
+		CG_FillRect(x + 3.0f * ratio, rowY, 2.0f * ratio, rowHeight, amber);
+		trap->R_SetColor(member->health > 0 ? NULL : deadTint);
+		CG_DrawPic(portraitX, rowY + 5.0f, 32.0f * ratio, 30.0f, portrait);
+		trap->R_SetColor(NULL);
+		CG_FillRect(portraitX, rowY + 4.0f, 10.0f * ratio, 1.0f, amber);
+		CG_FillRect(portraitX, rowY + 4.0f, 1.0f * ratio, 7.0f, amber);
+		CG_FillRect(portraitX + 22.0f * ratio, rowY + 35.0f,
+			10.0f * ratio, 1.0f, amber);
+
+		nameScale = 0.45f;
+		nameWidth = CG_Text_Width(label, nameScale, FONT_SMALL);
+		if (nameWidth > barWidth)
+			nameScale *= barWidth / nameWidth;
+		CG_Text_Paint(textX, rowY + 2.0f, nameScale, member->health > 0 ? pale : health,
+			label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		CG_FillRect(textX, rowY + 17.0f, barWidth, 3.0f, empty);
+		CG_FillRect(textX, rowY + 17.0f, barWidth * hpFraction, 3.0f, health);
+		CG_FillRect(textX, rowY + 27.0f, barWidth, 3.0f, empty);
+		CG_FillRect(textX, rowY + 27.0f, barWidth * shieldFraction, 3.0f, shield);
+		CG_Text_Paint(textX, rowY + 31.0f, 0.35f, health,
+			member->health > 0 ? va("H %i", member->health) : "DOWN", 0, 0,
+			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		CG_Text_Paint(x + width - 37.0f * ratio, rowY + 31.0f, 0.35f, shield,
+			va("S %i", member->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+	}
+	trap->R_SetColor(NULL);
+}
+
+static void CG_DrawBinocularTagPrompt(void) {
+	vec4_t amber = { 1.0f, 0.68f, 0.22f, 0.82f };
+	const char *text;
+	float scale = 0.42f, width;
+	if (cg.predictedPlayerState.zoomMode != 2)
+		return;
+	text = trap->Key_GetKey("binotag") < 0 ?
+		"UPLINK CONTROL UNBOUND // BIND BINOTAG" : "RETICLE LINK READY // TAG CONTACT";
+	width = CG_Text_Width(text, scale, FONT_SMALL);
+	CG_Text_Paint((SCREEN_WIDTH - width) * 0.5f, 420.0f, scale, amber, text,
+		0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+}
+
 static void CG_DrawZoomMask( void )
 {
 	vec4_t		color1;
@@ -8827,6 +8941,10 @@ static void CG_DrawCrosshairNames( void ) {
 	CG_ScanForCrosshairEntity();
 
 	//rww - still do the trace, our dynamic crosshair depends on it
+	// Binocular optics replace both reticle and overhead identity labels. Keep
+	// the trace above live so tell_target (the U whisper bind) still works.
+	if (cg.predictedPlayerState.zoomMode == 2)
+		return;
 
 	if (cg.crosshairClientNum < ENTITYNUM_WORLD)
 	{
@@ -11087,6 +11205,8 @@ static void CG_Draw2D( void ) {
 	// Draw this before the text so that any text won't get clipped off
 	CG_DrawZoomMask();
 	CG_DrawBinocularTargets();
+	CG_DrawMissionParty();
+	CG_DrawBinocularTagPrompt();
 
 /*
 	if (cg.cameraMode) {
@@ -12202,6 +12322,7 @@ static void CG_PlayerLabels(void)
 	int i;
 
 	if (!cg.snap || (cgs.restricts & RESTRICT_PLAYERLABELS) ||
+		cg.predictedPlayerState.zoomMode == 2 ||
 		cg.snap->ps.duelInProgress || cg.predictedPlayerState.duelInProgress ||
 		cgs.gametype == GT_DUEL || cgs.gametype == GT_POWERDUEL)
 		return;
