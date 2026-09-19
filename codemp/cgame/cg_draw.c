@@ -780,23 +780,6 @@ static void CG_DrawMissionParty(void) {
 	trap->R_SetColor(NULL);
 }
 
-static void CG_DrawBinocularTagPrompt(void) {
-	vec4_t amber = { 1.0f, 0.68f, 0.22f, 0.82f };
-	const char *text;
-	float scale = 0.36f, width;
-	if (cg.predictedPlayerState.zoomMode != 2)
-		return;
-	if (cg.predictedPlayerState.weapon != WP_SABER)
-		text = "TACTICAL LINK // SABER REQUIRED";
-	else if (cg.predictedPlayerState.saberHolstered != 2)
-		text = "TACTICAL LINK // LOWER SABER";
-	else
-		text = "PRIMARY FIRE // LINK CONTACT";
-	width = CG_Text_Width(text, scale, FONT_SMALL);
-	CG_Text_Paint((SCREEN_WIDTH - width) * 0.5f, 424.0f, scale, amber, text,
-		0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
-}
-
 static void CG_DrawZoomMask( void )
 {
 	vec4_t		color1;
@@ -11275,7 +11258,6 @@ static void CG_Draw2D( void ) {
 	CG_DrawZoomMask();
 	CG_DrawBinocularTargets();
 	CG_DrawMissionParty();
-	CG_DrawBinocularTagPrompt();
 
 /*
 	if (cg.cameraMode) {
