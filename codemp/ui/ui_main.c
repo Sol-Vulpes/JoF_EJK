@@ -13602,9 +13602,8 @@ static void UI_UpdateForceRules( int realtime )
 	UI_UpdateCvars();
 	if (rulesInitialized && previousFreeSaber != freeSaber && !ui_rankChange.integer)
 	{
-		// Recalculate the new cost without choosing powers to delete. If the
-		// loadout is now over budget, the negative remainder tells the player
-		// exactly how many points must be removed.
+		// Recalculate the new cost without choosing powers to delete. An
+		// over-budget loadout has zero spendable points until ranks are lowered.
 		UpdateForceUsed();
 	}
 	previousFreeSaber = freeSaber;

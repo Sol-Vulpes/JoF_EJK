@@ -478,6 +478,14 @@ void UpdateForceUsed()
 		}
 	}
 
+	// Preserve an over-budget loadout, but never expose a negative number of
+	// spendable points. Recalculation after each rank change keeps this at zero
+	// until the allocation is back within the current server budget.
+	if (uiForceAvailable < 0)
+	{
+		uiForceAvailable = 0;
+	}
+
 }
 
 
