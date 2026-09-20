@@ -13581,19 +13581,29 @@ void UI_Init( qboolean inGameLoad ) {
 
 static void UI_UpdateForceRules( int realtime )
 {
-	static qboolean rulesInitialized = qfalse;
-	static qboolean previousFreeSaber = qfalse;
-	const qboolean freeSaber = UI_FreeSaber();
+	static int previousFreeSaberModificationCount = -1;
+	qboolean rulesKnown;
+	qboolean freeSaber;
 
 	UI_UpdateCvars();
-	if (rulesInitialized && previousFreeSaber != freeSaber && !ui_rankChange.integer)
+	rulesKnown = UI_ForceRulesKnown();
+	freeSaber = UI_FreeSaber();
+	if (rulesKnown &&
+		previousFreeSaberModificationCount != ui_freeSaber.modificationCount &&
+		!ui_rankChange.integer)
 	{
-		// Recalculate the new cost without choosing powers to delete. An
-		// over-budget loadout has zero spendable points until ranks are lowered.
+		// The authoritative rule just arrived or changed. Recalculate without
+		// choosing a power to delete.
 		UpdateForceUsed();
 	}
-	previousFreeSaber = freeSaber;
-	rulesInitialized = qtrue;
+	previousFreeSaberModificationCount = ui_freeSaber.modificationCount;
+
+	// A rank update can precede EV_SET_FREE_SABER during reconnect. Leave it
+	// pending rather than legalizing a fully spent build with the wrong costs.
+	if (!rulesKnown)
+	{
+		return;
+	}
 
 	// Apply the server's budget before processing the rank-change allocation.
 	if (ui_rankChange.integer)

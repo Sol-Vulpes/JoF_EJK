@@ -3631,6 +3631,11 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 	case EV_SET_FREE_SABER:
 		DEBUGNAME("EV_SET_FREE_SABER");
+
+		// This event is the authoritative free-saber rule for the force UI.
+		// ui_freeSaber starts at -1 on every cgame init so the UI can defer
+		// destructive validation until this value arrives.
+		trap->Cvar_Set("ui_freeSaber", va("%i", es->eventParm));
 		break;
 
 	case EV_SET_FORCE_DISABLE:
