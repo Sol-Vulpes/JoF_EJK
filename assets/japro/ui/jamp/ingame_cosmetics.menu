@@ -208,7 +208,7 @@
 			name				showcosmetics
 			group				none
 			type				ITEM_TYPE_MULTI
-			text				"SHOW COSMETICS:"
+			text				"Show Cosmetics"
 			cvar				"cg_cosmetics"
 			cvarFloatList
 			{
@@ -248,7 +248,7 @@
 		{
 			name				clearcosmetics
 			group				none
-			text				"REMOVE ALL"
+			text				"Remove All"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
 			rect				20 345 110 32
