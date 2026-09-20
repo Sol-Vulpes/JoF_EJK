@@ -25,7 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include "cg_local.h"
 #include "fx_local.h"
 
-// A shared time-window budget bounds work even at very high frame rates.
+// Shared per-window budget so trace/effect work stays bounded at high FPS.
 #define LIGHTNING_INTERVAL 40
 #define LIGHTNING_EMIT_INTERVAL 10
 #define LIGHTNING_TRACE_BUDGET 192
@@ -55,6 +55,8 @@ static qboolean FX_LightningSurface(const trace_t *tr) {
 		 cg_entities[tr->entityNum].currentState.solid == SOLID_BMODEL);
 }
 
+// Draws a thin electricity arc between two points. Only used for the nest
+// link now; the main beam and nest strikes use native engine effects.
 static void FX_LightningArc(vec3_t start, vec3_t end, float width, float chaos, qboolean mainBolt) {
 	addElectricityArgStruct_t arc;
 	vec3_t delta;
@@ -67,19 +69,18 @@ static void FX_LightningArc(vec3_t start, vec3_t end, float width, float chaos, 
 	VectorCopy(end, arc.end);
 	VectorSet(arc.sRGB, 1.0f, 1.0f, 1.0f);
 	VectorCopy(arc.sRGB, arc.eRGB);
-	arc.size1 = width;
+	arc.size1 = mainBolt ? width : width * 0.5f;
 	arc.size2 = mainBolt ? 1.0f : 0.5f;
-	arc.alpha1 = 1.0f;
-	arc.alpha2 = mainBolt ? 1.0f : 0.0f;
+	// Dim the start for non-main bolts so the branch point doesn't look like
+	// its own little flash; the end stays bright since it's the visible hit.
+	arc.alpha1 = mainBolt ? 1.0f : 0.25f;
+	arc.alpha2 = 1.0f;
 	arc.chaos = chaos;
-	arc.killTime = mainBolt ? 65 : 90;
+	arc.killTime = mainBolt ? 65 : 55;
 	arc.shader = cgs.media.forceLightningArcShader;
 	arc.flags = FX_ALPHA_LINEAR | FX_SIZE_LINEAR;
-	if (mainBolt) {
-		// Stock electricity's TAPER / BRANCH / GROW flags provide its familiar
-		// dense, animated silhouette. Surface arcs stay small and unbranched.
-		arc.flags |= 0x01000000 | 0x02000000 | 0x04000000;
-	}
+	if (mainBolt)
+		arc.flags |= 0x01000000 | 0x02000000 | 0x04000000; // TAPER/BRANCH/GROW
 	trap->FX_AddElectricity(&arc);
 }
 
@@ -98,59 +99,208 @@ static void FX_LightningFlash(vec3_t origin, float size) {
 	trap->FX_AddSprite(&flash);
 }
 
-// Walk along supported surfaces, rather than reflecting a free-floating ray.
-// A probe back into the wall at each step keeps the endpoint attached, and the
-// final trace prevents the connecting segment from cutting through a corner.
-static void FX_LightningSurfaceArcs(const trace_t *hit, vec3_t direction, int owner, float phase) {
-	int branch, hop;
-	vec3_t contact, start, end, normal, tangent, side, probeStart, probeEnd;
-	trace_t sweep, support, link;
+// --- Nests ---------------------------------------------------------------
+// A nest is a short-lived point on a wall/floor/ceiling that the main beam
+// periodically strikes: a thin link arc keeps it visibly connected, and a
+// stronger "strike" (native lightning effect + DEMP2 impact) fires on its
+// own timer. Nests live until expireTime, refilling their strike queue as
+// needed instead of dying when strikes run out.
+#define LIGHTNING_MAX_NESTS 8
+#define LIGHTNING_NESTS_PER_OWNER 3
+#define LIGHTNING_NEST_MIN_LIFE 120
+#define LIGHTNING_NEST_MAX_LIFE 280
+#define LIGHTNING_NEST_SCATTER_RADIUS 280.0f
+#define LIGHTNING_NEST_SCATTER_ATTEMPTS 4
+#define LIGHTNING_NEST_SCATTER_MIN_DIST 40.0f
+// Rejects scatter directions this far behind the caster's facing, so a
+// nest never lands somewhere the player can't see it strike.
+#define LIGHTNING_NEST_FORWARD_MIN_DOT -0.15f
+#define LIGHTNING_NEST_SPAWN_CHANCE 0.7f
+#define LIGHTNING_NEST_MIN_STRIKES 10
+#define LIGHTNING_NEST_MAX_STRIKES 18
+#define LIGHTNING_NEST_STRIKE_MIN_GAP 15
+#define LIGHTNING_NEST_STRIKE_MAX_GAP 45
+#define LIGHTNING_NEST_LINK_WIDTH 4.0f
+#define LIGHTNING_NEST_LINK_CHAOS_MIN 1.8f
+#define LIGHTNING_NEST_LINK_CHAOS_MAX 3.2f
+// Kept close to the arc's own killTime (55ms) so redraws don't overlap.
+#define LIGHTNING_NEST_LINK_INTERVAL 55
+#define LIGHTNING_NEST_LINK_ORIGIN_JITTER 6.0f
+// Branch point is a random fraction along the main beam's own segment
+// (hand -> tip), not always the tip - keeps it close to the hand here.
+#define LIGHTNING_NEST_BRANCH_FRAC_MIN 0.03f
+#define LIGHTNING_NEST_BRANCH_FRAC_MAX 0.2f
+// Slow surface crawl so a nest isn't perfectly static for its whole life.
+#define LIGHTNING_NEST_CRAWL_SPEED 6.0f
+#define LIGHTNING_NEST_CRAWL_INTERVAL 90
+#define LIGHTNING_NEST_CRAWL_TURN 0.5f
+#define LIGHTNING_NEST_CRAWL_PROBE 24.0f
+// Throttle for a nest's own impact sound - independent of strike frequency,
+// so a short-lived, fast-striking nest plays roughly one sound, not one
+// per strike.
+#define LIGHTNING_NEST_SOUND_INTERVAL 200
 
-	VectorMA(hit->endpos, 2.0f, hit->plane.normal, contact);
-	FX_LightningFlash(contact, 5.0f);
-	for (branch = 0; branch < 2; branch++) {
-		VectorCopy(hit->plane.normal, normal);
-		VectorMA(direction, -DotProduct(direction, normal), normal, tangent);
-		if (VectorNormalize(tangent) < 0.1f)
-			PerpendicularVector(tangent, normal);
-		CrossProduct(normal, tangent, side);
-		VectorMA(tangent, sinf(phase) * 0.35f, side, tangent);
-		VectorNormalize(tangent);
-		if (branch)
-			VectorScale(tangent, -1.0f, tangent);
-		VectorCopy(contact, start);
-		for (hop = 0; hop < 2; hop++) {
-			VectorMA(start, 48.0f / (hop + 1), tangent, end);
-			if (!FX_LightningTrace(&sweep, start, end, owner))
-				break;
-			if (sweep.fraction < 1.0f) {
-				if (!FX_LightningSurface(&sweep))
-					break;
-				support = sweep;
-			} else {
-				VectorMA(end, 8.0f, normal, probeStart);
-				VectorMA(end, -12.0f, normal, probeEnd);
-				if (!FX_LightningTrace(&support, probeStart, probeEnd, owner) ||
-					!FX_LightningSurface(&support) ||
-					DotProduct(normal, support.plane.normal) < 0.5f)
-					break;
-			}
-			VectorMA(support.endpos, 2.0f, support.plane.normal, end);
-			if (!FX_LightningTrace(&link, start, end, owner) || link.fraction < 1.0f)
-				break;
-			FX_LightningArc(start, end, 2.0f / (hop + 1), 0.1f, qfalse);
-			VectorCopy(support.plane.normal, normal);
-			VectorMA(tangent, -DotProduct(tangent, normal), normal, tangent);
-			if (VectorNormalize(tangent) < 0.1f)
-				break;
-			VectorCopy(end, start);
-		}
-	}
+typedef struct {
+	qboolean active;
+	int owner;
+	vec3_t pos;
+	vec3_t normal;
+	vec3_t crawlDir;
+	int expireTime;
+	int strikesLeft;
+	int nextStrikeTime;
+	int nextLinkTime;
+	int nextCrawlTime;
+	int nextSoundTime;
+} lightningNest_t;
+
+static lightningNest_t lightningNests[LIGHTNING_MAX_NESTS];
+
+static int FX_LightningCountOwnerNests(int owner) {
+	int i, n = 0;
+	for (i = 0; i < LIGHTNING_MAX_NESTS; i++)
+		if (lightningNests[i].active && lightningNests[i].owner == owner)
+			n++;
+	return n;
 }
 
+static void FX_LightningExpireNests(int owner) {
+	int i;
+	for (i = 0; i < LIGHTNING_MAX_NESTS; i++)
+		if (lightningNests[i].active && lightningNests[i].owner == owner &&
+			cg.time >= lightningNests[i].expireTime)
+			lightningNests[i].active = qfalse;
+}
+
+// Probes random 3D directions from the hand for a valid surface point.
+static qboolean FX_LightningScatterNest(vec3_t origin, vec3_t forward, int owner, vec3_t outPos, vec3_t outNormal) {
+	int attempt;
+	vec3_t dir, end;
+	trace_t tr;
+
+	for (attempt = 0; attempt < LIGHTNING_NEST_SCATTER_ATTEMPTS; attempt++) {
+		dir[0] = Q_flrand(-1.0f, 1.0f);
+		dir[1] = Q_flrand(-1.0f, 1.0f);
+		dir[2] = Q_flrand(-1.0f, 1.0f);
+		if (VectorNormalize(dir) < 0.1f)
+			continue;
+		if (DotProduct(dir, forward) < LIGHTNING_NEST_FORWARD_MIN_DOT)
+			continue;
+
+		VectorMA(origin, LIGHTNING_NEST_SCATTER_RADIUS, dir, end);
+		if (!FX_LightningTrace(&tr, origin, end, owner) || !FX_LightningSurface(&tr))
+			continue;
+		if (tr.fraction * LIGHTNING_NEST_SCATTER_RADIUS < LIGHTNING_NEST_SCATTER_MIN_DIST)
+			continue;
+
+		VectorMA(tr.endpos, 2.0f, tr.plane.normal, outPos);
+		VectorCopy(tr.plane.normal, outNormal);
+		return qtrue;
+	}
+	return qfalse;
+}
+
+static void FX_LightningSpawnNest(vec3_t origin, vec3_t forward, int owner) {
+	int slot, s;
+	vec3_t pos, nrm;
+
+	if (FX_LightningCountOwnerNests(owner) >= LIGHTNING_NESTS_PER_OWNER)
+		return;
+	if (Q_flrand(0.0f, 1.0f) > LIGHTNING_NEST_SPAWN_CHANCE)
+		return;
+	if (!FX_LightningScatterNest(origin, forward, owner, pos, nrm))
+		return;
+
+	slot = -1;
+	for (s = 0; s < LIGHTNING_MAX_NESTS; s++)
+		if (!lightningNests[s].active) { slot = s; break; }
+	if (slot < 0)
+		return;
+
+	lightningNests[slot].active = qtrue;
+	lightningNests[slot].owner = owner;
+	VectorCopy(pos, lightningNests[slot].pos);
+	VectorCopy(nrm, lightningNests[slot].normal);
+	{
+		vec3_t tangent, side;
+		PerpendicularVector(tangent, nrm);
+		CrossProduct(nrm, tangent, side);
+		VectorScale(tangent, Q_flrand(-1.0f, 1.0f), lightningNests[slot].crawlDir);
+		VectorMA(lightningNests[slot].crawlDir, Q_flrand(-1.0f, 1.0f), side, lightningNests[slot].crawlDir);
+		if (VectorNormalize(lightningNests[slot].crawlDir) < 0.01f)
+			VectorCopy(tangent, lightningNests[slot].crawlDir);
+	}
+	lightningNests[slot].expireTime = cg.time + (int)Q_flrand(LIGHTNING_NEST_MIN_LIFE, LIGHTNING_NEST_MAX_LIFE);
+	lightningNests[slot].strikesLeft = LIGHTNING_NEST_MIN_STRIKES +
+		(rand() % (LIGHTNING_NEST_MAX_STRIKES - LIGHTNING_NEST_MIN_STRIKES + 1));
+	lightningNests[slot].nextStrikeTime = cg.time;
+	lightningNests[slot].nextLinkTime = cg.time;
+	lightningNests[slot].nextCrawlTime = cg.time + LIGHTNING_NEST_CRAWL_INTERVAL;
+	lightningNests[slot].nextSoundTime = cg.time;
+}
+
+// Slides a nest along its surface, re-probing to stay stuck to it (or
+// reversing direction if it walks off the edge).
+static void FX_LightningCrawlNest(lightningNest_t *nest, int owner) {
+	vec3_t tangent, side, candidate, probeStart, probeEnd;
+	trace_t tr;
+	float angle, c, s, dt, ds;
+
+	if (lightningTraces >= LIGHTNING_TRACE_BUDGET)
+		return;
+
+	PerpendicularVector(tangent, nest->normal);
+	CrossProduct(nest->normal, tangent, side);
+	angle = Q_flrand(-LIGHTNING_NEST_CRAWL_TURN, LIGHTNING_NEST_CRAWL_TURN);
+	c = cosf(angle);
+	s = sinf(angle);
+	dt = DotProduct(nest->crawlDir, tangent);
+	ds = DotProduct(nest->crawlDir, side);
+	VectorScale(tangent, dt * c - ds * s, nest->crawlDir);
+	VectorMA(nest->crawlDir, dt * s + ds * c, side, nest->crawlDir);
+	VectorNormalize(nest->crawlDir);
+
+	VectorMA(nest->pos, LIGHTNING_NEST_CRAWL_SPEED * (LIGHTNING_NEST_CRAWL_INTERVAL * 0.001f),
+		nest->crawlDir, candidate);
+
+	VectorMA(candidate, LIGHTNING_NEST_CRAWL_PROBE, nest->normal, probeStart);
+	VectorMA(candidate, -LIGHTNING_NEST_CRAWL_PROBE, nest->normal, probeEnd);
+	if (!FX_LightningTrace(&tr, probeStart, probeEnd, owner) || !FX_LightningSurface(&tr)) {
+		VectorScale(nest->crawlDir, -1.0f, nest->crawlDir);
+		return;
+	}
+
+	VectorMA(tr.endpos, 2.0f, tr.plane.normal, nest->pos);
+	VectorCopy(tr.plane.normal, nest->normal);
+}
+
+// Small DEMP2 wall-impact spark for a struck nest.
+static void FX_LightningNestVisual(vec3_t origin, vec3_t normal) {
+	trap->FX_PlayEffectID(cgs.effects.demp2WallImpactEffectSmall, origin, normal, -1, -1, qfalse);
+}
+
+// Nest impact sound - one random variant, shares the global sound budget
+// with the main beam impact sound. Called only when nest->nextSoundTime
+// allows it (see FX_LightningStrikeNest), not on every strike.
+static void FX_LightningNestImpactSound(vec3_t pos) {
+	if (cg.time < lightningSoundBudgetTime ||
+		cg.time - lightningSoundBudgetTime >= LIGHTNING_SOUND_INTERVAL) {
+		lightningSoundBudgetTime = cg.time;
+		lightningSounds = 0;
+	}
+	if (lightningSounds >= LIGHTNING_SOUND_BUDGET)
+		return;
+	lightningSounds++;
+	trap->S_StartSound(pos, ENTITYNUM_WORLD, CHAN_AUTO,
+		cgs.media.forceLightningImpactSounds[rand() % 3]);
+}
+
+// Main beam impact sound - single variant, chosen by time+entity (matches
+// the reference implementation this was ported from).
 static void FX_LightningImpactSound(centity_t *cent, const trace_t *hit) {
 	vec3_t contact;
 	int sound;
+
 	if (cent->lightningImpactSoundTime > cg.time &&
 		cent->lightningImpactSoundTime <= cg.time + LIGHTNING_SOUND_INTERVAL + 60)
 		return;
@@ -161,21 +311,105 @@ static void FX_LightningImpactSound(centity_t *cent, const trace_t *hit) {
 	}
 	if (lightningSounds >= LIGHTNING_SOUND_BUDGET)
 		return;
+
 	sound = (cg.time / LIGHTNING_INTERVAL + cent->currentState.number) % 3;
 	cent->lightningImpactSoundTime = cg.time + LIGHTNING_SOUND_INTERVAL + sound * 30;
 	if (!cgs.media.forceLightningImpactSounds[sound])
 		return;
+
 	lightningSounds++;
 	VectorMA(hit->endpos, 2.0f, hit->plane.normal, contact);
 	trap->S_StartSound(contact, ENTITYNUM_WORLD, CHAN_AUTO, cgs.media.forceLightningImpactSounds[sound]);
 }
 
-// Emit a stock-like dense spray independently of the slower surface response.
-// If the shared budget is exhausted, the caller falls back to vanilla lightning.
+// Random point along the main beam's hand->tip segment to branch off from.
+static void FX_LightningBranchBase(vec3_t beamStart, vec3_t beamEnd, vec3_t outBase) {
+	vec3_t seg;
+	VectorSubtract(beamEnd, beamStart, seg);
+	VectorMA(beamStart, Q_flrand(LIGHTNING_NEST_BRANCH_FRAC_MIN, LIGHTNING_NEST_BRANCH_FRAC_MAX), seg, outBase);
+}
+
+// Fires one strike into a nest using effects/force/lightning_branch.efx
+// (forceLightning without its origin flash particle). Its Electricity
+// block uses spawnflags org2fromTrace, so the engine traces from origin
+// along dir itself - we only supply a direction.
+static void FX_LightningStrikeNest(vec3_t beamStart, vec3_t beamEnd, lightningNest_t *nest) {
+	vec3_t branchBase, dir, tangent, side;
+
+	FX_LightningBranchBase(beamStart, beamEnd, branchBase);
+
+	VectorSubtract(nest->pos, branchBase, dir);
+	VectorNormalize(dir);
+
+	PerpendicularVector(tangent, dir);
+	CrossProduct(dir, tangent, side);
+	VectorMA(dir, Q_flrand(-0.03f, 0.03f), tangent, dir);
+	VectorMA(dir, Q_flrand(-0.03f, 0.03f), side, dir);
+	VectorNormalize(dir);
+
+	trap->FX_PlayEffectID(cgs.effects.forceLightningBranch, branchBase, dir, -1, -1, qfalse);
+	FX_LightningNestVisual(nest->pos, nest->normal);
+	if (cg.time >= nest->nextSoundTime) {
+		nest->nextSoundTime = cg.time + LIGHTNING_NEST_SOUND_INTERVAL;
+		FX_LightningNestImpactSound(nest->pos);
+	}
+}
+
+// Updates every active nest owned by owner: redraws its link arc on its
+// own cadence, fires due strikes, and paces the next strike. Runs every
+// call regardless of whether the main beam currently hits a surface.
+static void FX_LightningUpdateNests(vec3_t beamStart, vec3_t beamEnd, int owner) {
+	int slot;
+	for (slot = 0; slot < LIGHTNING_MAX_NESTS; slot++) {
+		lightningNest_t *nest = &lightningNests[slot];
+		if (!nest->active || nest->owner != owner)
+			continue;
+
+		if (cg.time >= nest->nextCrawlTime) {
+			nest->nextCrawlTime = cg.time + LIGHTNING_NEST_CRAWL_INTERVAL;
+			FX_LightningCrawlNest(nest, owner);
+		}
+
+		if (cg.time >= nest->nextLinkTime) {
+			vec3_t linkDir, linkTangent, linkSide, linkOrigin, branchBase;
+			nest->nextLinkTime = cg.time + LIGHTNING_NEST_LINK_INTERVAL;
+
+			FX_LightningBranchBase(beamStart, beamEnd, branchBase);
+
+			VectorSubtract(nest->pos, branchBase, linkDir);
+			VectorNormalize(linkDir);
+			PerpendicularVector(linkTangent, linkDir);
+			CrossProduct(linkDir, linkTangent, linkSide);
+			VectorMA(branchBase, Q_flrand(-LIGHTNING_NEST_LINK_ORIGIN_JITTER, LIGHTNING_NEST_LINK_ORIGIN_JITTER), linkTangent, linkOrigin);
+			VectorMA(linkOrigin, Q_flrand(-LIGHTNING_NEST_LINK_ORIGIN_JITTER, LIGHTNING_NEST_LINK_ORIGIN_JITTER), linkSide, linkOrigin);
+			FX_LightningArc(linkOrigin, nest->pos, LIGHTNING_NEST_LINK_WIDTH,
+				Q_flrand(LIGHTNING_NEST_LINK_CHAOS_MIN, LIGHTNING_NEST_LINK_CHAOS_MAX), qfalse);
+		}
+
+		if (nest->strikesLeft <= 0 || cg.time < nest->nextStrikeTime)
+			continue;
+
+		FX_LightningStrikeNest(beamStart, beamEnd, nest);
+		nest->strikesLeft--;
+		if (nest->strikesLeft <= 0) {
+			nest->strikesLeft = LIGHTNING_NEST_MIN_STRIKES +
+				(rand() % (LIGHTNING_NEST_MAX_STRIKES - LIGHTNING_NEST_MIN_STRIKES + 1));
+		}
+		nest->nextStrikeTime = cg.time +
+			LIGHTNING_NEST_STRIKE_MIN_GAP +
+			(rand() % (LIGHTNING_NEST_STRIKE_MAX_GAP - LIGHTNING_NEST_STRIKE_MIN_GAP + 1));
+	}
+}
+// ---------------------------------------------------------------------------
+
+// Traces the main beam for hit detection, draws it via the native
+// forceLightning/forceLightningWide effect, and drives the nest system.
+// If the shared trace/effect budget is exhausted, the caller falls back
+// to vanilla lightning entirely.
 qboolean FX_ForceLightningEnvironment(centity_t *cent, vec3_t origin, matrix3_t axis, qboolean wide) {
 	int ray, rays, surfaceRay = -1;
 	float phase;
-	vec3_t end;
+	vec3_t end, beamEnd;
 	trace_t hits[4];
 	vec3_t directions[4];
 	qboolean valid[4];
@@ -189,11 +423,7 @@ qboolean FX_ForceLightningEnvironment(centity_t *cent, vec3_t origin, matrix3_t 
 		lightningBudgetTime = cg.time;
 		lightningTraces = lightningEffects = 0;
 	}
-	// Three stable lanes preserve the previous average hand-spray density
-	// without reshuffling the wall contacts whenever the ray count changes.
-	rays = wide ? 3 : 1;
-	// Reserve the entire hand spray before drawing anything. Falling back
-	// midway would double up custom and stock bolts in the same frame.
+	rays = wide ? 2 + ((cg.time / 10 + cent->currentState.number) % 3) : 1;
 	if (lightningTraces + rays > LIGHTNING_TRACE_BUDGET ||
 		lightningEffects + rays + 1 > LIGHTNING_EFFECT_BUDGET)
 		return qfalse;
@@ -203,8 +433,8 @@ qboolean FX_ForceLightningEnvironment(centity_t *cent, vec3_t origin, matrix3_t 
 		VectorCopy(axis[0], directions[ray]);
 		if (wide) {
 			float spread = (ray / (float)(rays - 1) - 0.5f) * 1.4f;
-			VectorMA(directions[ray], spread + sinf(phase * 0.3f + ray * 2.4f) * 0.05f, axis[1], directions[ray]);
-			VectorMA(directions[ray], sinf(phase * 0.2f + ray) * 0.03f, axis[2], directions[ray]);
+			VectorMA(directions[ray], spread + sinf(phase + ray * 2.4f) * 0.16f, axis[1], directions[ray]);
+			VectorMA(directions[ray], sinf(phase * 0.7f + ray) * 0.08f, axis[2], directions[ray]);
 		}
 		VectorNormalize(directions[ray]);
 		VectorMA(origin, wide ? 512.0f : 2048.0f, directions[ray], end);
@@ -216,25 +446,38 @@ qboolean FX_ForceLightningEnvironment(centity_t *cent, vec3_t origin, matrix3_t 
 		VectorCopy(hits[ray].endpos, end);
 		if (FX_LightningSurface(&hits[ray])) {
 			VectorMA(end, 2.0f, hits[ray].plane.normal, end);
-			// Choose the nearest impact for audio; every contact gets a visual response.
 			if (surfaceRay < 0 || hits[ray].fraction < hits[surfaceRay].fraction)
 				surfaceRay = ray;
 		}
-		FX_LightningArc(origin, end, 5.0f + sinf(phase + ray) * 2.0f,
-			1.4f + sinf(phase * 1.3f + ray) * 0.6f, qtrue);
 	}
-	// Keep the small hand flash which was absent in the first prototype.
+
+	// Main beam visual: fired once (not per ray - forceLightningWide already
+	// fans out internally), via FX_PlayEntityEffectID with the full axis
+	// matrix so the effect's own up/side orientation stays fixed to the
+	// player instead of spinning with the camera.
+	trap->FX_PlayEntityEffectID(wide ? cgs.effects.forceLightningWide : cgs.effects.forceLightning,
+		origin, axis, -1, -1, -1, -1);
 	FX_LightningFlash(origin, 18.0f);
 
-	if (surfaceRay < 0 || (cent->lightningSurfaceTime > cg.time &&
-		cent->lightningSurfaceTime <= cg.time + LIGHTNING_INTERVAL))
-		return qtrue;
-	cent->lightningSurfaceTime = cg.time + LIGHTNING_INTERVAL;
-	phase = cg.time * 0.004f + cent->currentState.number * 2.39996f;
-	FX_LightningImpactSound(cent, &hits[surfaceRay]);
-	for (ray = 0; ray < rays; ray++)
-		if (valid[ray] && FX_LightningSurface(&hits[ray]))
-			FX_LightningSurfaceArcs(&hits[ray], directions[ray], cent->currentState.number, phase + ray);
+	if (surfaceRay >= 0) {
+		VectorMA(hits[surfaceRay].endpos, 2.0f, hits[surfaceRay].plane.normal, beamEnd);
+		FX_LightningImpactSound(cent, &hits[surfaceRay]);
+	} else if (valid[0])
+		VectorCopy(hits[0].endpos, beamEnd);
+	else
+		VectorCopy(origin, beamEnd);
+
+	{
+		int owner = cent->currentState.number;
+		FX_LightningExpireNests(owner);
+		FX_LightningUpdateNests(origin, beamEnd, owner);
+
+		if (cent->lightningSurfaceTime <= cg.time) {
+			cent->lightningSurfaceTime = cg.time + LIGHTNING_INTERVAL;
+			FX_LightningSpawnNest(origin, axis[0], owner);
+		}
+	}
+
 	return qtrue;
 }
 
@@ -249,4 +492,3 @@ void FX_ForceDrained(vec3_t origin, vec3_t dir)
 	VectorScale(dir, -1.0, dir);
 	trap->FX_PlayEffectID(cgs.effects.forceDrained, origin, dir, -1, -1, qfalse);
 }
-
