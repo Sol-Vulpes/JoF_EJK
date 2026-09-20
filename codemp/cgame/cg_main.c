@@ -2982,6 +2982,11 @@ void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum )
 	const char	*s;
 	int i = 0;
 
+	// The new-force-rank server command may arrive before EV_SET_FREE_SABER.
+	// Mark the rule unknown for each connection so the UI cannot validate a
+	// saved allocation using a stale rule from the previous server.
+	trap->Cvar_Set("ui_freeSaber", "-1");
+
 	BG_InitAnimsets(); //clear it out
 
 	trap->RegisterSharedMemory( cg.sharedBuffer.raw );

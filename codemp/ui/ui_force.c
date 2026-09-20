@@ -33,13 +33,12 @@ FORCE INTERFACE
 #include "qcommon/qfiles.h"
 #include "ui_force.h"
 
-qboolean UI_FreeSaber(void) {
-	char info[MAX_INFO_STRING];
-	int gametype;
+qboolean UI_ForceRulesKnown(void) {
+	return ui_freeSaber.integer >= 0;
+}
 
-	trap->GetConfigString(CS_SERVERINFO, info, sizeof(info));
-	gametype = atoi(Info_ValueForKey(info, "g_gametype"));
-	return UI_HasSetSaberOnly(info, gametype);
+qboolean UI_FreeSaber(void) {
+	return ui_freeSaber.integer > 0;
 }
 
 // Calculate UI costs from the current rule, without changing the shared table.
@@ -332,6 +331,13 @@ void UpdateForceUsed()
 	int curpower, currank;
 	menuDef_t *menu;
 
+	// Keep the last complete total while reconnecting. Counting an unknown
+	// free-saber rule as paid is what creates the bogus -1/-2 point debt.
+	if (!UI_ForceRulesKnown())
+	{
+		return;
+	}
+
 	// Currently we don't make a distinction between those that wish to play Jedi of lower than maximum skill.
 	//uiForceRank = uiMaxRank; //WTF WHY
 
@@ -478,14 +484,6 @@ void UpdateForceUsed()
 		}
 	}
 
-	// Preserve an over-budget loadout, but never expose a negative number of
-	// spendable points. Recalculation after each rank change keeps this at zero
-	// until the allocation is back within the current server budget.
-	if (uiForceAvailable < 0)
-	{
-		uiForceAvailable = 0;
-	}
-
 }
 
 
@@ -506,6 +504,13 @@ void UI_ReadLegalForce(void)
 	int currank = 0;
 	int forceTeam = 0;
 	qboolean updateForceLater = qfalse;
+
+	// ui_rankChange can arrive before EV_SET_FREE_SABER on reconnect. Do not
+	// legalize or rewrite the saved allocation until its cost rule is known.
+	if (!UI_ForceRulesKnown())
+	{
+		return;
+	}
 
 	//First, stick them into a string.
 	Com_sprintf(fcfString, sizeof(fcfString), "%i-%i-", uiForceRank, uiForceSide);
