@@ -3631,8 +3631,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 	case EV_SET_FREE_SABER:
 		DEBUGNAME("EV_SET_FREE_SABER");
-
-		trap->Cvar_Set("ui_freeSaber", va("%i", es->eventParm));
 		break;
 
 	case EV_SET_FORCE_DISABLE:
