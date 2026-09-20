@@ -1503,6 +1503,7 @@ typedef struct cgMedia_s {
 	qhandle_t	charsetShader;
 	qhandle_t	whiteShader;
 	qhandle_t	binocularHudFont;
+	qhandle_t	missionPartyUnknownIcon;
 
 	qhandle_t	loadBarLED;
 	qhandle_t	loadBarLEDCap;
