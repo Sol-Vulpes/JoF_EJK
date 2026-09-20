@@ -401,10 +401,14 @@ int UI_ParseAnimationFile(const char *filename, animation_t *animset, qboolean i
 	return BG_ParseAnimationFile(filename, animset, isHumanoid);
 }
 
+#define FONT_BINOCULAR_HUD (-1)
+
 int MenuFontToHandle(int iMenuFont)
 {
 	switch (iMenuFont)
 	{
+		case FONT_BINOCULAR_HUD:
+			return cgs.media.binocularHudFont ? cgs.media.binocularHudFont : cgDC.Assets.qhSmallFont;
 		case FONT_SMALL:	return cgDC.Assets.qhSmallFont;
 		case FONT_SMALL2:	return cgDC.Assets.qhSmall2Font;
 		case FONT_MEDIUM:	return cgDC.Assets.qhMediumFont;
@@ -621,20 +625,20 @@ static void CG_DrawBinocularTargets(void) {
 		// Fill the title area when the name is short; shrink long names by their
 		// rendered width. The height limit leaves room for the health row/shadow.
 		nameAvailableHeight = 12 * scale;
-		nameScale = nameAvailableHeight / Q_max(1, CG_Text_Height(label, 1.0f, FONT_SMALL));
+		nameScale = nameAvailableHeight / Q_max(1, CG_Text_Height(label, 1.0f, FONT_BINOCULAR_HUD));
 		nameAvailableWidth = width - 14 * ratio;
-		nameWidth = CG_Text_Width(label, nameScale, FONT_SMALL);
+		nameWidth = CG_Text_Width(label, nameScale, FONT_BINOCULAR_HUD);
 		if (nameWidth > nameAvailableWidth)
 			nameScale *= nameAvailableWidth / nameWidth;
-		nameY = y + 3 * scale + Q_max(0.0f, nameAvailableHeight - CG_Text_Height(label, nameScale, FONT_SMALL)) * 0.5f;
-		CG_Text_Paint(x + 6 * ratio, nameY, nameScale, accent, label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+		nameY = y + 3 * scale + Q_max(0.0f, nameAvailableHeight - CG_Text_Height(label, nameScale, FONT_BINOCULAR_HUD)) * 0.5f;
+		CG_Text_Paint(x + 6 * ratio, nameY, nameScale, accent, label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 		healthFraction = (float)target->health / target->maxHealth;
 		CG_Text_Paint(x + 6 * ratio, y + 17 * scale, 0.5f * scale, healthColor,
-			va("HEALTH  %i", target->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			va("HEALTH  %i", target->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 		CG_DrawBinocularMeter(x + 6 * ratio, y + 28 * scale, width - 12 * ratio, healthFraction, scale,
 			healthColor);
 		CG_Text_Paint(x + 6 * ratio, y + 32 * scale, 0.5f * scale, shieldColor,
-			va("SHIELD  %i", target->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			va("SHIELD  %i", target->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 		// Vehicles have a separate shield capacity; ordinary actors use JA's
 		// maximum-health-based armor capacity. Numeric values preserve overcharge.
 		shieldCapacity = target->maxHealth;
@@ -763,45 +767,45 @@ static void CG_DrawMissionParty(void) {
 		} else {
 			CG_Text_Paint(portraitX + 11.0f * scale * ratio, rowY + 10.0f * scale,
 				0.50f * scale, amber,
-				"?", 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+				"?", 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 		}
 
 		nameScale = 0.42f * scale;
-		nameWidth = CG_Text_Width(label, nameScale, FONT_SMALL);
+		nameWidth = CG_Text_Width(label, nameScale, FONT_BINOCULAR_HUD);
 		if (nameWidth > nameAvailableWidth)
 			nameScale *= nameAvailableWidth / nameWidth;
 		CG_Text_Paint(textX, rowY + 1.0f * scale, nameScale, member->health > 0 ? pale : health,
-			label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 		if (member->health <= 0) {
 			float deadScale = 0.68f * scale;
-			float deadWidth = CG_Text_Width("DEAD", deadScale, FONT_MEDIUM);
+			float deadWidth = CG_Text_Width("DEAD", deadScale, FONT_BINOCULAR_HUD);
 			float deadAreaWidth = width - (textX - x) - 4.0f * scale * ratio;
 			CG_Text_Paint(textX + (deadAreaWidth - deadWidth) * 0.5f,
 				rowY + 18.0f * scale, deadScale, health, "DEAD", 0, 0,
-				ITEM_TEXTSTYLE_SHADOWEDMORE, FONT_MEDIUM);
+				ITEM_TEXTSTYLE_SHADOWEDMORE, FONT_BINOCULAR_HUD);
 			continue;
 		}
 		CG_Text_Paint(textX, rowY + 13.0f * scale, 0.28f * scale, health, "HP", 0, 0,
-			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 		CG_FillRect(barX, rowY + 16.0f * scale, barWidth, 2.0f * scale, empty);
 		CG_FillRect(barX, rowY + 16.0f * scale, barWidth * hpFraction, 2.0f * scale, health);
 		CG_Text_Paint(valueX, rowY + 13.0f * scale, 0.28f * scale, health,
 			member->health > 0 ? va("%i", member->health) : "--", 0, 0,
-			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 
 		CG_Text_Paint(textX, rowY + 22.0f * scale, 0.28f * scale, shield, "SH", 0, 0,
-			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 		CG_FillRect(barX, rowY + 25.0f * scale, barWidth, 2.0f * scale, empty);
 		CG_FillRect(barX, rowY + 25.0f * scale, barWidth * shieldFraction, 2.0f * scale, shield);
 		CG_Text_Paint(valueX, rowY + 22.0f * scale, 0.28f * scale, shield,
-			va("%i", member->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			va("%i", member->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 
 		CG_Text_Paint(textX, rowY + 31.0f * scale, 0.28f * scale, force, "FP", 0, 0,
-			ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 		CG_FillRect(barX, rowY + 34.0f * scale, barWidth, 2.0f * scale, empty);
 		CG_FillRect(barX, rowY + 34.0f * scale, barWidth * forceFraction, 2.0f * scale, force);
 		CG_Text_Paint(valueX, rowY + 31.0f * scale, 0.28f * scale, force,
-			va("%i", member->force), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_SMALL);
+			va("%i", member->force), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
 	}
 	trap->R_SetColor(NULL);
 }
