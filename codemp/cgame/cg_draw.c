@@ -692,7 +692,7 @@ static qhandle_t CG_MissionPartyPortrait(int entityNum) {
 			return icon;
 		}
 	}
-	return 0;
+	return cgs.media.missionPartyUnknownIcon;
 }
 
 static qboolean CG_MissionPartyVisible(void) {
@@ -757,14 +757,6 @@ static void CG_DrawMissionParty(void) {
 		if (portrait) {
 			CG_DrawPic(portraitX, rowY + 4.0f * scale,
 				32.0f * scale * ratio, 34.0f * scale, portrait);
-		} else if (member->entityNum >= 0 && member->entityNum < ENTITYNUM_WORLD &&
-			cg_entities[member->entityNum].ghoul2) {
-			vec3_t origin = { 78.0f, 0.0f, -4.0f };
-			vec3_t angles = { 0.0f, 180.0f, 0.0f };
-			CG_Draw3DModel(portraitX, rowY + 4.0f * scale,
-				32.0f * scale * ratio, 34.0f * scale, 0,
-				cg_entities[member->entityNum].ghoul2,
-				cg_entities[member->entityNum].currentState.g2radius, 0, origin, angles);
 		} else {
 			CG_Text_Paint(portraitX + 11.0f * scale * ratio, rowY + 10.0f * scale,
 				0.50f * scale, amber,

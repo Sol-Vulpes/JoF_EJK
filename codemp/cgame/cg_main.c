@@ -3162,6 +3162,7 @@ Ghoul2 Insert End
 	cgs.media.charsetShader			= trap->R_RegisterShaderNoMip( "gfx/2d/charsgrid_med" );
 	cgs.media.whiteShader			= trap->R_RegisterShader( "white" );
 	cgs.media.binocularHudFont		= trap->R_RegisterFont( "jof_binohud" );
+	cgs.media.missionPartyUnknownIcon = trap->R_RegisterShaderNoMip( "icons/icon_default_unknown" );
 
 	cgs.media.loadBarLED			= trap->R_RegisterShaderNoMip( "gfx/hud/load_tick" );
 	cgs.media.loadBarLEDCap			= trap->R_RegisterShaderNoMip( "gfx/hud/load_tick_cap" );
