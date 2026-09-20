@@ -25,6 +25,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // active (after loading) gameplay
 
 #include "cg_local.h"
+#include "cg_dialogue.h"
 
 #include "game/bg_saga.h"
 
@@ -401,10 +402,14 @@ int UI_ParseAnimationFile(const char *filename, animation_t *animset, qboolean i
 	return BG_ParseAnimationFile(filename, animset, isHumanoid);
 }
 
+#define FONT_BINOCULAR_HUD (-1)
+
 int MenuFontToHandle(int iMenuFont)
 {
 	switch (iMenuFont)
 	{
+		case FONT_BINOCULAR_HUD:
+			return cgs.media.binocularHudFont ? cgs.media.binocularHudFont : cgDC.Assets.qhSmallFont;
 		case FONT_SMALL:	return cgDC.Assets.qhSmallFont;
 		case FONT_SMALL2:	return cgDC.Assets.qhSmall2Font;
 		case FONT_MEDIUM:	return cgDC.Assets.qhMediumFont;
@@ -470,6 +475,334 @@ CG_DrawZoomMask
 
 ================
 */
+static void CG_DrawBinocularMeter(float x, float y, float width, float fraction, float scale, vec4_t color) {
+	vec4_t dim = { 0.12f, 0.24f, 0.24f, 0.65f };
+	int i;
+	fraction = Q_max(0.0f, Q_min(1.0f, fraction));
+	for (i = 0; i < 12; i++) {
+		CG_FillRect(x + i * width / 12.0f, y, width / 12.0f - cgs.widthRatioCoef * scale, 2 * scale,
+			fraction * 12 > i ? color : dim);
+	}
+}
+
+// Use the same digit artwork as the default HUD, with floating-point spacing
+// so the binocular percentage scale also works for small and widescreen labels.
+static void CG_DrawBinocularDigits(float x, float y, const char *digits, float scale, vec4_t color) {
+	vec4_t shadow = { 0, 0, 0, 0.7f };
+	float ratio = cgs.widthRatioCoef * scale;
+	for (; *digits; digits++, x += 7 * ratio) {
+		qhandle_t shader = cgs.media.smallnumberShaders[*digits - '0'];
+		trap->R_SetColor(shadow);
+		CG_DrawPic(x + ratio, y + scale, 6 * ratio, 12 * scale, shader);
+		trap->R_SetColor(color);
+		CG_DrawPic(x, y, 6 * ratio, 12 * scale, shader);
+	}
+}
+
+static qboolean CG_BinocularTargetLinked(int entityNum) {
+	int i;
+
+	if (cg.time < cg.missionPartyUpdateTime ||
+		cg.time - cg.missionPartyUpdateTime > MISSION_PARTY_EXPIRE_MSEC)
+		return qfalse;
+	for (i = 0; i < cg.missionPartyCount; i++) {
+		if (cg.missionParty[i].entityNum == entityNum)
+			return qtrue;
+	}
+	return qfalse;
+}
+
+static void CG_DrawBinocularTargets(void) {
+	vec4_t amber = { 1.0f, 0.74f, 0.30f, 0.95f };
+	vec4_t linkedColor = { 0.20f, 1.0f, 0.72f, 1.0f };
+	vec4_t healthColor = { 1.0f, 0.25f, 0.22f, 0.95f };
+	vec4_t shieldColor = { 0.30f, 1.0f, 0.40f, 0.95f };
+	vec4_t background = { 0.015f, 0.045f, 0.055f, 0.78f };
+	vec4_t linkedBackground = { 0.015f, 0.10f, 0.085f, 0.88f };
+	float placedX[MAX_BINOCULAR_TARGETS], placedY[MAX_BINOCULAR_TARGETS];
+	float scale = Q_max(25, Q_min(200, cg_binocularScanScale.integer)) * 0.01f;
+	qboolean compact = cg_binocularScanStyle.integer == 1;
+	float ratio = cgs.widthRatioCoef * scale, width = 130.0f * ratio;
+	float height = (compact ? 22.0f : 50.0f) * scale, gap = 4.0f * scale;
+	float placedWidth[MAX_BINOCULAR_TARGETS];
+	int i, placed = 0;
+	if (cg.predictedPlayerState.zoomMode != 2) {
+		cg.binocularTargetCount = 0;
+		return;
+	}
+	if (!cg.snap || cg.snap->ps.zoomMode != 2 ||
+		cg.predictedPlayerState.stats[STAT_HEALTH] <= 0 || cg.intermissionStarted ||
+		cg.snap->ps.clientNum != cg.clientNum ||
+		cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
+		(cgs.serverMod == SVMOD_JAPRO && cg.predictedPlayerState.stats[STAT_RACEMODE]) ||
+		cg.time < cg.binocularUpdateTime || cg.time - cg.binocularUpdateTime > BINOCULAR_EXPIRE_MSEC)
+		return;
+	for (i = 0; i < cg.binocularTargetCount; i++) {
+		binocularTarget_t *target = &cg.binocularTargets[i];
+		centity_t *cent = &cg_entities[target->entityNum];
+		vec3_t point;
+		trace_t trace;
+		float sx, sy, x, y, healthFraction, shieldCapacity;
+		float nameScale, nameWidth, nameAvailableWidth, nameAvailableHeight, nameY;
+		float *accent;
+		qboolean linked;
+		int j;
+		char label[MAX_NETNAME];
+		char healthDigits[16], shieldDigits[16];
+		if (!cent->currentValid || target->entityNum == cg.snap->ps.clientNum ||
+			(cent->currentState.eType != ET_PLAYER && cent->currentState.eType != ET_NPC) ||
+			(cent->currentState.eFlags & (EF_DEAD | EF_NODRAW)) || cent->cloaked ||
+			(cent->currentState.powerups & (1 << PW_CLOAKED)) ||
+			CG_IsMindTricked(cent->currentState.trickedentindex, cent->currentState.trickedentindex2,
+				cent->currentState.trickedentindex3, cent->currentState.trickedentindex4, cg.snap->ps.clientNum))
+			continue;
+		VectorCopy(cent->lerpOrigin, point);
+		point[2] += 8;
+		if (!CG_WorldCoordToScreenCoord(point, &sx, &sy) || sx < 110 || sx > 530 || sy < 125 || sy > 340)
+			continue;
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, point, cg.snap->ps.clientNum, MASK_SHOT);
+		if (trace.startsolid || trace.allsolid || (trace.fraction < 1.0f && trace.entityNum != target->entityNum))
+			continue;
+		linked = CG_BinocularTargetLinked(target->entityNum);
+		accent = linked ? linkedColor : amber;
+		if (compact) {
+			Com_sprintf(healthDigits, sizeof(healthDigits), "%i", target->health);
+			Com_sprintf(shieldDigits, sizeof(shieldDigits), "%i", target->armor);
+			width = (24 + 7 * (strlen(healthDigits) + strlen(shieldDigits))) * ratio;
+		}
+		x = sx + 16 * ratio;
+		if (x + width > 535)
+			x = sx - 16 * ratio - width;
+		x = Q_max(105.0f, x);
+		y = Q_max(125.0f, Q_min(345.0f - height, sy - (compact ? 11 : 24) * scale));
+		for (j = 0; j < placed; j++) {
+			if (x < placedX[j] + placedWidth[j] + gap && x + width + gap > placedX[j] &&
+				y < placedY[j] + height + gap && y + height + gap > placedY[j])
+				break;
+		}
+		if (j != placed)
+			continue;
+		placedX[placed] = x;
+		placedWidth[placed] = width;
+		placedY[placed++] = y;
+		CG_FillRect(x, y, width, height, linked ? linkedBackground : background);
+		// Open corner brackets and a short leader evoke the existing macrobinocular optics.
+		CG_FillRect(sx - 3 * ratio, sy - 5 * scale, ratio, 10 * scale, accent);
+		CG_FillRect(sx - 3 * ratio, sy - 5 * scale, 6 * ratio, scale, accent);
+		CG_FillRect(sx - 3 * ratio, sy + 5 * scale, 6 * ratio, scale, accent);
+		if (linked) {
+			// Complete the reticle around linked contacts so the state remains
+			// recognizable even when the compact scanner is selected.
+			CG_FillRect(sx + 5 * ratio, sy - 8 * scale, ratio, 16 * scale, accent);
+			CG_FillRect(sx, sy - 8 * scale, 6 * ratio, scale, accent);
+			CG_FillRect(sx, sy + 8 * scale, 6 * ratio, scale, accent);
+		}
+		if (x > sx)
+			CG_FillRect(sx + 3 * ratio, sy, x - sx - 3 * ratio, scale, accent);
+		else if (x + width < sx - 3 * ratio)
+			CG_FillRect(x + width, sy, sx - 3 * ratio - x - width, scale, accent);
+		CG_FillRect(x, y, 14 * ratio, scale, accent);
+		CG_FillRect(x, y, ratio, 8 * scale, accent);
+		CG_FillRect(x + width - 14 * ratio, y + height - scale, 14 * ratio, scale, accent);
+		CG_FillRect(x + width - ratio, y + height - 8 * scale, ratio, 8 * scale, accent);
+		if (compact) {
+			float separatorX = x + (6 + 7 * strlen(healthDigits)) * ratio;
+			CG_DrawBinocularDigits(x + 6 * ratio, y + 5 * scale, healthDigits, scale, healthColor);
+			// Font drawing rounds x/y to integers; keep the separator on the
+			// same floating-point image path as the digits to avoid relative jitter.
+			trap->R_SetColor(accent);
+			CG_DrawRotatePic2(separatorX + 6 * ratio, y + 11 * scale,
+				1.2f * ratio, 10 * scale, 20.0f, cgs.media.whiteShader);
+			CG_DrawBinocularDigits(separatorX + 12 * ratio, y + 5 * scale, shieldDigits, scale, shieldColor);
+			continue;
+		}
+		if (cent->currentState.eType == ET_PLAYER && target->entityNum < MAX_CLIENTS) {
+			Q_strncpyz(label, cgs.clientinfo[target->entityNum].name, sizeof(label));
+			Q_CleanStr(label);
+		} else {
+			// NPC types and scripted names need not describe the visible model.
+			Q_strncpyz(label, cent->currentState.NPC_class == CLASS_VEHICLE ? "Vehicle" : "NPC", sizeof(label));
+		}
+		// Fill the title area when the name is short; shrink long names by their
+		// rendered width. The height limit leaves room for the health row/shadow.
+		nameAvailableHeight = 12 * scale;
+		nameScale = nameAvailableHeight / Q_max(1, CG_Text_Height(label, 1.0f, FONT_BINOCULAR_HUD));
+		nameAvailableWidth = width - 14 * ratio;
+		nameWidth = CG_Text_Width(label, nameScale, FONT_BINOCULAR_HUD);
+		if (nameWidth > nameAvailableWidth)
+			nameScale *= nameAvailableWidth / nameWidth;
+		nameY = y + 3 * scale + Q_max(0.0f, nameAvailableHeight - CG_Text_Height(label, nameScale, FONT_BINOCULAR_HUD)) * 0.5f;
+		CG_Text_Paint(x + 6 * ratio, nameY, nameScale, accent, label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+		healthFraction = (float)target->health / target->maxHealth;
+		CG_Text_Paint(x + 6 * ratio, y + 17 * scale, 0.5f * scale, healthColor,
+			va("HEALTH  %i", target->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+		CG_DrawBinocularMeter(x + 6 * ratio, y + 28 * scale, width - 12 * ratio, healthFraction, scale,
+			healthColor);
+		CG_Text_Paint(x + 6 * ratio, y + 32 * scale, 0.5f * scale, shieldColor,
+			va("SHIELD  %i", target->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+		// Vehicles have a separate shield capacity; ordinary actors use JA's
+		// maximum-health-based armor capacity. Numeric values preserve overcharge.
+		shieldCapacity = target->maxHealth;
+		if (cent->currentState.NPC_class == CLASS_VEHICLE && cent->m_pVehicle &&
+			cent->m_pVehicle->m_pVehicleInfo && cent->m_pVehicle->m_pVehicleInfo->shields > 0)
+			shieldCapacity = cent->m_pVehicle->m_pVehicleInfo->shields;
+		CG_DrawBinocularMeter(x + 6 * ratio, y + 43 * scale, width - 12 * ratio,
+			(float)target->armor / shieldCapacity, scale, shieldColor);
+	}
+	trap->R_SetColor(NULL);
+}
+
+static qhandle_t CG_MissionPartyPortrait(int entityNum) {
+	centity_t *cent;
+	qhandle_t icon;
+	if (entityNum < 0 || entityNum >= ENTITYNUM_WORLD)
+		return 0;
+	if (entityNum < MAX_CLIENTS && cgs.clientinfo[entityNum].infoValid &&
+		cgs.clientinfo[entityNum].modelIcon)
+		return cgs.clientinfo[entityNum].modelIcon;
+	cent = &cg_entities[entityNum];
+	if (cent->npcClient && cent->npcClient->modelIcon)
+		return cent->npcClient->modelIcon;
+
+	// NPC clientInfo does not normally register a portrait. Recover the icon
+	// from its model configstring so the party roster still shows its skin.
+	if (cent->currentState.modelindex > 0) {
+		char modelPath[MAX_QPATH], skinName[MAX_QPATH];
+		char *skin, *slash, *part;
+		const char *configured = CG_ConfigString(CS_MODELS + cent->currentState.modelindex);
+		Q_strncpyz(modelPath, configured, sizeof(modelPath));
+		Q_strncpyz(skinName, "default", sizeof(skinName));
+		skin = Q_strrchr(modelPath, '*');
+		if (skin) {
+			*skin++ = '\0';
+			if (skin[0])
+				Q_strncpyz(skinName, skin, sizeof(skinName));
+		}
+		part = strchr(skinName, '|');
+		if (part)
+			*part = '\0';
+		slash = Q_strrchr(modelPath, '/');
+		if (slash) {
+			*slash = '\0';
+			icon = trap->R_RegisterShaderNoMip(va("%s/icon_%s", modelPath, skinName));
+			if (!icon && Q_stricmp(skinName, "default"))
+				icon = trap->R_RegisterShaderNoMip(va("%s/icon_default", modelPath));
+			if (icon && cent->npcClient)
+				cent->npcClient->modelIcon = icon;
+			return icon;
+		}
+	}
+	return cgs.media.missionPartyUnknownIcon;
+}
+
+static qboolean CG_MissionPartyVisible(void) {
+	return cg_drawMissionParty.integer && cg.snap && !cg.intermissionStarted &&
+		cg.snap->ps.persistant[PERS_TEAM] != TEAM_SPECTATOR &&
+		cg.missionPartyCount > 0 && cg.time >= cg.missionPartyUpdateTime &&
+		cg.time - cg.missionPartyUpdateTime <= MISSION_PARTY_EXPIRE_MSEC;
+}
+
+static void CG_DrawMissionParty(void) {
+	vec4_t row = { 0.018f, 0.048f, 0.063f, 0.82f };
+	vec4_t rowDead = { 0.09f, 0.018f, 0.018f, 0.82f };
+	vec4_t portraitBack = { 0.006f, 0.014f, 0.018f, 0.95f };
+	vec4_t amber = { 1.0f, 0.67f, 0.20f, 0.78f };
+	vec4_t pale = { 0.74f, 0.90f, 0.94f, 0.96f };
+	vec4_t health = { 1.0f, 0.18f, 0.14f, 0.96f };
+	vec4_t shield = { 0.20f, 1.0f, 0.36f, 0.96f };
+	vec4_t force = { 0.18f, 0.55f, 1.0f, 0.96f };
+	vec4_t empty = { 0.08f, 0.14f, 0.17f, 0.92f };
+	float ratio = cgs.widthRatioCoef;
+	float scale = 0.85f;
+	float width = 164.0f * scale * ratio;
+	float rowHeight = 42.0f * scale, gap = 3.0f * scale;
+	float x, y = 66.0f;
+	int i;
+
+	if (!CG_MissionPartyVisible())
+		return;
+
+	x = SCREEN_WIDTH - width - 8.0f * ratio;
+
+	for (i = 0; i < cg.missionPartyCount; i++) {
+		binocularTarget_t *member = &cg.missionParty[i];
+		float rowY = y + i * (rowHeight + gap);
+		float portraitX = x + 4.0f * scale * ratio;
+		float textX = x + 41.0f * scale * ratio;
+		float barX = x + 57.0f * scale * ratio;
+		float valueX = x + width - 25.0f * scale * ratio;
+		float barWidth = valueX - barX - 3.0f * scale * ratio;
+		float nameAvailableWidth = width - 47.0f * scale * ratio;
+		float hpFraction = Q_max(0.0f, Q_min(1.0f, (float)member->health / member->maxHealth));
+		float shieldFraction = Q_max(0.0f, Q_min(1.0f, (float)member->armor / member->maxHealth));
+		float forceFraction = Q_max(0.0f, Q_min(1.0f, (float)member->force / member->maxForce));
+		char label[64];
+		qhandle_t portrait = CG_MissionPartyPortrait(member->entityNum);
+		float nameScale, nameWidth;
+
+		if (member->entityNum < MAX_CLIENTS && cgs.clientinfo[member->entityNum].infoValid) {
+			Q_strncpyz(label, cgs.clientinfo[member->entityNum].name, sizeof(label));
+			Q_CleanStr(label);
+		} else if (member->name[0]) {
+			Q_strncpyz(label, member->name, sizeof(label));
+		} else {
+			Q_strncpyz(label, "UNKNOWN CONTACT", sizeof(label));
+		}
+
+		CG_FillRect(x, rowY, width, rowHeight, member->health > 0 ? row : rowDead);
+		CG_FillRect(x, rowY, 1.25f * scale * ratio, rowHeight, amber);
+		CG_FillRect(x, rowY, 14.0f * scale * ratio, scale, amber);
+		CG_FillRect(portraitX - scale * ratio, rowY + 3.0f * scale,
+			34.0f * scale * ratio, 36.0f * scale, portraitBack);
+		if (portrait) {
+			CG_DrawPic(portraitX, rowY + 4.0f * scale,
+				32.0f * scale * ratio, 34.0f * scale, portrait);
+		} else {
+			CG_Text_Paint(portraitX + 11.0f * scale * ratio, rowY + 10.0f * scale,
+				0.50f * scale, amber,
+				"?", 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+		}
+
+		nameScale = 0.42f * scale;
+		nameWidth = CG_Text_Width(label, nameScale, FONT_BINOCULAR_HUD);
+		if (nameWidth > nameAvailableWidth)
+			nameScale *= nameAvailableWidth / nameWidth;
+		CG_Text_Paint(textX, rowY + 1.0f * scale, nameScale, member->health > 0 ? pale : health,
+			label, 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+		if (member->health <= 0) {
+			float deadScale = 0.68f * scale;
+			float deadWidth = CG_Text_Width("DEAD", deadScale, FONT_BINOCULAR_HUD);
+			float deadAreaWidth = width - (textX - x) - 4.0f * scale * ratio;
+			CG_Text_Paint(textX + (deadAreaWidth - deadWidth) * 0.5f,
+				rowY + 18.0f * scale, deadScale, health, "DEAD", 0, 0,
+				ITEM_TEXTSTYLE_SHADOWEDMORE, FONT_BINOCULAR_HUD);
+			continue;
+		}
+		CG_Text_Paint(textX, rowY + 13.0f * scale, 0.28f * scale, health, "HP", 0, 0,
+			ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+		CG_FillRect(barX, rowY + 16.0f * scale, barWidth, 2.0f * scale, empty);
+		CG_FillRect(barX, rowY + 16.0f * scale, barWidth * hpFraction, 2.0f * scale, health);
+		CG_Text_Paint(valueX, rowY + 13.0f * scale, 0.28f * scale, health,
+			member->health > 0 ? va("%i", member->health) : "--", 0, 0,
+			ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+
+		CG_Text_Paint(textX, rowY + 22.0f * scale, 0.28f * scale, shield, "SH", 0, 0,
+			ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+		CG_FillRect(barX, rowY + 25.0f * scale, barWidth, 2.0f * scale, empty);
+		CG_FillRect(barX, rowY + 25.0f * scale, barWidth * shieldFraction, 2.0f * scale, shield);
+		CG_Text_Paint(valueX, rowY + 22.0f * scale, 0.28f * scale, shield,
+			va("%i", member->armor), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+
+		CG_Text_Paint(textX, rowY + 31.0f * scale, 0.28f * scale, force, "FP", 0, 0,
+			ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+		CG_FillRect(barX, rowY + 34.0f * scale, barWidth, 2.0f * scale, empty);
+		CG_FillRect(barX, rowY + 34.0f * scale, barWidth * forceFraction, 2.0f * scale, force);
+		CG_Text_Paint(valueX, rowY + 31.0f * scale, 0.28f * scale, force,
+			va("%i", member->force), 0, 0, ITEM_TEXTSTYLE_SHADOWED, FONT_BINOCULAR_HUD);
+	}
+	trap->R_SetColor(NULL);
+}
+
 static void CG_DrawZoomMask( void )
 {
 	vec4_t		color1;
@@ -2470,6 +2803,35 @@ qboolean ForcePower_Valid(int i)
 CG_DrawForceSelect
 ===================
 */
+static qboolean CG_ForceSelectUsesFlamethrower( int power )
+{
+	// JA+ merc mode uses bit 12, also checked by CG_DrawHolsteredSaber.
+	// EF_BOBAFIRE only describes active firing, not owning the flamethrower.
+	// Empower overrides merc even when the server leaves the merc bit set.
+	return power == FP_LIGHTNING && cgs.serverMod == SVMOD_JAPLUS &&
+		cg.snap && (cg.snap->ps.eFlags & 0x1000) &&
+		!(cg.snap->ps.eFlags & EF_EMPOWERED) && !cg.forceSelectLightningOverride;
+}
+
+static qhandle_t CG_ForceSelectIcon( int power )
+{
+	if ( power == REPULSE_WHEEL_SLOT )
+	{
+		return cgs.media.repulseIcon;
+	}
+	if ( power == DASH_WHEEL_SLOT )
+	{
+		return cgs.media.dashIcon;
+	}
+	if ( CG_ForceSelectUsesFlamethrower( power ) )
+	{
+		return cgs.media.flamethrowerIcon;
+	}
+
+	// Stasis has no power index or icon of its own, so it borrows Force Jump.
+	return cgs.media.forcePowerIcons[(power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power];
+}
+
 void CG_DrawForceSelect( void )
 {
 	int		i;
@@ -2480,7 +2842,8 @@ void CG_DrawForceSelect( void )
 	int		sideMax,holdCount;
 	int		yOffset = 0;
 	int		wheel[NUM_FORCE_POWERS + 3];
-	int		wheelCount, cur = -1, idx, drawn, power, icon;
+	int		wheelCount, cur = -1, idx, drawn, power;
+	qhandle_t icon;
 
 	// don't display if dead
 	if ( cg.snap->ps.stats[STAT_HEALTH] <= 0 )
@@ -2570,39 +2933,18 @@ void CG_DrawForceSelect( void )
 		}
 
 		power = wheel[idx];
-		if ( power == REPULSE_WHEEL_SLOT ) {
-			if (cgs.media.repulseIcon) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.repulseIcon );
-				holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
-		} else if ( power == DASH_WHEEL_SLOT ) {
-			if (cgs.media.dashIcon) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.dashIcon );
-				holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
-		} else {
-			// stasis (18) has no icon of its own; borrow the jump (FP_LEVITATION) icon
-			icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
-			if (cgs.media.forcePowerIcons[icon]) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] );
-				holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
+		icon = CG_ForceSelectIcon( power );
+		if ( icon ) {
+			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, icon );
+			holdX -= (smallIconSize+pad) * cgs.widthRatioCoef;
 		}
 	}
 
 	// Current center icon
 	power = wheel[cur];
-	if ( power == REPULSE_WHEEL_SLOT ) {
-		if (cgs.media.repulseIcon)
-			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.repulseIcon );
-	} else if ( power == DASH_WHEEL_SLOT ) {
-		if (cgs.media.dashIcon)
-			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.dashIcon );
-	} else {
-		icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
-		if (cgs.media.forcePowerIcons[icon])
-			CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
-	}
+	icon = CG_ForceSelectIcon( power );
+	if ( icon )
+		CG_DrawPic( x-(bigIconSize/2) * cgs.widthRatioCoef, (y-((bigIconSize-smallIconSize)/2)) + yOffset, bigIconSize*cgs.widthRatioCoef, bigIconSize, icon );
 
 	// Work forwards (right) from the centered icon, walking the wheel list
 	holdX = x + ((bigIconSize/2) + pad) * cgs.widthRatioCoef;
@@ -2616,22 +2958,10 @@ void CG_DrawForceSelect( void )
 		}
 
 		power = wheel[idx];
-		if ( power == REPULSE_WHEEL_SLOT ) {
-			if (cgs.media.repulseIcon) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.repulseIcon );
-				holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
-		} else if ( power == DASH_WHEEL_SLOT ) {
-			if (cgs.media.dashIcon) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.dashIcon );
-				holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
-		} else {
-			icon = (power == STASIS_WHEEL_SLOT) ? FP_LEVITATION : power;
-			if (cgs.media.forcePowerIcons[icon]) {
-				CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, cgs.media.forcePowerIcons[icon] ); //only cache the icon for display
-				holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
-			}
+		icon = CG_ForceSelectIcon( power );
+		if ( icon ) {
+			CG_DrawPic( holdX, y + yOffset, smallIconSize * cgs.widthRatioCoef, smallIconSize, icon );
+			holdX += (smallIconSize+pad) * cgs.widthRatioCoef;
 		}
 	}
 
@@ -2646,6 +2976,10 @@ void CG_DrawForceSelect( void )
 	else if ( cg.forceSelect == DASH_WHEEL_SLOT )
 	{
 		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, "Dash", UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
+	}
+	else if ( CG_ForceSelectUsesFlamethrower( cg.forceSelect ) )
+	{
+		CG_DrawProportionalString(SCREEN_WIDTH / 2, y + 30 + yOffset, "Flamethrower", UI_CENTER | UI_SMALLFONT, colorTable[CT_ICON_BLUE]);
 	}
 	else if ( showPowersName[cg.forceSelect] )
 	{
@@ -3900,6 +4234,7 @@ static void CG_DrawPickupItem( void ) {
 	int		value;
 	float	*fadeColor;
 
+	CG_AdvancePickupQueue();
 	value = cg.itemPickup;
 	if ( value && cg_items[ value ].icon != -1 )
 	{
@@ -4097,6 +4432,13 @@ static float CG_DrawEnemyInfo ( float y )
 	}
 	else
 	{
+		// The mission roster owns the upper-right contact area while it has
+		// tagged members. Restore the normal leader card as soon as it clears.
+		if (CG_MissionPartyVisible())
+		{
+			return y;
+		}
+
 		/*
 		title = "Attacker";
 		clientNum = cg.predictedPlayerState.persistant[PERS_ATTACKER];
@@ -8666,6 +9008,9 @@ static void CG_ScanForCrosshairEntity( void ) {
 CG_DrawCrosshairNames
 =====================
 */
+// Reset for each 2D pass; only a name actually drawn may replace its overhead.
+static int cg_drawnCrosshairNameClient = ENTITYNUM_NONE;
+
 static void CG_DrawCrosshairNames( void ) {
 	float		*color;
 	vec4_t		tcolor;
@@ -8682,6 +9027,10 @@ static void CG_DrawCrosshairNames( void ) {
 	CG_ScanForCrosshairEntity();
 
 	//rww - still do the trace, our dynamic crosshair depends on it
+	// Binocular optics replace both reticle and overhead identity labels. Keep
+	// the trace above live so tell_target (the U whisper bind) still works.
+	if (cg.predictedPlayerState.zoomMode == 2)
+		return;
 
 	if (cg.crosshairClientNum < ENTITYNUM_WORLD)
 	{
@@ -8760,6 +9109,7 @@ static void CG_DrawCrosshairNames( void ) {
 		CG_DrawProportionalString( (SCREEN_WIDTH / 2), 170, str, UI_CENTER, tcolor );
 	}
 
+	cg_drawnCrosshairNameClient = cg.crosshairClientNum;
 	trap->R_SetColor( NULL );
 }
 
@@ -9952,6 +10302,15 @@ void CG_ChatBox_AddString(char *chatStr)
 	chatBoxItem_t *chat = &cg.chatItems[cg.chatItemActive];
 	char tempChatStr[MAX_SAY_TEXT+MAX_NETNAME] = { 0 }, *r = chatStr, *w = tempChatStr;
 	float chatLen;
+	char cutoffColorChar = COLOR_WHITE; //default/fallback if the cvar isn't a single digit 0-9
+	char cutoffColorStr[3];
+
+	if (cg_chatBoxShowCutoffColor.string[0] >= '0' && cg_chatBoxShowCutoffColor.string[0] <= '9' && cg_chatBoxShowCutoffColor.string[1] == '\0') {
+		cutoffColorChar = cg_chatBoxShowCutoffColor.string[0];
+	}
+	cutoffColorStr[0] = Q_COLOR_ESCAPE;
+	cutoffColorStr[1] = cutoffColorChar;
+	cutoffColorStr[2] = '\0';
 
 	if (cg_logChat.integer & JAPRO_CHATLOG_ENABLE) {
 		CG_LogPrintf(cg.log.file, "%s\n", chatStr);
@@ -10101,11 +10460,11 @@ void CG_ChatBox_AddString(char *chatStr)
 			while (chat->string[i])
 			{
 				if (cg_chatBoxShowCutoff.integer) {
-					if (i == MAX_SAY_TEXT) { //at the max length of the original JAMP chatbox, insert white color code
-						CG_ChatBox_StrInsert(chat->string, i, S_COLOR_WHITE);
+					if (i == MAX_SAY_TEXT) { //at the max length of the original JAMP chatbox, insert cutoff color code
+						CG_ChatBox_StrInsert(chat->string, i, cutoffColorStr);
 					}
-					else if (i > MAX_SAY_TEXT && Q_IsColorString(&chat->string[i])) { //already past max length but we have a color code, skip it so it stays white
-						chat->string[i+1] = COLOR_WHITE;
+					else if (i > MAX_SAY_TEXT && Q_IsColorString(&chat->string[i])) { //already past max length but we have a color code, skip it so it stays the cutoff color
+						chat->string[i+1] = cutoffColorChar;
 					}
 				}
 
@@ -10170,9 +10529,9 @@ void CG_ChatBox_AddString(char *chatStr)
 			qboolean draw = qfalse;
 
 			if (cg_chatBoxShowCutoff.integer) { //no idea why this needs to be offset by 2 here
-				if (r == (MAX_SAY_TEXT - 2)) { //at the max length of the original JAMP chatbox, insert white color code
+				if (r == (MAX_SAY_TEXT - 2)) { //at the max length of the original JAMP chatbox, insert cutoff color code
 					emojiStr[w++] = Q_COLOR_ESCAPE;
-					emojiStr[w++] = COLOR_WHITE;
+					emojiStr[w++] = cutoffColorChar;
 					if (Q_IsColorString(&chat->string[r]))
 						r += 2;
 				}
@@ -10384,6 +10743,22 @@ static QINLINE void CG_ChatBox_DrawStrings(void)
 		y += ((CHATBOX_FONT_HEIGHT*fontScale)*drawThese[i]->lines);
 		i++;
 	}
+}
+
+static void CG_DrawForceSenseOverlay( void )
+{
+	if (cgs.serverMod != SVMOD_JAPLUS ||
+		!(cp_pluginDisable.integer & JAPRO_PLUGIN_NEWSIGHTEFFECT) || !cg.snap ||
+		cg.snap->ps.stats[STAT_HEALTH] <= 0 ||
+		cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
+		!(cg.snap->ps.fd.forcePowersActive & (1 << FP_SEE)))
+		return;
+
+	// The original SP shader supplies the rotating, pulsing purple ring.
+	// Keep this opt-in effect independent of the generic screen-tint setting.
+	trap->R_SetColor(NULL);
+	CG_DrawPic(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, cgs.media.forceSenseOverlay);
+	trap->R_SetColor(NULL);
 }
 
 static void CG_Draw2DScreenTints( void )
@@ -10843,6 +11218,8 @@ static void CG_Draw2D( void ) {
 	float			bestTime;
 	int				drawSelect = 0;
 
+	cg_drawnCrosshairNameClient = ENTITYNUM_NONE;
+
 	// if we are taking a levelshot for the menu, don't draw anything
 	if ( cg.levelShot ) {
 		return;
@@ -10876,16 +11253,19 @@ static void CG_Draw2D( void ) {
 	if ( !cg_draw2D.integer ) {
 		gCGHasFallVector = qfalse;
 		VectorClear( gCGFallVector );
+		CG_DialogueDraw();
 		return;
 	}
 
 	if ( cg.snap->ps.pm_type == PM_INTERMISSION ) {
 		CG_DrawIntermission();
 		CG_ChatBox_DrawStrings();
+		CG_DialogueDraw();
 		return;
 	}
 
 	CG_Draw2DScreenTints();
+	CG_DrawForceSenseOverlay();
 
 	if (cg.snap->ps.rocketLockIndex != ENTITYNUM_NONE && (cg.time - cg.snap->ps.rocketLockTime) > 0)
 	{
@@ -10921,6 +11301,8 @@ static void CG_Draw2D( void ) {
 
 	// Draw this before the text so that any text won't get clipped off
 	CG_DrawZoomMask();
+	CG_DrawBinocularTargets();
+	CG_DrawMissionParty();
 
 /*
 	if (cg.cameraMode) {
@@ -11256,6 +11638,8 @@ static void CG_Draw2D( void ) {
 
 	if (cg_drawPlayerNames.integer)//JAPRO
 		CG_PlayerLabels();
+
+	CG_DialogueDraw();
 }
 
 qboolean CG_CullPointAndRadius( const vec3_t pt, float radius);
@@ -12035,7 +12419,10 @@ static void CG_PlayerLabels(void)
 {
 	int i;
 
-	if (cgs.restricts & RESTRICT_PLAYERLABELS)
+	if (!cg.snap || (cgs.restricts & RESTRICT_PLAYERLABELS) ||
+		cg.predictedPlayerState.zoomMode == 2 ||
+		cg.snap->ps.duelInProgress || cg.predictedPlayerState.duelInProgress ||
+		cgs.gametype == GT_DUEL || cgs.gametype == GT_POWERDUEL)
 		return;
 
 	for (i = 0; i < MAX_CLIENTS; i++) {
@@ -12045,7 +12432,7 @@ static void CG_PlayerLabels(void)
 		centity_t	*cent = &cg_entities[i];
 		vec3_t		diff;
 
-		if (!cent || !cent->currentValid)
+		if (!cent->currentValid)
 			continue;
 		if (i == cg.clientNum)
 			continue;
@@ -12059,7 +12446,9 @@ static void CG_PlayerLabels(void)
 			continue;
 		if (cgs.clientinfo[i].team == TEAM_SPECTATOR)
 			continue;
-		if (cent->currentState.bolt1 && cg_hideDuelerNames.integer == 1) //if cvar is set and player is in duel - skip client, dont draw name
+		if (cent->currentState.bolt1) // Never label players participating in a private duel.
+			continue;
+		if (cg_drawnCrosshairNameClient == i)
 			continue;
 		if (CG_IsMindTricked(cent->currentState.trickedentindex,
 			cent->currentState.trickedentindex2,
@@ -12068,21 +12457,31 @@ static void CG_PlayerLabels(void)
 			cg.snap->ps.clientNum))
 			continue;
 			
-		if (cent->cloaked)
+		if (cent->cloaked || (cent->currentState.powerups & (1 << PW_CLOAKED)))
 			continue;
 
-		VectorSubtract(cent->lerpOrigin, cg.predictedPlayerState.origin, diff);
+		VectorSubtract(cent->lerpOrigin, cg.refdef.vieworg, diff);
 		if (VectorLength(diff) >= 3000) //Make sure distance is less than... 3000 ?
 			continue;
 
-		CG_Trace( &trace, cg.predictedPlayerState.origin, NULL, NULL, cent->lerpOrigin, cg.clientNum, CONTENTS_SOLID|CONTENTS_BODY );
-		if (trace.entityNum == ENTITYNUM_WORLD)
+		// Only an unobstructed camera-to-player trace (or a hit on this player)
+		// is visible. Doors, movers and other bodies must block names too.
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, cent->lerpOrigin,
+			cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
+		if (trace.startsolid || trace.allsolid ||
+			(trace.fraction < 1.0f && trace.entityNum != i))
 			continue;
 
 		VectorCopy(cent->lerpOrigin, pos);
 		pos[2] += 64;
 
 		if (!CG_WorldCoordToScreenCoord(pos, &x, &y)) //off-screen, don't draw it
+			continue;
+
+		// The elevated label itself must not be projected through a ceiling/wall.
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, pos,
+			cg.snap->ps.clientNum, CONTENTS_SOLID);
+		if (trace.startsolid || trace.allsolid || trace.fraction < 1.0f)
 			continue;
 
 		CG_DrawScaledProportionalString(x, y, cgs.clientinfo[i].name, UI_CENTER, colorTable[CT_WHITE], cg_drawPlayerNamesScale.value);

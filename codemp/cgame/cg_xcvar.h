@@ -33,6 +33,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 	#define XCVAR_DEF( name, defVal, update, flags ) { & name , #name , defVal , update , flags },
 #endif
 
+XCVAR_DEF( cg_pickupConfirm, "1", NULL, CVAR_USERINFO|CVAR_ROM )
+XCVAR_DEF( cg_pickupReady, "0", NULL, CVAR_USERINFO|CVAR_ROM )
+
 		//name				default value	update function			flag(s)
 XCVAR_DEF( g_forceRegenTime,		"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cl_currentServerAddress,	"0",	NULL,					CVAR_ROM )
@@ -79,6 +82,7 @@ XCVAR_DEF( cg_chatBoxX,				"30",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_chatBoxCutOffLength,	"350",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_chatBoxEmojis,		"0",	NULL,					CVAR_ARCHIVE_ND )
 XCVAR_DEF( cg_chatBoxShowCutoff,	"0",	NULL,					CVAR_ARCHIVE_ND )
+XCVAR_DEF( cg_chatBoxShowCutoffColor,"7",	NULL,				CVAR_ARCHIVE_ND ) //color index 0-9, default 7 = white
 XCVAR_DEF( cg_hudColors,			"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_tintHud,				"1",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawScore,			"2",	NULL,					CVAR_ARCHIVE ) //score counter on HUD
@@ -111,6 +115,7 @@ XCVAR_DEF( cg_voteBeep,							"1",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_chatSounds,						"1",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_hitsounds,						"0",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_raceSounds,						"1",	NULL,								CVAR_ARCHIVE ) //Bitvalue, but so far we just have RS_TIMER_START set up
+XCVAR_DEF( cg_tauntAntiSpam,					"1",	NULL,								CVAR_ARCHIVE ) //Throttle repeated model voice lines per player
 XCVAR_DEF( cg_duelSounds,						"1",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_duelMusic,						"1",	NULL,								CVAR_ARCHIVE )
 XCVAR_DEF( cg_musicSync,						"1",	NULL,								CVAR_ARCHIVE )
@@ -159,6 +164,18 @@ XCVAR_DEF( cg_holsteredSaberBolt2,				"lfemurX",	NULL,				CVAR_ROM )
 XCVAR_DEF( cg_holsteredSaberPos,				"0 3.5 0",	NULL,				CVAR_ROM )
 XCVAR_DEF( cg_holsteredSaberAng1,				"0 0 270",	NULL,				CVAR_ROM )
 XCVAR_DEF( cg_holsteredSaberAng2,				"0 0 270",	NULL,				CVAR_ROM )
+//A staff is slung across the back instead of the hip (JA+ plugin 9), off the same *back tag JA+
+//uses. The 150 roll is JA+'s own: its client rolls the hilt by that before multiplying it against
+//the bolt matrix, which is where the diagonal carry comes from. Pos nudges along the tag's axes.
+XCVAR_DEF( cg_holsteredStaffBolt,				"*back",	NULL,				0 )
+XCVAR_DEF( cg_holsteredStaffPos,				"0 0 0",	NULL,				0 )
+XCVAR_DEF( cg_holsteredStaffAng,				"0 0 150",	NULL,				0 )
+//how far into the JA+ draw animation the hand closes around the hilt, 0 to 1
+XCVAR_DEF( cg_holsteredStaffSwap,				"0.45",		NULL,				0 )
+//hold the ignition sound back to the same point, so it does not go off on an empty hand. 0 leaves
+//every saber sound exactly where the server put it.
+XCVAR_DEF( cg_holsteredStaffSound,				"1",		NULL,				CVAR_ARCHIVE )
+XCVAR_DEF( cg_holsteredStaffDebug,				"0",		NULL,				0 )
 XCVAR_DEF( cg_drawPlayerNames,					"0",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawPlayerNamesScale,				"0.5",	NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_hideDuelerNames,					"0",	NULL,					CVAR_ARCHIVE )
@@ -195,11 +212,8 @@ XCVAR_DEF( cg_drawHud,							"1",		NULL,				CVAR_ARCHIVE )
 
 XCVAR_DEF( cg_predictKnockback,					"0",		NULL,				0 )
 
-//JA+ amghost pass-through prediction
-// 0 = off, 1 = detect it (default)
-XCVAR_DEF( cg_ghostPredict,						"1",		NULL,				CVAR_ARCHIVE )
 
-XCVAR_DEF( cp_pluginDisable,					"512",		NULL,				CVAR_ARCHIVE|CVAR_USERINFO ) //Holstered sabers off, ledge grab on
+XCVAR_DEF( cp_pluginDisable,					"0",		NULL,				CVAR_ARCHIVE|CVAR_USERINFO ) //as before minus bit 9, so a JA+ server holsters a staff to the back
 XCVAR_DEF( com_maxFPS,							"125",		NULL,				CVAR_ARCHIVE )
 XCVAR_DEF( cg_displayCameraPosition,		"1 80 16",		NULL,				CVAR_ROM|CVAR_USERINFO )
 XCVAR_DEF( cg_displayNetSettings,			"125 0 125",	NULL,				CVAR_ROM|CVAR_USERINFO )
@@ -213,6 +227,11 @@ XCVAR_DEF( cjp_client,						JOFCLIENTVERSION,	NULL,					CVAR_USERINFO|CVAR_ROM )
 // Advertise to a JoF JA+ server that this client wants the Force Stasis "it fired" sound.
 // The server only sends the reliable "stasis" servercmd when this userinfo key is non-empty.
 XCVAR_DEF( jofejk,							"1",	NULL,					CVAR_USERINFO|CVAR_ARCHIVE )
+XCVAR_DEF( binoScan, "1", NULL, CVAR_USERINFO|CVAR_ROM )
+XCVAR_DEF( binoNames, "1", NULL, CVAR_USERINFO|CVAR_ROM )
+XCVAR_DEF( cg_binocularScanScale, "100", NULL, CVAR_ARCHIVE ) // percentage, 25-200
+XCVAR_DEF( cg_binocularScanStyle, "0", NULL, CVAR_ARCHIVE ) // 0: detailed, 1: compact HUD digits
+XCVAR_DEF( cg_drawMissionParty, "1", NULL, CVAR_ARCHIVE )
 XCVAR_DEF( cp_clanPwd,							"none",	NULL,					CVAR_USERINFO )
 XCVAR_DEF( cp_sbRGB1,							"0",	NULL,					CVAR_ARCHIVE | CVAR_USERINFO )
 XCVAR_DEF( cp_sbRGB2,							"0",	NULL,					CVAR_ARCHIVE | CVAR_USERINFO )
@@ -239,6 +258,7 @@ XCVAR_DEF( cg_strafeTrailFPS,					"40",	NULL,					0 )
 XCVAR_DEF( cg_strafeTrailGhost,					"1",	NULL,					CVAR_ARCHIVE )
 
 XCVAR_DEF( cg_drainFX,							"1",	NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_lightningEnvironment,				"1",	NULL,					CVAR_ARCHIVE ) // 0: vanilla, 1: environmental lightning
 //Make maxpackets userinfo maybe idk
 
 #if 1
@@ -362,6 +382,7 @@ XCVAR_DEF( cg_saberDynamicMarks,				"0",					NULL,					CVAR_NONE )
 XCVAR_DEF( cg_saberDynamicMarkTime,				"60000",				NULL,					CVAR_NONE )
 XCVAR_DEF( cg_saberModelTraceEffect,			"0",					NULL,					CVAR_NONE )
 XCVAR_DEF( cg_saberTrail,						"1",					NULL,					CVAR_ARCHIVE )
+XCVAR_DEF( cg_saberRainSteam,					"1",					NULL,					CVAR_ARCHIVE ) // 0 off, 1 everyone, 2 only me
 XCVAR_DEF( cg_saberClash,						"1",					NULL,					CVAR_ARCHIVE )
 XCVAR_DEF( cg_saberClashSize,					"1.0",					CG_SaberClashSizeChange,CVAR_ARCHIVE )
 XCVAR_DEF( cg_shaderSaberCore,					"0.625",				NULL,					CVAR_NONE )
