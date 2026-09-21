@@ -104,7 +104,11 @@ configure_file(
 # CMake 3.10.
 function(jof_enable_release_symbols target)
 	if(MSVC)
-		target_compile_options(${target} PRIVATE $<$<CONFIG:Release>:/Zi>)
+		# /Zi writes one PDB per target. Serialize concurrent compiler writes so
+		# builds using /MP or `cmake --build --parallel` do not fail with C1041.
+		target_compile_options(${target} PRIVATE
+			$<$<CONFIG:Release>:/Zi>
+			$<$<CONFIG:Release>:/FS>)
 		set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " /DEBUG /OPT:REF /OPT:ICF")
 	elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
 		target_compile_options(${target} PRIVATE $<$<CONFIG:Release>:-g>)

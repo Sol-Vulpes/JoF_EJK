@@ -3108,12 +3108,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 				if (cg.time - saberCent->saberSoundOnDebounceTime >= 800)
 				{
 					saberCent->saberSoundOnDebounceTime = cg.time;
-					//a staff being drawn over a JA+ shoulder is not in his hand yet, so its ignition
-					//waits with the blade rather than going off on an empty hand
-					if (ci->saber[0].soundOn
-						&& !CG_StaffSwapHoldIgnitionSound( es->number, ci->saber[0].soundOn ))
-				{
-					saberCent->saberSoundOnDebounceTime = cg.time;
 					//a staff being drawn over a JA+ shoulder is not in his hand yet, so its
 					//ignition waits with the blade rather than going off on an empty hand
 					if (ci->saber[0].soundOn
@@ -4064,20 +4058,12 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			{
 				sfxHandle_t sfx;
 				if ( cgs.gameSounds[ es->eventParm ] ) {
-					sfxHandle_t sound = CG_ForceOwnSaberSound(es, es->number, cgs.gameSounds[ es->eventParm ]);
-					sfx = sound;
-					//JA+ hands the saber ignition out this way, dropped at the owner's feet with
-					//nothing on it to say whose it is - hold it back if it belongs to a staff being
-					//drawn over a shoulder, so it lands with the blade
-					if ( CG_StaffSwapHoldGeneralSound( es->pos.trBase, sound ) )
-						break;
-					trap->S_StartSound (NULL, es->number, es->saberEntityNum, sound );
+					sfx = CG_ForceOwnSaberSound( es, es->number, cgs.gameSounds[ es->eventParm ] );
 				} else {
 					s = CG_ConfigString( CS_SOUNDS + es->eventParm );
 					if ( CG_ClassifyVoiceLine( s, &voiceLine ) && CG_VoiceLineThrottled( es->number, voiceLine ) )
 						break;
-if ( ( sfx = CG_CustomSound( es->number, s ) ) )
-						trap->S_StartSound( NULL, es->number, es->saberEntityNum, sfx );
+					sfx = CG_CustomSound( es->number, s );
 				}
 				//JA+ hands the saber ignition out this way, dropped at the owner's feet with
 				//nothing on it to say whose it is - hold it back if it belongs to a staff being
