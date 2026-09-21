@@ -519,11 +519,11 @@ void Cmd_DialogueResponse_f( gentity_t *ent ) {
 	if ( trap->Argc() != 3 || !session->active ) return;
 	trap->Argv( 1, arg, sizeof( arg ) ); serial = (unsigned int)strtoul( arg, NULL, 10 );
 	trap->Argv( 2, arg, sizeof( arg ) ); selection = atoi( arg );
+	if ( serial != session->serial ) return;
 	if ( selection == -1 ) {
 		DLG_Stop( ent, qfalse );
 		return;
 	}
-	if ( serial != session->serial ) return;
 	if ( selection < 0 || selection >= session->visibleCount ) return;
 	node = &session->dialogue->nodes[session->node];
 	if ( session->visibleChoices[selection] < 0 ) {
