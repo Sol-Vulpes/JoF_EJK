@@ -2204,6 +2204,9 @@ void CG_CleanHolsteredSabers( clientInfo_t *ci ) {
 	ci->holsterGhoul2_2 = NULL;
 }
 
+//whatever this client's staff was part way through, it belongs to the old saber
+static void CG_StaffSwapForgetClient( int clientNum );
+
 void CG_NewClientInfo( int clientNum, qboolean entitiesInitialized ) {
 	clientInfo_t *ci;
 	clientInfo_t newInfo;
