@@ -28,6 +28,7 @@
 			show			setup_background
 			show			video
 			hide			advancedvideo
+			hide			rend2video
 			hide			lighting
 			hide			advancedlighting
 			hide			vidrestart
@@ -38,6 +39,7 @@
 			hide			options
 			hide			network
 			hide			mods
+			hide			modeloptions
 			hide			defaults
 			hide			default_glow
 			hide			highlight12
@@ -138,6 +140,7 @@
 				show			setup_background
 				show 			video
 				hide			advancedvideo
+				hide			rend2video
 				hide			lighting
 				hide			advancedlighting
 				hide			vidrestart
@@ -148,6 +151,7 @@
 				hide			options
 				hide			network
 				hide			mods
+				hide			modeloptions
 				hide			defaults
 
 				setitemcolor	setup_submenu		forecolor	1 .682 0 1
@@ -203,6 +207,7 @@
 				show			setup_background
 				hide 			video
 				hide			advancedvideo
+				hide			rend2video
 				show			lighting
 				hide			advancedlighting
 				hide			vidrestart
@@ -213,6 +218,7 @@
 				hide			options
 				hide			network
 				hide			mods
+				hide			modeloptions
 				hide			defaults
 
 				setitemcolor	setup_submenu		forecolor	1 .682 0 1
@@ -268,6 +274,7 @@
 				show			setup_background
 				hide 			video
 				hide			advancedvideo
+				hide			rend2video
 				hide			lighting
 				hide			advancedlighting
 				hide			vidrestart
@@ -278,6 +285,7 @@
 				hide			options
 				hide			network
 				hide			mods
+				hide			modeloptions
 				hide			defaults
 
 				setitemcolor	setup_submenu		forecolor	1 .682 0 1
@@ -333,6 +341,7 @@
 				show			setup_background
 				hide 			video
 				hide			advancedvideo
+				hide			rend2video
 				hide			lighting
 				hide			advancedlighting
 				hide			vidrestart
@@ -343,6 +352,7 @@
 				hide			options
 				hide			network
 				hide			mods
+				hide			modeloptions
 				hide			defaults
 
 				setitemcolor	setup_submenu		forecolor	1 .682 0 1
@@ -398,6 +408,7 @@
 				show			setup_background
 				hide 			video
 				hide			advancedvideo
+				hide			rend2video
 				hide			lighting
 				hide			advancedlighting
 				hide			vidrestart
@@ -409,6 +420,7 @@
 				hide			options
 				hide			network
 				hide			mods
+				hide			modeloptions
 				hide			defaults
 
 				setitemcolor	setup_submenu		forecolor	1 .682 0 1
@@ -464,6 +476,7 @@
 				show			setup_background
 				hide 			video
 				hide			advancedvideo
+				hide			rend2video
 				hide			lighting
 				hide			advancedlighting
 				hide			vidrestart
@@ -474,10 +487,78 @@
 				show			options
 				hide			network
 				hide			mods
+				hide			modeloptions
 				hide			defaults
 
 				setitemcolor	setup_submenu			forecolor	1 .682 0 1
 				setitemcolor	gameoptionmenubutton	forecolor	1 1 1 1
+			}
+		}
+
+		// model options  button
+		itemDef
+		{
+			name				modeloptionsbutton_glow
+			style				WINDOW_STYLE_SHADER
+			rect				20 223 185 30
+			background			"gfx/menus/menu_blendbox2"			// Frame around button
+			forecolor			1 1 1 1
+			visible			0
+			// appearance_slot		1
+			decoration
+		}
+
+		itemDef
+		{
+			name				modeloptionsmenubutton
+			group				setup_submenu
+			text				"Model Options"
+			type				ITEM_TYPE_BUTTON
+			style				WINDOW_STYLE_EMPTY
+			rect				20 223 170 30
+			font				3
+			textscale			0.9
+			textalignx			170
+			textaligny			5
+			textalign			ITEM_ALIGN_RIGHT
+			textstyle			3
+			forecolor			1 .682 0 1
+			visible			1
+			descText			"Configure default and forced player models."
+
+			mouseEnter
+			{
+				show			modeloptionsbutton_glow
+			}
+			mouseExit
+			{
+				hide			modeloptionsbutton_glow
+			}
+			action
+			{
+				play			"sound/interface/button1"
+
+				defer			VideoSetup	videowarningMenu
+
+				show			setup_background
+				hide 			video
+				hide			advancedvideo
+				hide			rend2video
+				hide			lighting
+				hide			advancedlighting
+				hide			vidrestart
+				hide			visuals
+				hide			morevisuals
+				hide			hud
+				hide			sound
+				hide			options
+				hide			network
+				hide			mods
+				show			modeloptions
+				hide			defaults
+
+				setitemcolor	setup_submenu			forecolor	1 .682 0 1
+				setitemcolor	modeloptionsmenubutton	forecolor	1 1 1 1
 			}
 		}
 
@@ -486,7 +567,7 @@
 		{
 			name				networkbutton_glow
 			style				WINDOW_STYLE_SHADER
-			rect				20 223 185 30
+			rect				20 253 185 30
 			background			"gfx/menus/menu_blendbox2"			// Frame around button
 			forecolor			1 1 1 1
 			visible			0
@@ -501,7 +582,7 @@
 			text				"Network"
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				20 223 170 30
+			rect				20 253 170 30
 			font				3
 			textscale			0.9
 			textalignx			170
@@ -529,6 +610,7 @@
 				show			setup_background
 				hide 			video
 				hide			advancedvideo
+				hide			rend2video
 				hide			lighting
 				hide			advancedlighting
 				hide			vidrestart
@@ -540,24 +622,12 @@
 				hide			langapply
 				show			network
 				hide			mods
+				hide			modeloptions
 				hide			defaults
 
 				setitemcolor	setup_submenu			forecolor	1 .682 0 1
 				setitemcolor	networkmenubutton		forecolor	1 1 1 1
 			}
-		}
-
-		// mods  button
-		itemDef
-		{
-			name				modsbutton_glow
-			style				WINDOW_STYLE_SHADER
-			rect				20 223 185 30
-			background			"gfx/menus/menu_blendbox2"			// Frame around button
-			forecolor			1 1 1 1
-			visible			0
-			// appearance_slot		1
-			decoration
 		}
 
 
@@ -566,7 +636,7 @@
 		{
 			name				gamedefaultsbutton_glow
 			style				WINDOW_STYLE_SHADER
-			rect				20 253 185 30
+			rect				20 283 185 30
 			background			"gfx/menus/menu_blendbox2"			// Frame around button
 			forecolor			1 1 1 1
 			visible			0
@@ -581,7 +651,7 @@
 			text				@MENUS_DEFAULTS
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				20 253 170 30
+			rect				20 283 170 30
 			font				3
 			textscale			0.9
 			textalignx			170
@@ -609,6 +679,7 @@
 				show			setup_background
 				hide 			video
 				hide			advancedvideo
+				hide			rend2video
 				hide			lighting
 				hide			advancedlighting
 				hide			vidrestart
@@ -619,6 +690,7 @@
 				hide			options
 				hide			network
 				hide			mods
+				hide			modeloptions
 				show			defaults
 
 				setitemcolor	setup_submenu			forecolor	1 .682 0 1
@@ -819,7 +891,7 @@
 			name				highlightApplyButton
 			group				highlights
 			style				WINDOW_STYLE_SHADER
-			rect				365 293 120 32
+			rect				365 313 120 32
 			background			"gfx/menus/menu_blendbox"
 			forecolor			1 1 1 1
 			visible			0
@@ -864,589 +936,589 @@
 				setcvar			ui_vidrestart	1
 			}
 		}
-        
-        itemDef
-        		{
-        			name				aspect_ratio
-        			group				video
-        	  		type				ITEM_TYPE_MULTI
-        			text				"Aspect Ratio:"
-        			cvarFloatList
-        			{ "Desktop Resolution" -1
-        			"4:3" 0
-        			"16:9" 1
-        			"16:10" 2 }
-        			cvar				"ui_aspectratio"
-        			rect				220 63 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor			.615 .615 .956 1
-        			descText			"Change the aspect ratio."
-        			cvarTest			ui_aspectratio
-        			showCvar			{ -1 }
-        			visible				0
-        
-        			mouseenter			{ show highlight2 }
-        			mouseexit			{ hide highlight2 }
-        			action
-        			{
-        				play "sound/interface/button1"
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        				setcvar			ui_resolution	0
-        				uiScript update "ui_resolution"
-        			}
-        		}
-        
-        itemDef
-        		{
-        			name				aspect_ratio
-        			group				video
-        	  		type				ITEM_TYPE_MULTI
-        			text				"Aspect Ratio:"
-        			cvarFloatList
-        			{ "Desktop Resolution" -1
-        			"4:3" 0
-        			"16:9" 1
-        			"16:10" 2
-        			"Custom" 3 }
-        			cvar				"ui_aspectratio"
-        			rect				220 63 300 20   
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor			.615 .615 .956 1
-        			descText			"Change the aspect ratio."
-        			cvarTest			ui_aspectratio
-        			hideCvar			{ -1 }
-        			visible				0
-        
-        			mouseenter			{ show highlight2 }
-        			mouseexit			{ hide highlight2 }
-        			action
-        			{
-        				play "sound/interface/button1"
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        				setcvar			ui_resolution	0
-        				uiScript update "ui_resolution"
-        			}
-        		}
-        
-        itemDef
-        		{
-        			name				resolution
-        			group				video
-        	  		type				ITEM_TYPE_MULTI
-        			text				"Resolution:"
-        			cvarFloatList
-        			{
-        			@MENUS_640_X_480 3
-        			@MENUS_800_X_600 4
-        			"960 X 720" 5
-        			@MENUS_1024_X_768 6
-        			@MENUS_1152_X_864 7
-        			"1280 X 960" 11
-        			@MENUS_1280_X_1024 8
-        			"1440 X 1080" 12
-        			@MENUS_1600_X_1200 9
-        			"1920 X 1440" 13
-        			@MENUS_2048_X_1536 10 }
-        			cvar				"ui_resolution"
-        			rect				220 83 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor			.615 .615 .956 1
-        			descText			@MENUS_CHANGE_THE_DISPLAY_RESOLUTION
-        			cvarTest			ui_aspectratio
-        			showCvar			{ 0 }
-        			visible				0
-        
-        			mouseenter
-        			{
-        				show			highlight3
-        			}
-        			mouseexit
-        			{
-        				hide			highlight3
-        			}
-        			action
-        			{
-        				play			"sound/interface/button1"
-        				uiScript update "ui_resolution"
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				resolution
-        			group				video
-        	  		type				ITEM_TYPE_MULTI
-        			text				"Resolution:"
-        			cvarFloatList
-        			{
-        			"852 X 480" 3
-        			"1280 X 720" 4
-        			"1360 X 768" 5
-        			"1366 X 768" 6
-        			"1600 X 900" 7
-        			"1920 X 1080" 8
-        			}
-        			cvar				"ui_resolution"
-        			rect				220 83 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor			.615 .615 .956 1
-        			descText			@MENUS_CHANGE_THE_DISPLAY_RESOLUTION
-        			cvarTest			ui_aspectratio
-        			showCvar			{ 1 }
-        			visible				0
-        
-        			mouseenter
-        			{
-        				show			highlight3
-        			}
-        			mouseexit
-        			{
-        				hide			highlight3
-        			}
-        			action
-        			{
-        				play			"sound/interface/button1"
-        				uiScript update "ui_resolution"
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				resolution
-        			group				video
-        	  		type				ITEM_TYPE_MULTI
-        			text				"Resolution:"
-        			cvarFloatList
-        			{
-        			"720 X 480" 0
-        			"1280 X 768" 1
-        			"1280 X 800" 2
-        			"1440 X 900" 3
-        			"1600 X 1024" 4
-        			"1680 X 1050" 5
-        			"1920 X 1200" 6
-        			"2560 X 1600" 7
-        			}
-        			cvar				"ui_resolution"
-        			rect				220 83 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor			.615 .615 .956 1
-        			descText			@MENUS_CHANGE_THE_DISPLAY_RESOLUTION
-        			cvarTest			ui_aspectratio
-        			showCvar			{ 2 }
-        			visible				0
-        
-        			mouseenter
-        			{
-        				show			highlight3
-        			}
-        			mouseexit
-        			{
-        				hide			highlight3
-        			}
-        			action
-        			{
-        				play			"sound/interface/button1"
-        				uiScript update "ui_resolution"
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				fullscreen
-        			group				video
-        			type				ITEM_TYPE_MULTI
-        			text				"Display Mode:"
-        			rect				220 103 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor		.615 .615 .956 1
 
-        			cvarFloatList		{ "Windowed" 0 "Fullscreen" 1 "Windowed Borderless" 2 }
-        			descText			"Windowed, exclusive fullscreen, or a borderless window centered on the screen"
-        			cvar				"ui_r_fullscreen"
-        
-        			visible			0
-        
-        			mouseenter
-        			{
-        				show			highlight4
-        			}
-        			mouseexit
-        			{
-        				hide			highlight4
-        			}
-        			action
-        			{
-        				play			"sound/interface/button1"
-        				uiScript		glCustom
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				windowborder
-        			group				video
-        			type				ITEM_TYPE_MULTI
-        			text				"Window Border:"
-        			rect				220 123 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor		.615 .615 .956 1
-        
-        			cvarFloatList		{ @MENUS_OFF 1 @MENUS_ON 0 }
-        			descText			@MENUS_TOGGLE_BETWEEN_FULL_SCREEN
-        			cvar				"r_noborder"
-        			cvarTest			ui_r_fullscreen
-        			showCvar			{ 0 }
-        
-        			visible			0
-        
-        			mouseenter
-        			{
-        				show			highlight5
-        			}
-        			mouseexit
-        			{
-        				hide			highlight5
-        			}
-        			action
-        			{
-        				play			"sound/interface/button1"
-        				uiScript		glCustom
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				color_depth
-        			group				video
-        			type				ITEM_TYPE_MULTI
-        			text				@MENUS_COLOR_DEPTH
-        			rect				220 143 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor			.615 .615 .956 1
-        
-        			cvarFloatList		{ @MENUS_DEFAULT 0 @MENUS_16_BIT 16 @MENUS_32_BIT 32 }
-        			descText			@MENUS_CHANGE_THE_NUMBER_OF
-        			cvar				"ui_r_colorbits"
-        
-        			visible				0
-        
-        			mouseenter
-        			{
-        				show			highlight6
-        			}
-        			mouseexit
-        			{
-        				hide			highlight6
-        			}
-        			action
-        			{
-        				play			"sound/interface/button1"
-        				uiScript		glCustom
-        				uiScript update "ui_r_colorbits"
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				geometric_detail
-        			group				video
-        			type				ITEM_TYPE_MULTI
-        			text				@MENUS_GEOMETRIC_DETAIL
-        			rect				220 163 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor		.615 .615 .956 1
-        			cvarFloatList		{  "Very Low" 3 @MENUS_LOW 2 @MENUS_MEDIUM 1 @MENUS_HIGH 0 }
-        			descText			@MENUS_ADJUST_THE_NUMBER_OF
-        			cvar				"ui_geometricdetail"
-        
-        			visible				0
-        
-        			mouseenter
-        			{
-        				show			highlight7
-        			}
-        			mouseexit
-        			{
-        				hide			highlight7
-        			}
-        			action
-        			{
-        				play			"sound/interface/button1"
-        				uiScript		glCustom
-        				uiScript update "ui_geometricdetail"
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				texture_detail
-        			group				video
-        			type				ITEM_TYPE_MULTI
-        			text				@MENUS_TEXTURE_DETAIL
-        			rect				220 183 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor		.615 .615 .956 1
-        			cvarFloatList		{ @MENUS_LOW 3 @MENUS_MEDIUM 2 @MENUS_HIGH 1 @MENUS_VERY_HIGH 0 }
-        			descText			@MENUS_SELECT_THE_RESOLUTION
-        			cvar				"ui_r_picmip"
-        
-        			visible				0
-        
-        			mouseenter
-        			{
-        				show			highlight8
-        			}
-        			mouseexit
-        			{
-        				hide			highlight8
-        			}
-        			action
-        			{
-        				play			"sound/interface/button1"
-        				uiScript		glCustom
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				texture_filter
-        			group				video
-        			type				ITEM_TYPE_MULTI
-        			text				@MENUS_TEXTURE_FILTER
-        			rect				220 203 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor		.615 .615 .956 1
-        			cvarStrList		{  @MENUS_BILINEAR , "GL_LINEAR_MIPMAP_NEAREST" , @MENUS_TRILINEAR , "GL_LINEAR_MIPMAP_LINEAR" }
-        			descText			@MENUS_ADJUST_HOW_WELL_THE_TEXTURES
-        			cvar				"ui_r_texturemode"
-        
-        			visible				0
-        
-        			mouseenter
-        			{
-        				show			highlight9
-        			}
-        			mouseexit
-        			{
-        				hide			highlight9
-        			}
-        			action
-        			{
-        				play			"sound/interface/button1.wav"
-        				uiScript		glCustom
-        				setcvar			ui_r_modified	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				video_mode
-        			group				video
-        			type				ITEM_TYPE_MULTI
-        			text				@MENUS_ANISOTROPIC_FILTERING
-        			cvarTest			r_ext_texture_filter_anisotropic_avail
-        			disableCvar			{ 0 }
-        			rect				220 223 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor			.615 .615 .956 1
-        			visible				0
-        			cvar				"r_ext_texture_filter_anisotropic"
-        			cvarStrList
-        			{
-        				"@MENUS_OFF" 0
-        				"2x" 2
-        				"4x" 4
-        				"8x" 8
-        				"16x" 16
-        			}
-        			descText			@MENUS_TOGGLE_ADVANCED_TEXTURE
-        			mouseenter			{ show highlight10 }
-        			mouseexit			{ hide highlight10 }
-        			action
-        			{
-        				play			"sound/interface/button1"
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				video_mode
-        			group				video
-        			type				ITEM_TYPE_MULTI
-        			text				"Anti-aliasing:"
-        			rect				220 243 300 20
-        			textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor			.615 .615 .956 1
-        			visible				0
-        			cvar				"r_ext_multisample"
-        			cvarStrList
-        			{
-        				"@MENUS_OFF" 0
-        				" 2x" 2
-        				" 4x" 4
-        				" 8x" 8
-        			}
-        			descText			"Multi-sampled anti-aliasing (MSAA)"
-        			mouseenter			{ show highlight11 }
-        			mouseexit			{ hide highlight11 }
-        			action
-        			{
-        				play			"sound/interface/button1"
-        				setcvar			ui_r_modified	1
-        				setcvar			ui_vidrestart	1
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				VIDEO_SYNC
-        			group				video
-        	  			type				ITEM_TYPE_MULTI
-        			text				@MENUS_VIDEO_SYNC
-        			cvar				"r_swapInterval"
-        			cvarFloatList
-        			{
-        				@MENUS_OFF 0
-        				@MENUS_ON 1
-        			}
-        			rect				220 263 300 20
-        				textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor		.615 .615 .956 1
-        			visible			0
-        			descText			@MENUS_VIDEO_SYNC_DESC
-        			action
-        			{
-        				play			"sound/interface/button1"
-        			}
-        
-        			mouseenter
-        			{
-        				show			highlight12
-        			}
-        			mouseexit
-        			{
-        				hide			highlight12
-        			}
-        		}
-        
-        		itemDef
-        		{
-        			name				MAX_FPS
-        			group				video
-        	  		type				ITEM_TYPE_MULTI
-        			text				"Max FPS:"
-        			cvar				"com_maxfps"
-        			cvarFloatList
-        			{
-        				"Uncapped" 0
-        				"125 (Default)" 125
-        				"142" 142
-        				"166" 166
-        				"200" 200
-        				"250" 250
-        				"333" 333
-        				"500" 500
-        			}
-        			rect				220 283 300 20
-        				textalign			ITEM_ALIGN_RIGHT
-        			textalignx			165
-        			textaligny			0
-        			font 				4
-        			textscale 			1
-        			forecolor			.615 .615 .956 1
-        			visible				0
-        			cvarTest			r_swapInterval
-        			hideCvar			{ 1 }
-        			descText			"Max FPS setting."
-        			action
-        			{
-        				play			"sound/interface/button1"
-        			}
-        
-        			mouseenter
-        			{
-        				show			highlight13
-        			}
-        			mouseexit
-        			{
-        				hide			highlight13
-        			}
-        		}
+        itemDef
+		{
+			name				aspect_ratio
+			group				video
+	\t	type				ITEM_TYPE_MULTI
+			text				"Aspect Ratio:"
+			cvarFloatList
+			{ "Desktop Resolution" -1
+			"4:3" 0
+			"16:9" 1
+			"16:10" 2 }
+			cvar				"ui_aspectratio"
+			rect				220 63 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			descText			"Change the aspect ratio."
+			cvarTest			ui_aspectratio
+			showCvar			{ -1 }
+			visible				0
+
+			mouseenter			{ show highlight2 }
+			mouseexit			{ hide highlight2 }
+			action
+			{
+				play "sound/interface/button1"
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+				setcvar			ui_resolution	0
+				uiScript update "ui_resolution"
+			}
+		}
+
+        itemDef
+		{
+			name				aspect_ratio
+			group				video
+	\t	type				ITEM_TYPE_MULTI
+			text				"Aspect Ratio:"
+			cvarFloatList
+			{ "Desktop Resolution" -1
+			"4:3" 0
+			"16:9" 1
+			"16:10" 2
+			"Custom" 3 }
+			cvar				"ui_aspectratio"
+			rect				220 63 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			descText			"Change the aspect ratio."
+			cvarTest			ui_aspectratio
+			hideCvar			{ -1 }
+			visible				0
+
+			mouseenter			{ show highlight2 }
+			mouseexit			{ hide highlight2 }
+			action
+			{
+				play "sound/interface/button1"
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+				setcvar			ui_resolution	0
+				uiScript update "ui_resolution"
+			}
+		}
+
+        itemDef
+		{
+			name				resolution
+			group				video
+	\t	type				ITEM_TYPE_MULTI
+			text				"Resolution:"
+			cvarFloatList
+			{
+			@MENUS_640_X_480 3
+			@MENUS_800_X_600 4
+			"960 X 720" 5
+			@MENUS_1024_X_768 6
+			@MENUS_1152_X_864 7
+			"1280 X 960" 11
+			@MENUS_1280_X_1024 8
+			"1440 X 1080" 12
+			@MENUS_1600_X_1200 9
+			"1920 X 1440" 13
+			@MENUS_2048_X_1536 10 }
+			cvar				"ui_resolution"
+			rect				220 83 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			descText			@MENUS_CHANGE_THE_DISPLAY_RESOLUTION
+			cvarTest			ui_aspectratio
+			showCvar			{ 0 }
+			visible				0
+
+			mouseenter
+			{
+				show			highlight3
+			}
+			mouseexit
+			{
+				hide			highlight3
+			}
+			action
+			{
+				play			"sound/interface/button1"
+				uiScript update "ui_resolution"
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+			}
+		}
+
+		itemDef
+		{
+			name				resolution
+			group				video
+	\t	type				ITEM_TYPE_MULTI
+			text				"Resolution:"
+			cvarFloatList
+			{
+			"852 X 480" 3
+			"1280 X 720" 4
+			"1360 X 768" 5
+			"1366 X 768" 6
+			"1600 X 900" 7
+			"1920 X 1080" 8
+			}
+			cvar				"ui_resolution"
+			rect				220 83 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			descText			@MENUS_CHANGE_THE_DISPLAY_RESOLUTION
+			cvarTest			ui_aspectratio
+			showCvar			{ 1 }
+			visible				0
+
+			mouseenter
+			{
+				show			highlight3
+			}
+			mouseexit
+			{
+				hide			highlight3
+			}
+			action
+			{
+				play			"sound/interface/button1"
+				uiScript update "ui_resolution"
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+			}
+		}
+
+		itemDef
+		{
+			name				resolution
+			group				video
+	\t	type				ITEM_TYPE_MULTI
+			text				"Resolution:"
+			cvarFloatList
+			{
+			"720 X 480" 0
+			"1280 X 768" 1
+			"1280 X 800" 2
+			"1440 X 900" 3
+			"1600 X 1024" 4
+			"1680 X 1050" 5
+			"1920 X 1200" 6
+			"2560 X 1600" 7
+			}
+			cvar				"ui_resolution"
+			rect				220 83 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			descText			@MENUS_CHANGE_THE_DISPLAY_RESOLUTION
+			cvarTest			ui_aspectratio
+			showCvar			{ 2 }
+			visible				0
+
+			mouseenter
+			{
+				show			highlight3
+			}
+			mouseexit
+			{
+				hide			highlight3
+			}
+			action
+			{
+				play			"sound/interface/button1"
+				uiScript update "ui_resolution"
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+			}
+		}
+
+		itemDef
+		{
+			name				fullscreen
+			group				video
+			type				ITEM_TYPE_MULTI
+			text				"Display Mode:"
+			rect				220 103 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor		.615 .615 .956 1
+
+			cvarFloatList		{ "Windowed" 0 "Fullscreen" 1 "Windowed Borderless" 2 }
+			descText			"Windowed, exclusive fullscreen, or a borderless window centered on the screen"
+			cvar				"ui_r_fullscreen"
+
+			visible			0
+
+			mouseenter
+			{
+				show			highlight4
+			}
+			mouseexit
+			{
+				hide			highlight4
+			}
+			action
+			{
+				play			"sound/interface/button1"
+				uiScript		glCustom
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+			}
+		}
+
+		itemDef
+		{
+			name				windowborder
+			group				video
+			type				ITEM_TYPE_MULTI
+			text				"Window Border:"
+			rect				220 123 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor		.615 .615 .956 1
+
+			cvarFloatList		{ @MENUS_OFF 1 @MENUS_ON 0 }
+			descText			@MENUS_TOGGLE_BETWEEN_FULL_SCREEN
+			cvar				"r_noborder"
+			cvarTest			ui_r_fullscreen
+			showCvar			{ 0 }
+
+			visible			0
+
+			mouseenter
+			{
+				show			highlight5
+			}
+			mouseexit
+			{
+				hide			highlight5
+			}
+			action
+			{
+				play			"sound/interface/button1"
+				uiScript		glCustom
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+			}
+		}
+
+		itemDef
+		{
+			name				color_depth
+			group				video
+			type				ITEM_TYPE_MULTI
+			text				@MENUS_COLOR_DEPTH
+			rect				220 143 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+
+			cvarFloatList		{ @MENUS_DEFAULT 0 @MENUS_16_BIT 16 @MENUS_32_BIT 32 }
+			descText			@MENUS_CHANGE_THE_NUMBER_OF
+			cvar				"ui_r_colorbits"
+
+			visible				0
+
+			mouseenter
+			{
+				show			highlight6
+			}
+			mouseexit
+			{
+				hide			highlight6
+			}
+			action
+			{
+				play			"sound/interface/button1"
+				uiScript		glCustom
+				uiScript update "ui_r_colorbits"
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+			}
+		}
+
+		itemDef
+		{
+			name				geometric_detail
+			group				video
+			type				ITEM_TYPE_MULTI
+			text				@MENUS_GEOMETRIC_DETAIL
+			rect				220 163 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor		.615 .615 .956 1
+			cvarFloatList		{  "Very Low" 3 @MENUS_LOW 2 @MENUS_MEDIUM 1 @MENUS_HIGH 0 }
+			descText			@MENUS_ADJUST_THE_NUMBER_OF
+			cvar				"ui_geometricdetail"
+
+			visible				0
+
+			mouseenter
+			{
+				show			highlight7
+			}
+			mouseexit
+			{
+				hide			highlight7
+			}
+			action
+			{
+				play			"sound/interface/button1"
+				uiScript		glCustom
+				uiScript update "ui_geometricdetail"
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+			}
+		}
+
+		itemDef
+		{
+			name				texture_detail
+			group				video
+			type				ITEM_TYPE_MULTI
+			text				@MENUS_TEXTURE_DETAIL
+			rect				220 183 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor		.615 .615 .956 1
+			cvarFloatList		{ @MENUS_LOW 3 @MENUS_MEDIUM 2 @MENUS_HIGH 1 @MENUS_VERY_HIGH 0 }
+			descText			@MENUS_SELECT_THE_RESOLUTION
+			cvar				"ui_r_picmip"
+
+			visible				0
+
+			mouseenter
+			{
+				show			highlight8
+			}
+			mouseexit
+			{
+				hide			highlight8
+			}
+			action
+			{
+				play			"sound/interface/button1"
+				uiScript		glCustom
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+			}
+		}
+
+		itemDef
+		{
+			name				texture_filter
+			group				video
+			type				ITEM_TYPE_MULTI
+			text				@MENUS_TEXTURE_FILTER
+			rect				220 203 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor		.615 .615 .956 1
+			cvarStrList		{  @MENUS_BILINEAR , "GL_LINEAR_MIPMAP_NEAREST" , @MENUS_TRILINEAR , "GL_LINEAR_MIPMAP_LINEAR" }
+			descText			@MENUS_ADJUST_HOW_WELL_THE_TEXTURES
+			cvar				"ui_r_texturemode"
+
+			visible				0
+
+			mouseenter
+			{
+				show			highlight9
+			}
+			mouseexit
+			{
+				hide			highlight9
+			}
+			action
+			{
+				play			"sound/interface/button1.wav"
+				uiScript		glCustom
+				setcvar			ui_r_modified	1
+			}
+		}
+
+		itemDef
+		{
+			name				video_mode
+			group				video
+			type				ITEM_TYPE_MULTI
+			text				@MENUS_ANISOTROPIC_FILTERING
+			cvarTest			r_ext_texture_filter_anisotropic_avail
+			disableCvar			{ 0 }
+			rect				220 223 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			cvar				"r_ext_texture_filter_anisotropic"
+			cvarStrList
+			{
+				"@MENUS_OFF" 0
+				"2x" 2
+				"4x" 4
+				"8x" 8
+				"16x" 16
+			}
+			descText			@MENUS_TOGGLE_ADVANCED_TEXTURE
+			mouseenter			{ show highlight10 }
+			mouseexit			{ hide highlight10 }
+			action
+			{
+				play			"sound/interface/button1"
+			}
+		}
+
+		itemDef
+		{
+			name				video_mode
+			group				video
+			type				ITEM_TYPE_MULTI
+			text				"Anti-aliasing:"
+			rect				220 243 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			cvar				"r_ext_multisample"
+			cvarStrList
+			{
+				"@MENUS_OFF" 0
+				" 2x" 2
+				" 4x" 4
+				" 8x" 8
+			}
+			descText			"Multi-sampled anti-aliasing (MSAA)"
+			mouseenter			{ show highlight11 }
+			mouseexit			{ hide highlight11 }
+			action
+			{
+				play			"sound/interface/button1"
+				setcvar			ui_r_modified	1
+				setcvar			ui_vidrestart	1
+			}
+		}
+
+		itemDef
+		{
+			name				VIDEO_SYNC
+			group				video
+	\t		type				ITEM_TYPE_MULTI
+			text				@MENUS_VIDEO_SYNC
+			cvar				"r_swapInterval"
+			cvarFloatList
+			{
+				@MENUS_OFF 0
+				@MENUS_ON 1
+			}
+			rect				220 263 300 20
+				textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor		.615 .615 .956 1
+			visible			0
+			descText			@MENUS_VIDEO_SYNC_DESC
+			action
+			{
+				play			"sound/interface/button1"
+			}
+
+			mouseenter
+			{
+				show			highlight12
+			}
+			mouseexit
+			{
+				hide			highlight12
+			}
+		}
+
+		itemDef
+		{
+			name				MAX_FPS
+			group				video
+	\t	type				ITEM_TYPE_MULTI
+			text				"Max FPS:"
+			cvar				"com_maxfps"
+			cvarFloatList
+			{
+				"Uncapped" 0
+				"125 (Default)" 125
+				"142" 142
+				"166" 166
+				"200" 200
+				"250" 250
+				"333" 333
+				"500" 500
+			}
+			rect				220 283 300 20
+				textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			cvarTest			r_swapInterval
+			hideCvar			{ 1 }
+			descText			"Max FPS setting."
+			action
+			{
+				play			"sound/interface/button1"
+			}
+
+			mouseenter
+			{
+				show			highlight13
+			}
+			mouseexit
+			{
+				hide			highlight13
+			}
+		}
 
 		itemDef
 		{
@@ -1463,7 +1535,7 @@
 		{
 			name				advancedvideobutton
 			group				video
-	  		type				ITEM_TYPE_BUTTON
+	\t	type				ITEM_TYPE_BUTTON
 			text				"Advanced Video Options"
 			rect				260 303 200 20
 				textalign			ITEM_ALIGN_CENTER
@@ -1719,6 +1791,44 @@
 			}
 		}
 
+		itemDef
+		{
+			name				rend2videobutton_glow
+			style				WINDOW_STYLE_SHADER
+			rect				260 205 200 16
+			background			"gfx/menus/menu_blendbox"
+			forecolor			1 0.5 0.5 1
+			visible				0
+			decoration
+		}
+
+		itemDef
+		{
+			name				rend2videobutton
+			group				advancedvideo
+			type				ITEM_TYPE_BUTTON
+			text				"Rend2 Advanced Settings"
+			rect				260 203 200 20
+			textalign			ITEM_ALIGN_CENTER
+			textalignx			100
+			font				4
+			textscale			1
+			forecolor			1 .682 0 1
+			visible				0
+			cvarTest			"ui_cl_renderer"
+			showCvar			{ "rd-rend2-etjk" }
+			descText			"Configure advanced Rend2 renderer features."
+			mouseenter			{ show rend2videobutton_glow }
+			mouseexit			{ hide rend2videobutton_glow }
+			action
+			{
+				play			"sound/interface/button1"
+				hide			advancedvideo
+				hide			rend2videobutton_glow
+				show			rend2video
+			}
+		}
+
 
 		itemDef
 		{
@@ -1735,7 +1845,7 @@
 		{
 			name				done
 			group				advancedvideo
-	  		type				ITEM_TYPE_BUTTON
+	\t	type				ITEM_TYPE_BUTTON
 			text				"Done"
 			rect				260 243 200 20
 				textalign			ITEM_ALIGN_CENTER
@@ -1755,6 +1865,321 @@
 			}
 			mouseenter			{ show donebutton_glow }
 			mouseexit			{ hide donebutton_glow }
+		}
+
+		// Rend2 advanced settings, based on SomaZ's Rend2 Setup UI 1.1.
+		itemDef
+		{
+			name				rend2_hdr
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"HDR Rendering:"
+			rect				220 43 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_hdr"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			visible				0
+			descText			"Render in a high dynamic range color space."
+			mouseenter			{ show highlight1 }
+			mouseexit			{ hide highlight1 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_tonemap
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"Tonemapping:"
+			rect				220 63 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_toneMap"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			visible				0
+			descText			"Map HDR lighting into the displayable color range."
+			mouseenter			{ show highlight2 }
+			mouseexit			{ hide highlight2 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_autoexposure
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"Auto Exposure:"
+			rect				220 83 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_autoExposure"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			visible				0
+			descText			"Automatically adapt exposure to scene brightness."
+			mouseenter			{ show highlight3 }
+			mouseexit			{ hide highlight3 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_floatlightmap
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"HDR Lightmaps:"
+			rect				220 103 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_floatLightmap"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			cvarTest			"r_hdr"
+			hideCvar			{ 0 }
+			visible				0
+			descText			"Load HDR lighting data when supplied by the map."
+			mouseenter			{ show highlight4 }
+			mouseexit			{ hide highlight4 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_deluxemapping
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"Deluxe Mapping:"
+			rect				220 123 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_deluxeMapping"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			visible				0
+			descText			"Enable normal and specular mapping on static geometry."
+			mouseenter			{ show highlight5 }
+			mouseexit			{ hide highlight5 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_deluxespecular
+			group				rend2video
+			type				ITEM_TYPE_SLIDER
+			text				"Deluxe Specular:"
+			rect				220 143 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvarFloat			"r_deluxeSpecular" 1 0 1
+			cvarTest			"r_deluxeMapping"
+			hideCvar			{ 0 }
+			visible				0
+			descText			"Scale the specular response from deluxe maps."
+			mouseenter			{ show highlight6 }
+			mouseexit			{ hide highlight6 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_cubemapping
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"Cube Mapping:"
+			rect				220 163 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_cubeMapping"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			visible				0
+			descText			"Render cube maps for reflections."
+			mouseenter			{ show highlight7 }
+			mouseexit			{ hide highlight7 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_cubebounces
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"Reflection Bounces:"
+			rect				220 183 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_cubeMappingBounces"
+			cvarFloatList		{ "0" 0 "1" 1 "2" 2 }
+			cvarTest			"r_cubeMapping"
+			hideCvar			{ 0 }
+			visible				0
+			descText			"Choose how many reflection passes cube maps render."
+			mouseenter			{ show highlight8 }
+			mouseexit			{ hide highlight8 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_parallax
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"Parallax Mapping:"
+			rect				220 203 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_parallaxMapping"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			visible				0
+			descText			"Enable parallax occlusion mapping for Rend2 materials."
+			mouseenter			{ show highlight9 }
+			mouseexit			{ hide highlight9 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_gennormals
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"Generate Normal Maps:"
+			rect				220 223 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_genNormalMaps"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			visible				0
+			descText			"Generate normal maps from diffuse textures."
+			mouseenter			{ show highlight10 }
+			mouseexit			{ hide highlight10 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2_ssao
+			group				rend2video
+			type				ITEM_TYPE_MULTI
+			text				"Ambient Occlusion:"
+			rect				220 243 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			cvar				"r_ssao"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			visible				0
+			descText			"Enable screen-space ambient occlusion."
+			mouseenter			{ show highlight11 }
+			mouseexit			{ hide highlight11 }
+			action				{ play "sound/interface/button1" ; setcvar ui_r_modified 1 ; setcvar ui_vidrestart 1 }
+		}
+
+		itemDef
+		{
+			name				rend2backbutton_glow
+			style				WINDOW_STYLE_SHADER
+			rect				260 285 200 16
+			background			"gfx/menus/menu_blendbox"
+			forecolor			1 0.5 0.5 1
+			visible				0
+			decoration
+		}
+
+		itemDef
+		{
+			name				rend2backbutton
+			group				rend2video
+			type				ITEM_TYPE_BUTTON
+			text				"Back to Advanced Video"
+			rect				260 283 200 20
+			textalign			ITEM_ALIGN_CENTER
+			textalignx			100
+			font				4
+			textscale			1
+			forecolor			1 .682 0 1
+			visible				0
+			descText			"Return to the general advanced video options."
+			mouseenter			{ show rend2backbutton_glow }
+			mouseexit			{ hide rend2backbutton_glow }
+			action
+			{
+				play			"sound/interface/button1"
+				hide			rend2video
+				hide			rend2backbutton_glow
+				show			advancedvideo
+			}
+		}
+
+		itemDef
+		{
+			name				rend2applybutton_glow
+			style				WINDOW_STYLE_SHADER
+			rect				260 335 200 18
+			background			"gfx/menus/menu_blendbox"
+			forecolor			1 0.5 0.5 1
+			visible				0
+			decoration
+		}
+
+		itemDef
+		{
+			name				rend2ApplyChanges
+			group				rend2video
+			text				@MENUS_APPLY_CHANGES
+			type				ITEM_TYPE_BUTTON
+			style				WINDOW_STYLE_EMPTY
+			rect				260 330 200 30
+			font				4
+			textscale			1
+			textalignx			100
+			textaligny			5
+			textalign			ITEM_ALIGN_CENTER
+			textstyle			3
+			forecolor			1 0 0 1
+			backcolor			0 0 1 0
+			cvarTest			ui_r_modified
+			showCvar			{ 1 }
+			visible				0
+			mouseenter			{ show rend2applybutton_glow }
+			mouseexit			{ hide rend2applybutton_glow }
+			action
+			{
+				play			"sound/interface/button1"
+				show			setup_background
+				show			vidrestart
+				hide			rend2video
+				hide			rend2applybutton_glow
+			}
 		}
 
 		//----------------------------------------------------------------------------------------------
@@ -1984,7 +2409,7 @@
 		{
 			name				dynamic_light
 			group				lighting
-	  			type				ITEM_TYPE_MULTI
+	\t		type				ITEM_TYPE_MULTI
 			text				@MENUS_DYNAMIC_LIGHTS
 			cvar				"r_dynamiclight"
 			cvarFloatList
@@ -2021,7 +2446,7 @@
 		{
 			name				dynamic_glow
 			group				lighting
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Dynamic Glow:"
 			cvar				"r_DynamicGlow"
 			cvarFloatList
@@ -2058,7 +2483,7 @@
 		{
 			name				light_flares
 			group				lighting
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_LIGHT_FLARES
 			cvar				"r_flares"
 			cvarFloatList
@@ -2095,7 +2520,7 @@
 		{
 			name				fastsky
 			group				lighting
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Fast Sky:"
 			cvar				"r_fastsky"
 			cvarFloatList
@@ -2143,7 +2568,7 @@
 		{
 			name				advancedlightingbutton
 			group				lighting
-	  		type				ITEM_TYPE_BUTTON
+	\t	type				ITEM_TYPE_BUTTON
 			text				"Advanced Lighting Options"
 			rect				260 243 200 20
 			textalign			ITEM_ALIGN_CENTER
@@ -2294,7 +2719,7 @@
 		{
 			name				done3
 			group				advancedlighting
-	  		type				ITEM_TYPE_BUTTON
+	\t	type				ITEM_TYPE_BUTTON
 			text				"Done"
 			rect				260 243 200 20
 			textalign			ITEM_ALIGN_CENTER
@@ -2326,7 +2751,7 @@
 		{
 			name				shadows
 			group				visuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Shadows:"
 			cvar				"cg_shadows"
 			cvarFloatList
@@ -2354,7 +2779,7 @@
 		{
 			name				blood
 			group				visuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Blood:"
 			cvar				"cg_blood"
 			cvarFloatList
@@ -2381,7 +2806,7 @@
 		{
 			name				showabsorb
 			group				visuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Always Show Absorb:"
 			cvar				"cg_alwaysShowAbsorb"
 			cvarFloatList
@@ -2407,7 +2832,7 @@
 		{
 			name				ysalshell
 			group				visuals
-	  		type				ITEM_TYPE_CHECKBOX
+	\t	type				ITEM_TYPE_CHECKBOX
 			text				"Hide Ysal Shell:"
 			cvar				"cg_stylePlayer"
 			bitMask				"10"
@@ -2429,7 +2854,7 @@
 		{
 			name				duelshell
 			group				visuals
-	  		type				ITEM_TYPE_CHECKBOX
+	\t	type				ITEM_TYPE_CHECKBOX
 			text				"Draw Duel Shell:"
 			cvar				"cg_stylePlayer"
 			bitMask				"1"
@@ -2451,7 +2876,7 @@
 		{
 			name				flagalpha
 			group				visuals
-	  		type				ITEM_TYPE_SLIDER
+	\t	type				ITEM_TYPE_SLIDER
 			text				"Flag Opacity:"
 			cvarFloat			"cg_thirdPersonFlagAlpha" 1 0 1
 			rect				220 143 300 20
@@ -2472,7 +2897,7 @@
 		{
 			name				screenshake
 			group				visuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Screen Shake:"
 			cvar				"cg_screenShake"
 			cvarFloatList
@@ -2499,7 +2924,7 @@
 		{
 			name				drawgun
 			group				visuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Draw Gun:"
 			cvar				"cg_drawGun"
 			cvarFloatList
@@ -2528,7 +2953,7 @@
 		{
 			name				playernames
 			group				visuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Draw Player Names:"
 			cvar				"cg_drawPlayerNames"
 			cvarFloatList
@@ -2545,7 +2970,7 @@
 			textscale 			1
 			forecolor			.615 .615 .956 1
 			visible				0
-			descText			"Toggle to always display player names above heads."
+			descText			"Show visible players' names above heads, except during duels or while aiming at them."
 			action				{ play "sound/interface/button1" }
 			mouseenter			{ show highlight9 }
 			mouseexit			{ hide highlight9 }
@@ -2555,7 +2980,7 @@
 		{
 			name				drawduelers
 			group				visuals
-	  		type				ITEM_TYPE_CHECKBOX
+	\t	type				ITEM_TYPE_CHECKBOX
 			text				"Hide Duelers:"
 			cvar				"cg_stylePlayer"
 			bitMask				"2"
@@ -2577,7 +3002,7 @@
 		{
 			name				drawracersinffa
 			group				visuals
-	  		type				ITEM_TYPE_CHECKBOX
+	\t	type				ITEM_TYPE_CHECKBOX
 			text				"Hide Racers in FFA:"
 			cvar				"cg_stylePlayer"
 			bitMask				"3"
@@ -2599,7 +3024,7 @@
 		{
 			name				hidenonracersifracer
 			group				visuals
-	  		type				ITEM_TYPE_CHECKBOX
+	\t	type				ITEM_TYPE_CHECKBOX
 			text				"Hide non racers if racer:"
 			cvar				"cg_stylePlayer"
 			bitMask				"4"
@@ -2621,7 +3046,7 @@
 		{
 			name				hideracersifracer
 			group				visuals
-	  		type				ITEM_TYPE_CHECKBOX
+	\t	type				ITEM_TYPE_CHECKBOX
 			text				"Hide racers if racer:"
 			cvar				"cg_stylePlayer"
 			bitMask				"5"
@@ -2654,7 +3079,7 @@
 		{
 			name				morevisualsbutton
 			group				visuals
-	  		type				ITEM_TYPE_BUTTON
+	\t	type				ITEM_TYPE_BUTTON
 			text				"More Visual Options"
 			rect				260 303 200 20
 			textalign			ITEM_ALIGN_CENTER
@@ -2685,7 +3110,7 @@
 		{
 			name				consoleopacity
 			group				morevisuals
-	  		type				ITEM_TYPE_SLIDER
+	\t	type				ITEM_TYPE_SLIDER
 			text				"Console Opacity:"
 			cvarFloat			"con_opacity" 1 0 1
 			rect				220 43 300 20
@@ -2706,7 +3131,7 @@
 		{
 			name				corpsefadeinstant
 			group				morevisuals
-	  		type				ITEM_TYPE_CHECKBOX
+	\t	type				ITEM_TYPE_CHECKBOX
 			text				"Fade corpses immediately:"
 			cvar				"cg_stylePlayer"
 			bitMask				"12"
@@ -2728,7 +3153,7 @@
 		{
 			name				corpsefx
 			group				morevisuals
-	  		type				ITEM_TYPE_CHECKBOX
+	\t	type				ITEM_TYPE_CHECKBOX
 			text				"Disable Corpse Fade Effects:"
 			cvar				"cg_stylePlayer"
 			bitMask				"13"
@@ -2750,7 +3175,7 @@
 		{
 			name				fleshsparks
 			group				morevisuals
-	  		type				ITEM_TYPE_NUMERICFIELD
+	\t	type				ITEM_TYPE_NUMERICFIELD
 			text				"Flesh Sparks:"
 			cvar				"cg_fleshSparks"
 			rect				220 103 300 20
@@ -2771,7 +3196,7 @@
 		{
 			name				simpleitems
 			group				morevisuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_SIMPLE_ITEMS
 			cvar				"cg_simpleItems"
 			cvarFloatList
@@ -2797,7 +3222,7 @@
 		{
 			name				wall_marks
 			group				morevisuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_WALL_MARKS
 			cvar				"cg_marks"
 			cvarFloatList
@@ -2823,7 +3248,7 @@
 		{
 			name				nofx
 			group				morevisuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"No Effects:"
 			cvar				"cg_noFX"
 			cvarFloatList
@@ -2852,7 +3277,7 @@
 		{
 			name				telefx
 			group				morevisuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"No Teleport Effects:"
 			cvar				"cg_noTeleFX"
 			cvarFloatList
@@ -2878,13 +3303,14 @@
 		{
 			name				remaps
 			group				morevisuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Remaps:"
 			cvar				"cg_remaps"
 			cvarFloatList
 			{
+				"Map + Model" 2
+				"Map Only" 1
 				@MENUS_OFF 0
-				@MENUS_ON 1
 			}
 			rect				220 203 300 20
 			textalign			ITEM_ALIGN_RIGHT
@@ -2894,7 +3320,7 @@
 			textscale 			1
 			forecolor			.615 .615 .956 1
 			visible				0
-			descText			"Toggle remaps."
+			descText			"Choose which remaps to apply: map and model, map only, or none."
 			action				{ play "sound/interface/button1" }
 			mouseenter			{ show highlight9 }
 			mouseexit			{ hide highlight9 }
@@ -2904,7 +3330,7 @@
 		{
 			name				sabertrail
 			group				morevisuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Saber Trail:"
 			cvar				"cg_saberTrail"
 			cvarFloatList
@@ -2932,7 +3358,7 @@
 		{
 			name				speedtrail
 			group				morevisuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Speed Trail:"
 			cvar				"cg_speedTrail"
 			cvarFloatList
@@ -2958,7 +3384,7 @@
 		{
 			name				drawhitbox
 			group				morevisuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Draw Hit Box:"
 			cvar				"cg_drawHitBox"
 			cvarFloatList
@@ -2984,7 +3410,7 @@
 		{
 			name				drawchatboxemojis
 			group				morevisuals
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Draw Emojis:"
 			cvar				"cg_chatboxemojis"
 			cvarFloatList
@@ -3008,9 +3434,29 @@
 
 		itemDef
 		{
+			name				saberrainsteam
+			group				morevisuals
+			type				ITEM_TYPE_MULTI
+			text				"Saber Rain Steam:"
+			cvar				"cg_saberRainSteam"
+			cvarFloatList { "On" 1 "Only Me" 2 "Off" 0 }
+			rect				220 303 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font				4
+			textscale			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			descText			"Steam on exposed lightsabers during rain: everyone, only you, or off."
+			action { play "sound/interface/button1" }
+		}
+
+		itemDef
+		{
 			name				done2button_glow
 			style				WINDOW_STYLE_SHADER
-			rect				260 305 200 16
+			rect				260 325 200 16
 			background			"gfx/menus/menu_blendbox"
 			forecolor			1 0.5 0.5 1
 			visible				0
@@ -3021,9 +3467,9 @@
 		{
 			name				done2
 			group				morevisuals
-	  		type				ITEM_TYPE_BUTTON
+	\t	type				ITEM_TYPE_BUTTON
 			text				"Done"
-			rect				260 303 200 20
+			rect				260 323 200 20
 			textalign			ITEM_ALIGN_CENTER
 			textalignx			100
 			textaligny			0
@@ -3052,7 +3498,7 @@
 		{
 			name				drawfps
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Draw FPS:"
 			cvar				"cg_drawFPS"
 			cvarFloatList
@@ -3079,7 +3525,7 @@
 		{
 			name				drawtimer
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Draw Timer:"
 			cvar				"cg_drawTimer"
 			cvarFloatList
@@ -3106,7 +3552,7 @@
 		{
 			name				speedgraph
 			group				hud
-	  		type				ITEM_TYPE_CHECKBOX
+	\t	type				ITEM_TYPE_CHECKBOX
 			text				"Speed Graph:"
 			cvar				"cg_speedometer"
 			bitMask				"7"
@@ -3128,7 +3574,7 @@
 		{
 			name				lagometer
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Lagometer:"
 			cvar				"cg_lagometer"
 			cvarFloatList
@@ -3156,7 +3602,7 @@
 		{
 			name				killmessage
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Kill Message:"
 			cvar				"cg_killMessage"
 			cvarFloatList
@@ -3182,7 +3628,7 @@
 		{
 			name				smallscoreboard
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Small Scoreboard:"
 			cvar				"cg_smallScoreboard"
 			cvarFloatList
@@ -3208,7 +3654,7 @@
 		{
 			name				drawenemyinfo
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Draw Enemy Info:"
 			cvar				"cg_drawEnemyInfo"
 			cvarFloatList
@@ -3234,7 +3680,7 @@
 		{
 			name				teamoverlay
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_TEAM_OVERLAY
 			cvar				"cg_drawTeamOverlay"
 			cvarFloatList
@@ -3260,7 +3706,7 @@
 		{
 			name				radar
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Draw Radar:"
 			cvar				"cg_drawRadar"
 			cvarFloatList
@@ -3286,7 +3732,7 @@
 		{
 			name				simple
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"HUD:"
 			cvar				"cg_hudFiles"
 			cvarFloatList
@@ -3314,7 +3760,7 @@
 		{
 			name				gradient
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Simple HUD Gradient:"
 			cvar				"cg_hudColors"
 			cvarFloatList
@@ -3342,7 +3788,7 @@
 		{
 			name				score_line
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Player Score on HUD:"
 			cvar				"cg_drawScore"
 			cvarFloatList
@@ -3370,7 +3816,7 @@
 		{
 			name				tint
 			group				hud
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Tint HUD:"
 			cvar				"cg_tintHud"
 			cvarFloatList
@@ -3527,7 +3973,7 @@
 		{
 			name				sound_quality
 			group				sound
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_SOUND_QUALITY
 			cvar				"s_khz"
 			cvarFloatList		{ @MENUS_LOW 11  @MENUS_HIGH 22 @MENUS_VERY_HIGH 44 }
@@ -3562,7 +4008,7 @@
 		{
 			name				race
 			group				sound
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			cvarTest			"ui_isJAPro"
 			showCvar
 			{ "1" }
@@ -3587,7 +4033,7 @@
 		{
 			name				hit
 			group				sound
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Hit Sounds:"
 			cvar				"cg_hitsounds"
 			cvarFloatList		{ "None (Default)" 0 "Quake 3" 1 "Legions: Overdrive" 2 "Warsow" 3 "Tribes: Ascend" 4 }
@@ -3609,7 +4055,7 @@
 		{
 			name				jump
 			group				sound
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Jump Sounds:"
 			cvar				"cg_jumpSounds"
 			cvarFloatList		{ "None (Default)" 0 "Always" 1 "Only play for other clients" 2 "Only play for local client" 3 }
@@ -3631,7 +4077,7 @@
 		{
 			name				roll
 			group				sound
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Roll Sounds:"
 			cvar				"cg_rollSounds"
 			cvarFloatList		{ "None" 0 "Always (Default)" 1 "Only play for other clients" 2 "Only play for local client" 3 }
@@ -3653,7 +4099,7 @@
 		{
 			name				chat
 			group				sound
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Chat Sound:"
 			cvar				"cg_chatSounds"
 			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
@@ -3668,6 +4114,28 @@
 			descText			"Toggle the chat beep notification."
 			mouseenter			{ show highlight10 }
 			mouseexit			{ hide highlight10 }
+			action				{ play "sound/interface/button1" }
+		}
+
+		itemDef
+		{
+			name				tauntantispam
+			group				sound
+	\t	type				ITEM_TYPE_MULTI
+			text				"Taunt Anti-Spam:"
+			cvar				"cg_tauntAntiSpam"
+			cvarFloatList		{ @MENUS_OFF 0 @MENUS_ON 1 }
+			rect				220 243 300 20
+				textalign			ITEM_ALIGN_RIGHT
+			textalignx			120
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			descText			"Stop players repeating taunts and other model voice lines."
+			mouseenter			{ show highlight11 }
+			mouseexit			{ hide highlight11 }
 			action				{ play "sound/interface/button1" }
 		}
 
@@ -3722,12 +4190,12 @@
 		{
 			name				text
 			group				sound
-		  	type				ITEM_TYPE_MULTI
+		\ttype				ITEM_TYPE_MULTI
 			text				@MENUS_TEXT
 			cvar				"se_language"
 			feeder				40
 			cvarStrList			feeder
-			rect				220 243 300 20
+			rect				220 263 300 20
 				textalign			ITEM_ALIGN_RIGHT
 			textalignx			165
 			textaligny			0
@@ -3742,15 +4210,15 @@
 				show			langapply
 			}
 
-			mouseenter			{ show	highlight11 }
-			mouseexit			{ hide	highlight11 }
+			mouseenter			{ show	highlight12 }
+			mouseexit			{ hide	highlight12 }
 		}
 
 		itemDef
 		{
 			name				voice
 			group				sound
-		  	type				ITEM_TYPE_MULTI
+		\ttype				ITEM_TYPE_MULTI
 			text				@MENUS_VOICE
 			cvar				"s_language"
 			cvarStrList
@@ -3760,7 +4228,7 @@
 				Deutsch				deutsch
 				"Espa�ol" 			espanol
 			}
-			rect				220 263 300 20
+			rect				220 283 300 20
 				textalign			ITEM_ALIGN_RIGHT
 			textalignx			165
 			textaligny			0
@@ -3777,11 +4245,11 @@
 			}
 			mouseenter
 			{
-				show			highlight12
+				show			highlight13
 			}
 			mouseexit
 			{
-				hide			highlight12
+				hide			highlight13
 			}
 		}
 
@@ -3794,7 +4262,7 @@
 			text				@MENUS_SET_LANGUAGE
 			type				ITEM_TYPE_BUTTON
 			style				WINDOW_STYLE_EMPTY
-			rect				365 293 120 32
+			rect				365 313 120 32
 			font				2
 			textscale			1
 			textalign			ITEM_ALIGN_CENTER
@@ -3831,7 +4299,7 @@
 		{
 			name				drawcrosshair
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"@MENUS_DRAW_CROSSHAIR"
 			cvar				"cg_drawcrosshair"
 			cvarFloatList
@@ -3865,7 +4333,7 @@
 		{
 			name				identifytarget
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_IDENTIFY_TARGET
 			cvar				"cg_crosshairIdentifyTarget"
 			cvarFloatList
@@ -3891,7 +4359,7 @@
 		{
 			name				dynamiccrosshair
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Dynamic Crosshair"
 			cvar				"cg_dynamicCrosshair"
 			cvarFloatList
@@ -3917,7 +4385,7 @@
 		{
 			name				dynamiccrosshairprecision
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Dynamic Crosshair Precision:
 			cvar				"cg_dynamicCrosshairPrecision"
 			cvarFloatList
@@ -3943,7 +4411,7 @@
 		{
 			name				leadindicator
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Lead Indicator:"
 			cvar				"cg_leadIndicator"
 			cvarFloatList
@@ -3969,7 +4437,7 @@
 		{
 			name				simulatedprojectiles
 			group				options
-	  		type				ITEM_TYPE_NUMERICFIELD
+	\t	type				ITEM_TYPE_NUMERICFIELD
 			text				"Simulated Projectiles:"
 			cvar				"cg_simulatedProjectiles"
 			rect				220 143 300 20
@@ -3990,7 +4458,7 @@
 		{
 			name				autokill
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Auto Kill When Falling:"
 			cvar				"cg_autoKillWhenFalling"
 			cvarFloatList
@@ -4016,7 +4484,7 @@
 		{
 			name				autodemo
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Auto Record Demo:"
 			cvar				"cg_autoRecordDemo"
 			cvarFloatList
@@ -4042,7 +4510,7 @@
 		{
 			name				autorace
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Auto Record Race:"
 			cvar				"cg_autoRecordRaceDemo"
 			cvarFloatList
@@ -4068,7 +4536,7 @@
 		{
 			name				autoscreen
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Auto Screenshot:"
 			cvar				"cg_autoScreenshot"
 			cvarFloatList
@@ -4094,7 +4562,7 @@
 		{
 			name				drawrecording
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				"Demo Recording Message:"
 			desctext			"Toggle to show RECORDING message when recording demos."
 			cvar				"cl_drawRecording"
@@ -4126,7 +4594,7 @@
 		{
 			name				weaponswayon
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_VIEW_SWAYING
 			descText			@MENUS_VIEW_SWAYING_DESC
 			cvar				"ui_disableWeaponSway"
@@ -4163,7 +4631,7 @@
 		{
 			name				weaponswayoff
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_VIEW_SWAYING
 			descText			@MENUS_VIEW_SWAYING_DESC
 			cvar				"ui_disableWeaponSway"
@@ -4200,7 +4668,7 @@
 		{
 			name				footsteps
 			group				options
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_FOOTSTEPS
 			desctext			@MENUS_FOOTSTEPS_DESC
 			cvar				"cg_footsteps"
@@ -4229,6 +4697,147 @@
 
 		//----------------------------------------------------------------------------------------------
 		//
+		//	MODEL OPTIONS
+		//
+		//----------------------------------------------------------------------------------------------
+		itemDef
+		{
+			name				defaultmalemodel
+			group				modeloptions
+			type				ITEM_TYPE_EDITFIELD
+			text				"Default Male Model:"
+			cvar				"cg_defaultModel"
+			rect				220 43 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			descText			"Lets you specify the default male playermodel."
+			action				{ play "sound/interface/button1" }
+			mouseenter			{ show highlight1 }
+			mouseexit			{ hide highlight1 }
+		}
+
+		itemDef
+		{
+			name				defaultfemalemodel
+			group				modeloptions
+			type				ITEM_TYPE_EDITFIELD
+			text				"Default Female Model:"
+			cvar				"cg_defaultFemaleModel"
+			rect				220 63 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			descText			"Lets you specify the default female playermodel."
+			action				{ play "sound/interface/button1" }
+			mouseenter			{ show highlight2 }
+			mouseexit			{ hide highlight2 }
+		}
+
+		itemDef
+		{
+			name				defermodels
+			group				modeloptions
+	\t	type				ITEM_TYPE_MULTI
+			text				@MENUS_DEFER_PLAYER_MODELS
+			cvar				"cg_deferPlayers"
+			cvarFloatList
+			{
+				@MENUS_OFF 0
+				@MENUS_ON 1
+			}
+			rect				220 83 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			descText			@MENUS_DEFERS_LOADING_OF_NEW
+			action				{ play "sound/interface/button1" }
+			mouseenter			{ show highlight3 }
+			mouseexit			{ hide highlight3 }
+		}
+
+		itemDef
+		{
+			name				forcemodels
+			group				modeloptions
+	\t	type				ITEM_TYPE_MULTI
+			text				@MENUS_FORCE_PLAYER_MODELS
+			cvar				"cg_forceModel"
+			cvarFloatList
+			{
+				@MENUS_OFF 0
+				@MENUS_ON 1
+			}
+			rect				220 103 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			descText			@MENUS_FORCE_ALL_PLAYER_MODELS
+			action				{ play "sound/interface/button1" }
+			mouseenter			{ show highlight4 }
+			mouseexit			{ hide highlight4 }
+		}
+
+		itemDef
+		{
+			name				forceallymodel
+			group				modeloptions
+			type				ITEM_TYPE_EDITFIELD
+			text				"Force Ally Model:"
+			cvar				"cg_forceAllyModel"
+			rect				220 123 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			descText			"Lets you force playermodel for allies."
+			action				{ play "sound/interface/button1" }
+			mouseenter			{ show highlight5 }
+			mouseexit			{ hide highlight5 }
+		}
+
+		itemDef
+		{
+			name				forceenemymodel
+			group				modeloptions
+			type				ITEM_TYPE_EDITFIELD
+			text				"Force Enemy Model:"
+			cvar				"cg_forceEnemyModel"
+			rect				220 143 300 20
+			textalign			ITEM_ALIGN_RIGHT
+			textalignx			165
+			textaligny			0
+			font 				4
+			textscale 			1
+			forecolor			.615 .615 .956 1
+			visible				0
+			descText			"Lets you force playermodel for enemies."
+			action				{ play "sound/interface/button1" }
+			mouseenter			{ show highlight6 }
+			mouseexit			{ hide highlight6 }
+		}
+
+		//----------------------------------------------------------------------------------------------
+		//
 		//	NETWORK
 		//
 		//----------------------------------------------------------------------------------------------
@@ -4236,7 +4845,7 @@
 		{
 			name				allowdownload
 			group				network
-	  		type				ITEM_TYPE_MULTI
+	\t	type				ITEM_TYPE_MULTI
 			text				@MENUS_ALLOW_DOWNLOADS
 			descText			@MENUS_ALLOW_DOWNLOADS_INFO
 			cvar				"cl_allowDownload"

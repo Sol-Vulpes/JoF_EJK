@@ -27,6 +27,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // be a valid snapshot this frame
 
 #include "cg_local.h"
+#include "cg_dialogue.h"
 #include "ui/menudef.h"
 #include "ghoul2/G2.h"
 #include "ui/ui_public.h"
@@ -915,6 +916,8 @@ static void CG_ConfigStringModified( void ) {
 
 	// do something with it if necessary
 	if ( num == CS_MUSIC ) {
+		// the track is starting now, so this is the reference point cg_musicSync resumes against
+		cgs.musicStartTime = cg.time;
 		CG_StartMusic( qtrue );
 	} else if ( num == CS_SERVERINFO ) {
 		CG_ParseServerinfo();
@@ -1140,6 +1143,8 @@ void CG_KillCEntityG2(int entNum)
 
 			j++;
 		}
+
+		CG_CleanHolsteredSabers( ci );
 	}
 
 	if (cent->ghoul2 && trap->G2_HaveWeGhoul2Models(cent->ghoul2))
@@ -1231,6 +1236,12 @@ require a reload of all the media
 static void CG_MapRestart( void ) {
 	int i;
 	clientInfo_t *ci;
+cg.pickupQueueHead = cg.pickupQueueCount = 0;
+CG_ResetPickupEventTracking();
+if (CG_UsesPickupConfirmation()) {
+	cg.itemPickup = 0;
+}
+cg.pickupHandshakeActive = cg.pickupConfirmed = qfalse;
 	for (i = 0 ; i < MAX_CLIENTS ; i++)
 	{
 		ci = &cgs.clientinfo[i];
@@ -1262,11 +1273,15 @@ static void CG_MapRestart( void ) {
 	cg.timelimitWarnings = 0;
 
 	cg.intermissionStarted = qfalse;
+	cg.binocularTargetCount = 0;
+	cg.missionPartyCount = 0;
 
 	cgs.voteTime = 0;
 
 	cg.mapRestart = qtrue;
 
+	// the track restarts from the top for everyone here, so this is the new reference point
+	cgs.musicStartTime = cg.time;
 	CG_StartMusic(qtrue);
 
 	trap->S_ClearLoopingSounds();
@@ -1835,6 +1850,9 @@ static void CG_RemapShader_f( void ) {
 
 		trap->Cmd_Argv( 1, shader1, sizeof( shader1 ) );
 		trap->Cmd_Argv( 2, shader2, sizeof( shader2 ) );
+		// cg_remaps: 0 off, 1 map only (block player model remaps), 2 map + model
+		if ( cg_remaps.integer == 1 && !Q_stricmpn( shader1, "models/players/", 15 ) )
+			return;
 		if ( cg_remaps.integer )//JAPRO - Clientside - Allow noremaps
 			trap->R_RemapShader( shader1, shader2, CG_Argv( 3 ) );
 	}
@@ -1850,6 +1868,133 @@ typedef struct serverCommand_s {
 	const char	*cmd;
 	void		(*func)(void);
 } serverCommand_t;
+
+// Reject malformed/overflowing fields before using network data as entity indices.
+static int CG_BinocularIntArg(int arg) {
+	const char *text = CG_Argv(arg);
+	int value = 0;
+	if (!*text)
+		return -1;
+	for (; *text; text++) {
+		int digit = *text - '0';
+		if (digit < 0 || digit > 9 || value > (INT_MAX - digit) / 10)
+			return -1;
+		value = value * 10 + digit;
+	}
+	return value;
+}
+
+// binoStats <server time> <count> [<entity> <health> <max health> <armor>]...
+static void CG_BinocularStats_f( void ) {
+	int i, count, serverTime;
+	binocularTarget_t targets[MAX_BINOCULAR_TARGETS];
+	memset(targets, 0, sizeof(targets));
+	cg.binocularTargetCount = 0;
+	if (trap->Cmd_Argc() < 3)
+		return;
+	serverTime = CG_BinocularIntArg(1);
+	count = CG_BinocularIntArg(2);
+	if (serverTime < 0 || count < 0 || count > MAX_BINOCULAR_TARGETS || trap->Cmd_Argc() != 3 + count * 4)
+		return;
+	for (i = 0; i < count; i++) {
+		binocularTarget_t *target = &targets[i];
+		target->entityNum = CG_BinocularIntArg(3 + i * 4);
+		target->health = CG_BinocularIntArg(4 + i * 4);
+		target->maxHealth = CG_BinocularIntArg(5 + i * 4);
+		target->armor = CG_BinocularIntArg(6 + i * 4);
+		if (target->entityNum < 0 || target->entityNum >= ENTITYNUM_WORLD ||
+			target->health <= 0 || target->maxHealth <= 0 || target->armor < 0)
+			return;
+	}
+	memcpy(cg.binocularTargets, targets, count * sizeof(targets[0]));
+	cg.binocularUpdateTime = serverTime;
+	cg.binocularTargetCount = count;
+}
+
+// Optional names for the immediately preceding stats update. Multiple bounded
+// commands may carry one update; names never create contacts or extend expiry.
+static void CG_BinocularNames_f(void) {
+	int arg, i, argc = trap->Cmd_Argc();
+	if (argc < 4 || (argc - 2) % 2 ||
+		CG_BinocularIntArg(1) != cg.binocularUpdateTime)
+		return;
+	for (arg = 2; arg < argc; arg += 2) {
+		int entityNum = CG_BinocularIntArg(arg);
+		for (i = 0; i < cg.binocularTargetCount; i++) {
+			if (cg.binocularTargets[i].entityNum == entityNum) {
+				char *name = cg.binocularTargets[i].name;
+				int j;
+				Q_strncpyz(name, CG_Argv(arg + 1), sizeof(cg.binocularTargets[i].name));
+				Q_CleanStr(name);
+				for (j = 0; name[j]; j++) {
+					if ((unsigned char)name[j] < 32 || name[j] == 127)
+						name[j] = ' ';
+				}
+				break;
+			}
+		}
+	}
+}
+
+// partyStats <server time> <count>
+// [<entity> <health> <max health> <armor> <force> <max force>]...
+static void CG_MissionPartyStats_f(void) {
+	int i, count, serverTime;
+	binocularTarget_t members[MAX_MISSION_PARTY];
+	memset(members, 0, sizeof(members));
+	if (trap->Cmd_Argc() < 3)
+		return;
+	serverTime = CG_BinocularIntArg(1);
+	count = CG_BinocularIntArg(2);
+	if (serverTime < 0 || count < 0 || count > MAX_MISSION_PARTY ||
+		trap->Cmd_Argc() != 3 + count * 6)
+		return;
+	for (i = 0; i < count; i++) {
+		binocularTarget_t *member = &members[i];
+		member->entityNum = CG_BinocularIntArg(3 + i * 6);
+		member->health = CG_BinocularIntArg(4 + i * 6);
+		member->maxHealth = CG_BinocularIntArg(5 + i * 6);
+		member->armor = CG_BinocularIntArg(6 + i * 6);
+		member->force = CG_BinocularIntArg(7 + i * 6);
+		member->maxForce = CG_BinocularIntArg(8 + i * 6);
+		if (member->entityNum < 0 || member->entityNum >= ENTITYNUM_WORLD ||
+			member->health < 0 || member->maxHealth <= 0 || member->armor < 0 ||
+			member->force < 0 || member->maxForce <= 0)
+			return;
+		// Player display names are already available locally and do not need to
+		// consume reliable-command bandwidth.
+		if (member->entityNum < MAX_CLIENTS && cgs.clientinfo[member->entityNum].infoValid) {
+			Q_strncpyz(member->name, cgs.clientinfo[member->entityNum].name, sizeof(member->name));
+			Q_CleanStr(member->name);
+		}
+	}
+	memcpy(cg.missionParty, members, count * sizeof(members[0]));
+	cg.missionPartyUpdateTime = serverTime;
+	cg.missionPartyCount = count;
+}
+
+static void CG_MissionPartyNames_f(void) {
+	int arg, i, argc = trap->Cmd_Argc();
+	if (argc < 4 || (argc - 2) % 2 ||
+		CG_BinocularIntArg(1) != cg.missionPartyUpdateTime)
+		return;
+	for (arg = 2; arg < argc; arg += 2) {
+		int entityNum = CG_BinocularIntArg(arg);
+		for (i = 0; i < cg.missionPartyCount; i++) {
+			if (cg.missionParty[i].entityNum == entityNum) {
+				char *name = cg.missionParty[i].name;
+				int j;
+				Q_strncpyz(name, CG_Argv(arg + 1), sizeof(cg.missionParty[i].name));
+				Q_CleanStr(name);
+				for (j = 0; name[j]; j++) {
+					if ((unsigned char)name[j] < 32 || name[j] == 127)
+						name[j] = ' ';
+				}
+				break;
+			}
+		}
+	}
+}
 
 // Force Stasis (JoF JA+ V58): the server sends a reliable "stasis" command when the
 // power fires (only to clients that advertised the "jofejk" userinfo key). Play the
@@ -1877,12 +2022,17 @@ int svcmdcmp( const void *a, const void *b ) {
 }
 
 static serverCommand_t	commands[] = {
+	{ "binoStats", CG_BinocularStats_f },
+	{ "binoNames", CG_BinocularNames_f },
+	{ "partyStats", CG_MissionPartyStats_f },
+	{ "partyNames", CG_MissionPartyNames_f },
 	{ "chat",				CG_Chat_f },
 	{ "clientLevelShot",	CG_ClientLevelShot_f },
 	{ "cp",					CG_CenterPrint_f },
 	{ "cps",				CG_CenterPrintSE_f },
 	{ "cs",					CG_ConfigStringModified },
 	{ "ircg",				CG_RestoreClientGhoul_f },
+	{ "jof_dialogue",		CG_DialogueServerCommand },
 	{ "kg2",				CG_KillGhoul2_f },
 	{ "kls",				CG_KillLoopSounds_f },
 	{ "lchat",				CG_Chat_f },
@@ -1919,6 +2069,14 @@ Cmd_Argc() / Cmd_Argv()
 static void CG_ServerCommand( void ) {
 	const char		*cmd = CG_Argv( 0 );
 	serverCommand_t	*command = NULL;
+	if (!Q_stricmp(cmd, "jof_pickupReady")) {
+		CG_PickupReady_f();
+		return;
+	}
+	if (!Q_stricmp(cmd, "jof_pickup")) {
+		CG_ConfirmedPickup_f();
+		return;
+	}
 
 	if ( !cmd[0] ) {
 		// server claimed the command

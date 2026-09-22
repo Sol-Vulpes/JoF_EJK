@@ -233,6 +233,9 @@ PROTOCOL
 
 // the svc_strings[] array in cl_parse.c should mirror this
 //
+#define VOICE_PROTOCOL_NAME "jof-adpcm1"
+#define VOICE_MAX_PACKET_BYTES 512
+
 // server to client
 //
 enum svc_ops_e {
@@ -246,7 +249,9 @@ enum svc_ops_e {
 	svc_snapshot,
 	svc_setgame,
 	svc_mapchange,
-	svc_EOF
+	svc_EOF,
+	// Keep extension opcodes after svc_EOF so legacy protocol values stay stable.
+	svc_voice
 };
 
 //
@@ -258,7 +263,9 @@ enum clc_ops_e {
 	clc_move,				// [[usercmd_t]
 	clc_moveNoDelta,		// [[usercmd_t]
 	clc_clientCommand,		// [string] message
-	clc_EOF
+	clc_EOF,
+	// Keep extension opcodes after clc_EOF so legacy protocol values stay stable.
+	clc_voice
 };
 
 /*
@@ -473,6 +480,13 @@ cvar_t *Cvar_Get( const char *var_name, const char *value, uint32_t flags, const
 // if it exists, the value will not be changed, but flags will be ORed in
 // that allows variables to be unarchived without needing bitflags
 // if value is "", the value will not override a previously set value.
+
+void Cvar_SetDescription( cvar_t *var, const char *description );
+// replaces or clears the engine-provided description for an existing cvar
+
+void Cvar_ActivateRendererCvar( cvar_t *var );
+void Cvar_DeactivateRendererCvars( void );
+// tracks whether renderer-owned cvars belong to the currently loaded renderer
 
 void	Cvar_Register( vmCvar_t *vmCvar, const char *varName, const char *defaultValue, uint32_t flags );
 // basically a slightly modified Cvar_Get for the interpreted modules
@@ -966,6 +980,7 @@ void CL_MouseEvent( int dx, int dy, int time );
 void CL_JoystickEvent( int axis, int value, int time );
 
 void CL_PacketEvent( netadr_t from, msg_t *msg );
+void CL_ConnectionlessPacket( netadr_t from, msg_t *msg );
 
 void CL_ConsolePrint( const char *text );
 

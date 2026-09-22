@@ -2795,21 +2795,8 @@ CG_MissileHitPlayer
 */
 void CG_MissileHitPlayer(int weapon, vec3_t origin, vec3_t dir, int entityNum, qboolean altFire)
 {
-	qboolean	humanoid = qtrue;
+	qboolean	humanoid = !CG_IsDroidEntity(entityNum);
 	vec3_t up={0,0,1};
-
-	/*
-	// NOTENOTE Non-portable code from single player
-	if ( cent->gent )
-	{
-		other = &g_entities[cent->gent->s.otherEntityNum];
-
-		if ( other->client && other->client->playerTeam == TEAM_BOTS )
-		{
-			humanoid = qfalse;
-		}
-	}
-	*/
 
 	// NOTENOTE No bleeding in this game
 	CG_Bleed( origin, entityNum );//JAPRO - Clientside - Add Blood
@@ -3322,29 +3309,41 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 		if (cent->weapon == WP_SABER && cent->weapon != ps->weapon && !ps->saberHolstered)
 		{ //switching away from the saber
 			//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberoffquick.wav" ));
-			if (cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered)
+			if (cg.time - cent->saberSoundOffDebounceTime >= 800)
 			{
-				trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOff);
-			}
+				cent->saberSoundOffDebounceTime = cg.time;
+				//a staff going onto a JA+ back was shut down as the blade went in, not here
+				if (cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered
+					&& !CG_StaffSwapShutdownSounded( ps->clientNum ))
+				{
+					trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOff);
+				}
 
-			if (cgs.clientinfo[ps->clientNum].saber[1].soundOff &&
-				cgs.clientinfo[ps->clientNum].saber[1].model[0] &&
-				!ps->saberHolstered)
-			{
-				trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[1].soundOff);
+				if (cgs.clientinfo[ps->clientNum].saber[1].soundOff &&
+					cgs.clientinfo[ps->clientNum].saber[1].model[0] &&
+					!ps->saberHolstered)
+				{
+					trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[1].soundOff);
+				}
 			}
 		}
 		else if (ps->weapon == WP_SABER && cent->weapon != ps->weapon && !cent->saberWasInFlight)
 		{ //switching to the saber
 			//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberon.wav" ));
-			if (cgs.clientinfo[ps->clientNum].saber[0].soundOn)
+			if (cg.time - cent->saberSoundOnDebounceTime >= 800)
 			{
-				trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOn);
-			}
+				cent->saberSoundOnDebounceTime = cg.time;
+				//a staff coming off a JA+ back lights when his hand gets to it, not before
+				if (cgs.clientinfo[ps->clientNum].saber[0].soundOn
+					&& !CG_StaffSwapHoldIgnitionSound( ps->clientNum, cgs.clientinfo[ps->clientNum].saber[0].soundOn ))
+				{
+					trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOn);
+				}
 
-			if (cgs.clientinfo[ps->clientNum].saber[1].soundOn)
-			{
-				trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[1].soundOn);
+				if (cgs.clientinfo[ps->clientNum].saber[1].soundOn)
+				{
+					trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[1].soundOn);
+				}
 			}
 
 			BG_SI_SetDesiredLength(&cgs.clientinfo[ps->clientNum].saber[0], 0, -1);

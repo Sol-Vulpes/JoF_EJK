@@ -110,6 +110,13 @@ int openMenuCount = 0;
 
 static qboolean debugMode = qfalse;
 
+// Description text uses a single, menu-defined screen position.  Defer it
+// while menus are painted so overlapping items (or stacked menus) cannot draw
+// more than one description into that slot.
+static itemDef_t *descriptionItem = NULL;
+static qboolean deferDescriptionPaint = qfalse;
+static qboolean focusedMenuDescriptionsOnly = qfalse;
+
 #define DOUBLE_CLICK_DELAY 300
 static int lastListBoxClickTime = 0;
 
@@ -120,6 +127,7 @@ int BindingIDFromName(const char *name);
 qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down);
 itemDef_t *Menu_SetPrevCursorItem(menuDef_t *menu);
 itemDef_t *Menu_SetNextCursorItem(menuDef_t *menu);
+static void Item_MouseLeave(itemDef_t *item);
 static qboolean Menu_OverActiveItem(menuDef_t *menu, float x, float y);
 static void Item_TextScroll_BuildLines ( itemDef_t* item );
 void Menu_SetItemText(const menuDef_t *menu,const char *itemName, const char *text);
@@ -1361,7 +1369,12 @@ void Menu_ShowGroup (menuDef_t *menu, const char *groupName, qboolean showFlag)
 			}
 			else
 			{
-				item->window.flags &= ~(WINDOW_VISIBLE | WINDOW_HASFOCUS);
+				if (item->window.flags & (WINDOW_MOUSEOVER | WINDOW_MOUSEOVERTEXT))
+				{
+					Item_MouseLeave(item);
+				}
+				item->window.flags &= ~(WINDOW_VISIBLE | WINDOW_HASFOCUS |
+					WINDOW_MOUSEOVER | WINDOW_MOUSEOVERTEXT);
 			}
 		}
 	}
@@ -1377,7 +1390,11 @@ void Menu_ShowItemByName(menuDef_t *menu, const char *p, qboolean bShow) {
 			if (bShow) {
 				item->window.flags |= WINDOW_VISIBLE;
 			} else {
-				item->window.flags &= ~WINDOW_VISIBLE;
+				if (item->window.flags & (WINDOW_MOUSEOVER | WINDOW_MOUSEOVERTEXT)) {
+					Item_MouseLeave(item);
+				}
+				item->window.flags &= ~(WINDOW_VISIBLE | WINDOW_HASFOCUS |
+					WINDOW_MOUSEOVER | WINDOW_MOUSEOVERTEXT);
 				// stop cinematics playing in the window
 				if (item->window.cinematic >= 0) {
 					DC->stopCinematic(item->window.cinematic);
@@ -1435,6 +1452,32 @@ static void Menu_RunCloseScript(menuDef_t *menu) {
 	}
 }
 
+static void Menu_ClearHoverState(menuDef_t *menu)
+{
+	int i;
+
+	if (!menu)
+	{
+		return;
+	}
+
+	for (i = 0; i < menu->itemCount; i++)
+	{
+		itemDef_t *item = menu->items[i];
+		if (item->window.flags & (WINDOW_MOUSEOVER | WINDOW_MOUSEOVERTEXT))
+		{
+			// Closing a menu bypasses the normal cursor-leave path. Run the
+			// exit scripts so hover-driven decoration is reset before reopen.
+			Item_MouseLeave(item);
+
+			// The item was only focused because the cursor was over it, so
+			// drop the focus too. Otherwise it keeps painting in focusColor
+			// when the menu is opened again.
+			item->window.flags &= ~WINDOW_HASFOCUS;
+		}
+	}
+}
+
 void Menus_CloseByName ( const char *p )
 {
 	menuDef_t *menu = Menus_FindByName(p);
@@ -1444,6 +1487,8 @@ void Menus_CloseByName ( const char *p )
 	{
 		return;
 	}
+
+	Menu_ClearHoverState(menu);
 
 	// Run the close script for the menu
 	Menu_RunCloseScript(menu);
@@ -1481,6 +1526,7 @@ void Menus_CloseAll()
 
 	for (i = 0; i < menuCount; i++)
 	{
+		Menu_ClearHoverState(&Menus[i]);
 		Menu_RunCloseScript ( &Menus[i] );
 		Menus[i].window.flags &= ~(WINDOW_HASFOCUS | WINDOW_VISIBLE);
 	}
@@ -1751,7 +1797,7 @@ void Menu_ItemDisable(menuDef_t *menu, const char *name, qboolean disableFlag)
 		{
 			itemFound->disabled = disableFlag;
 			// Just in case it had focus
-			itemFound->window.flags &= ~WINDOW_MOUSEOVER;
+			itemFound->window.flags &= ~(WINDOW_MOUSEOVER | WINDOW_MOUSEOVERTEXT);
 		}
 	}
 }
@@ -2974,14 +3020,14 @@ void Item_MouseEnter(itemDef_t *item, float x, float y) {
 	}
 }
 
-void Item_MouseLeave(itemDef_t *item) {
+static void Item_MouseLeave(itemDef_t *item) {
 	if (item) {
 		if (item->window.flags & WINDOW_MOUSEOVERTEXT) {
 			Item_RunScript(item, item->mouseExitText);
 			item->window.flags &= ~WINDOW_MOUSEOVERTEXT;
 		}
 		Item_RunScript(item, item->mouseExit);
-		item->window.flags &= ~(WINDOW_LB_RIGHTARROW | WINDOW_LB_LEFTARROW);
+		item->window.flags &= ~(WINDOW_MOUSEOVER | WINDOW_LB_RIGHTARROW | WINDOW_LB_LEFTARROW);
 	}
 }
 
@@ -4242,12 +4288,14 @@ void Menus_HandleOOBClick(menuDef_t *menu, int key, qboolean down) {
 		// the cursor is within any of them.. if not close them otherwise activate them and pass the
 		// key on.. force a mouse move to activate focus and script stuff
 		if (down && menu->window.flags & WINDOW_OOB_CLICK) {
+			Menu_ClearHoverState(menu);
 			Menu_RunCloseScript(menu);
 			menu->window.flags &= ~(WINDOW_HASFOCUS | WINDOW_VISIBLE);
 		}
 
 		for (i = 0; i < menuCount; i++) {
 			if (Menu_OverActiveItem(&Menus[i], DC->cursorx, DC->cursory)) {
+				Menu_ClearHoverState(menu);
 				Menu_RunCloseScript(menu);
 				menu->window.flags &= ~(WINDOW_HASFOCUS | WINDOW_VISIBLE);
 			//	Menus_Activate(&Menus[i]);
@@ -4281,7 +4329,15 @@ void Menu_HandleKey(menuDef_t *menu, int key, qboolean down) {
 		{
 			g_editingField = qfalse;
 			g_editItem = NULL;
-			return;
+			if (key == A_MOUSE1 || key == A_MOUSE2 || key == A_MOUSE3)
+			{
+				// Let the click that leaves an edit field activate its target too.
+				Display_MouseMove(NULL, DC->cursorx, DC->cursory);
+			}
+			else
+			{
+				return;
+			}
 		}
 		else if (key == A_MOUSE1 || key == A_MOUSE2 || key == A_MOUSE3)
 		{
@@ -4932,8 +4988,35 @@ void Item_Multi_Paint(itemDef_t *item) {
 
 	Item_TextColor(item, &color);
 	if (item->text) {
-		Item_Text_Paint(item);
-		DC->drawText(item->textRect.x + item->textRect.w + 8, item->textRect.y, item->textscale, color, text, 0, 0, item->textStyle,item->iMenuFont);
+		if (item->textalignment == ITEM_ALIGN_CENTER) {
+			const char *label = item->text;
+			char labelTemp[MAX_STRING_CHARS];
+			float x = item->textalignx;
+			float y = item->textaligny;
+			int labelWidth;
+			int valueWidth;
+
+			if (*label == '@') {
+				trap->SE_GetStringTextString(&label[1], labelTemp, sizeof(labelTemp));
+				label = labelTemp;
+			}
+
+			labelWidth = DC->textWidth(label, item->textscale, item->iMenuFont);
+			valueWidth = DC->textWidth(text, item->textscale, item->iMenuFont);
+			ToWindowCoords(&x, &y, &item->window);
+			x -= (labelWidth + 8 + valueWidth) / 2.0f;
+
+			item->textRect.x = x;
+			item->textRect.y = y;
+			item->textRect.w = labelWidth;
+			item->textRect.h = DC->textHeight(label, item->textscale, item->iMenuFont);
+
+			DC->drawText(x, y, item->textscale, color, label, 0, 0, item->textStyle, item->iMenuFont);
+			DC->drawText(x + labelWidth + 8, y, item->textscale, color, text, 0, 0, item->textStyle, item->iMenuFont);
+		} else {
+			Item_Text_Paint(item);
+			DC->drawText(item->textRect.x + item->textRect.w + 8, item->textRect.y, item->textscale, color, text, 0, 0, item->textStyle,item->iMenuFont);
+		}
 	} else {
 		//JLF added xoffset
 		DC->drawText(item->textRect.x+item->xoffset, item->textRect.y, item->textscale, color, text, 0, 0, item->textStyle,item->iMenuFont);
@@ -5019,9 +5102,15 @@ static const char *g_bindCommands[] = {
 	"+button12", //grapple on ja+/japro
 	"+button13", //dash on japro
 	"+button14", //jetpack on japro
+	"jetpack", //jetpack on ja+
+	"+grapple",
+	"+force_stasis",
 	"throwflag",
 	"engage_fullforceduel",
+	"engage_balancedforceduel",
 	"engage_gunduel",
+	"force_dash",
+	"force_repulse",
 	"amTeleMark", //teleport marker
 	"amTele", //teleport to marker
 	"noclip",
@@ -5396,20 +5485,20 @@ void Item_Model_Paint(itemDef_t *item)
 
 	// a moves datapad anim is playing
 #ifdef UI_BUILD
-	if (uiInfo.moveAnimTime && (uiInfo.moveAnimTime < uiInfo.uiDC.realTime))
+	if (uiInfo.moveAnimTime && (uiInfo.moveAnimTime < uiInfo.uiDC.realTime) &&
+		item->parent && ((menuDef_t *)item->parent)->window.name &&
+		!Q_stricmp(((menuDef_t *)item->parent)->window.name, "rulesMenu_moves") &&
+		item->window.name && !Q_stricmp(item->window.name, "character"))
 	{
 		if (modelPtr)
 		{
-			char modelPath[MAX_QPATH];
-
-			Com_sprintf( modelPath, sizeof( modelPath ), "models/players/%s/model.glm", UI_Cvar_VariableString ( "ui_char_model" ) );
 			//HACKHACKHACK: check for any multi-part anim sequences, and play the next anim, if needbe
 			switch( modelPtr->g2anim )
 			{
 			case BOTH_FORCEWALLREBOUND_FORWARD:
 			case BOTH_FORCEJUMP1:
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCEINAIR1].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				if ( !uiInfo.moveAnimTime )
 				{
 					uiInfo.moveAnimTime = 500;
@@ -5418,45 +5507,43 @@ void Item_Model_Paint(itemDef_t *item)
 				break;
 			case BOTH_FORCEINAIR1:
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCELAND1].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_FORCEWALLRUNFLIP_START:
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCEWALLRUNFLIP_END].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_FORCELONGLEAP_START:
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCELONGLEAP_LAND].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_KNOCKDOWN3://on front - into force getup
 				trap->S_StartLocalSound( uiInfo.uiDC.Assets.moveJumpSound, CHAN_LOCAL );
 				ItemParse_model_g2anim_go( item, animTable[BOTH_FORCE_GETUP_F1].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_KNOCKDOWN2://on back - kick forward getup
 				trap->S_StartLocalSound( uiInfo.uiDC.Assets.moveJumpSound, CHAN_LOCAL );
 				ItemParse_model_g2anim_go( item, animTable[BOTH_GETUP_BROLL_F].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			case BOTH_KNOCKDOWN1://on back - roll-away
 				trap->S_StartLocalSound( uiInfo.uiDC.Assets.moveRollSound, CHAN_LOCAL );
 				ItemParse_model_g2anim_go( item, animTable[BOTH_GETUP_BROLL_R].name );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime += uiInfo.uiDC.realTime;
 				break;
 			default:
 				ItemParse_model_g2anim_go( item,  uiInfo.movesBaseAnim );
-				ItemParse_asset_model_go( item, modelPath, &uiInfo.moveAnimTime );
+				UI_UpdateWornCharacter( item, &uiInfo.moveAnimTime );
 				uiInfo.moveAnimTime = 0;
 				break;
 			}
-
-			UI_UpdateCharacterSkin();
 
 			//update saber models
 			UI_SaberAttachToChar( item );
@@ -6082,8 +6169,13 @@ void Item_ListBox_Paint(itemDef_t *item) {
 					}
 					else if (text)
 					{
+						float textScale = item->textscale;
+
+						if ( ((int)item->special == FEEDER_COSMETIC_HATS || (int)item->special == FEEDER_COSMETIC_CAPES)
+							&& !Q_stricmpn( text, "^3Get ", 6 ) )
+							textScale *= 0.78f;
 //						DC->drawText(x + 4, y + listPtr->elementHeight, item->textscale, item->window.foreColor, text, 0, 0, item->textStyle);
-						DC->drawText(x + 4, y + item->textaligny, item->textscale, item->window.foreColor, text, 0, 0, item->textStyle, item->iMenuFont);
+						DC->drawText(x + 4, y + item->textaligny, textScale, item->window.foreColor, text, 0, 0, item->textStyle, item->iMenuFont);
 					}
 				}
 
@@ -6166,11 +6258,68 @@ void Item_OwnerDraw_Paint(itemDef_t *item) {
 }
 
 
+static void Item_Description_Paint(itemDef_t *item)
+{
+	menuDef_t *parent;
+	const char *textPtr;
+	char temp[MAX_STRING_CHARS] = {0};
+	float fDescScale, fDescScaleCopy;
+	int xPos, textWidth, iYadj = 0;
+
+	if (!item || !item->descText || Display_KeyBindPending())
+	{
+		return;
+	}
+
+	parent = (menuDef_t *)item->parent;
+	textPtr = item->descText;
+	if (*textPtr == '@')
+	{
+		trap->SE_GetStringTextString(&textPtr[1], temp, sizeof(temp));
+		textPtr = temp;
+	}
+
+	fDescScale = parent->descScale ? parent->descScale : 1;
+	fDescScaleCopy = fDescScale;
+	while (1)
+	{
+		textWidth = DC->textWidth(textPtr, fDescScale, FONT_SMALL2);
+
+		if (parent->descAlignment == ITEM_ALIGN_RIGHT)
+		{
+			xPos = parent->descX - textWidth;
+		}
+		else if (parent->descAlignment == ITEM_ALIGN_CENTER)
+		{
+			xPos = parent->descX - (textWidth / 2);
+		}
+		else
+		{
+			xPos = parent->descX;
+		}
+
+		if (parent->descAlignment == ITEM_ALIGN_CENTER && xPos + textWidth > SCREEN_WIDTH - 4)
+		{
+			fDescScale -= 0.001f;
+			continue;
+		}
+
+		if (fDescScale != fDescScaleCopy)
+		{
+			int originalTextHeight = DC->textHeight(textPtr, fDescScaleCopy, FONT_MEDIUM);
+			iYadj = originalTextHeight - DC->textHeight(textPtr, fDescScale, FONT_MEDIUM);
+		}
+
+		DC->drawText(xPos, parent->descY + iYadj, fDescScale, parent->descColor,
+			textPtr, 0, 0, item->textStyle, FONT_SMALL2);
+		break;
+	}
+}
+
 void Item_Paint(itemDef_t *item)
 {
 	vec4_t		red;
 	menuDef_t *parent;
-	int			xPos,textWidth;
 	vec4_t		color = {1, 1, 1, 1};
 
 	red[0] = red[3] = 1;
@@ -6608,74 +6757,22 @@ void Item_Paint(itemDef_t *item)
 	}
 
 
-	if (item->window.flags & WINDOW_MOUSEOVER)
+	if ((item->window.flags & WINDOW_MOUSEOVER) && item->descText &&
+		!item->disabled && !Display_KeyBindPending() &&
+		(!(item->cvarFlags & (CVAR_ENABLE | CVAR_DISABLE)) ||
+			Item_EnableShowViaCvar(item, CVAR_ENABLE)) &&
+		(!focusedMenuDescriptionsOnly || (parent->window.flags & WINDOW_HASFOCUS)))
 	{
-		if (item->descText && !Display_KeyBindPending())
+		// Keep the focused item when rectangles overlap.  If neither candidate
+		// has focus, later paint order wins because that item is visually on top.
+		if (!descriptionItem || (item->window.flags & WINDOW_HASFOCUS) ||
+			!(descriptionItem->window.flags & WINDOW_HASFOCUS))
 		{
-			// Make DOUBLY sure that this item should have desctext.
-			// NOTE : we can't just check the mouse position on this, what if we TABBED
-			// to the current menu item -- in that case our mouse isn't over the item.
-			// Removing the WINDOW_MOUSEOVER flag just prevents the item's OnExit script from running
-	//	    if (!Rect_ContainsPoint(&item->window.rect, DC->cursorx, DC->cursory))
-	//		{	// It isn't something that should, because it isn't live anymore.
-	//			item->window.flags &= ~WINDOW_MOUSEOVER;
-	//		}
-	//		else
-			{	// Draw the desctext
-				const char *textPtr = item->descText;
-				char temp[MAX_STRING_CHARS] = {0};
-				if (*textPtr == '@')	// string reference
-				{
-					trap->SE_GetStringTextString( &textPtr[1], temp, sizeof(temp));
-					textPtr = temp;
-				}
-
-				Item_TextColor(item, &color);
-
-				{// stupid C language
-					float fDescScale = parent->descScale ? parent->descScale : 1;
-					float fDescScaleCopy = fDescScale;
-					int iYadj = 0;
-					while (1)
-					{
-						textWidth = DC->textWidth(textPtr,fDescScale, FONT_SMALL2);
-
-						if (parent->descAlignment == ITEM_ALIGN_RIGHT)
-						{
-							xPos = parent->descX - textWidth;	// Right justify
-						}
-						else if (parent->descAlignment == ITEM_ALIGN_CENTER)
-						{
-							xPos = parent->descX - (textWidth/2);	// Center justify
-						}
-						else										// Left justify
-						{
-							xPos = parent->descX;
-						}
-
-						if (parent->descAlignment == ITEM_ALIGN_CENTER)
-						{
-							// only this one will auto-shrink the scale until we eventually fit...
-							//
-							if (xPos + textWidth > (SCREEN_WIDTH-4)) {
-								fDescScale -= 0.001f;
-								continue;
-							}
-						}
-
-						// Try to adjust it's y placement if the scale has changed...
-						//
-						if (fDescScale != fDescScaleCopy)
-						{
-							int iOriginalTextHeight = DC->textHeight(textPtr, fDescScaleCopy, FONT_MEDIUM);
-							iYadj = iOriginalTextHeight - DC->textHeight(textPtr, fDescScale, FONT_MEDIUM);
-						}
-
-						DC->drawText(xPos, parent->descY + iYadj, fDescScale, parent->descColor, textPtr, 0, 0, item->textStyle, FONT_SMALL2);
-						break;
-					}
-				}
-			}
+			descriptionItem = item;
+		}
+		if (!deferDescriptionPaint)
+		{
+			Item_Description_Paint(descriptionItem);
 		}
 	}
 
@@ -6934,6 +7031,13 @@ void Menu_HandleMouseMove(menuDef_t *menu, float x, float y) {
       } else if (menu->items[i]->window.flags & WINDOW_MOUSEOVER) {
           Item_MouseLeave(menu->items[i]);
           Item_SetMouseOver(menu->items[i], qfalse);
+
+          // Focus was handed to this item by the cursor being over it, and
+          // nothing takes it back unless some other item is hovered. Drop it
+          // here so the item stops painting in focusColor once the cursor
+          // moves off it into empty space. Items focused by keyboard
+          // navigation never carry WINDOW_MOUSEOVER, so they are untouched.
+          menu->items[i]->window.flags &= ~WINDOW_HASFOCUS;
       }
     }
   }
@@ -6942,6 +7046,7 @@ void Menu_HandleMouseMove(menuDef_t *menu, float x, float y) {
 
 void Menu_Paint(menuDef_t *menu, qboolean forcePaint) {
 	int i;
+	qboolean ownsDescriptionPass = qfalse;
 
 	if (menu == NULL) {
 		return;
@@ -6957,6 +7062,13 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint) {
 
 	if (forcePaint) {
 		menu->window.flags |= WINDOW_FORCED;
+	}
+
+	if (!deferDescriptionPaint)
+	{
+		descriptionItem = NULL;
+		deferDescriptionPaint = qtrue;
+		ownsDescriptionPass = qtrue;
 	}
 
 	// draw the background if necessary
@@ -6999,6 +7111,13 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint) {
 		color[0] = color[2] = color[3] = 1;
 		color[1] = 0;
 		DC->drawRect(menu->window.rect.x, menu->window.rect.y, menu->window.rect.w, menu->window.rect.h, 1, color);
+	}
+
+	if (ownsDescriptionPass)
+	{
+		deferDescriptionPaint = qfalse;
+		Item_Description_Paint(descriptionItem);
+		descriptionItem = NULL;
 	}
 }
 
@@ -7589,7 +7708,6 @@ qboolean ItemParse_model_g2anim( itemDef_t *item, int handle ) {
 		i++;
 	}
 
-	Com_Printf("Could not find '%s' in the anim table\n", token.string);
 	return qtrue;
 }
 
@@ -7644,7 +7762,6 @@ qboolean ItemParse_model_g2anim_go( itemDef_t *item, const char *animName )
 		i++;
 	}
 
-	Com_Printf("Could not find '%s' in the anim table\n", animName);
 	return qtrue;
 }
 
@@ -9661,9 +9778,16 @@ void Menu_PaintAll() {
 		captureFunc(captureData);
 	}
 
+	descriptionItem = NULL;
+	deferDescriptionPaint = qtrue;
+	focusedMenuDescriptionsOnly = qtrue;
 	for (i = 0; i < Menu_Count(); i++) {
 		Menu_Paint(&Menus[i], qfalse);
 	}
+	focusedMenuDescriptionsOnly = qfalse;
+	deferDescriptionPaint = qfalse;
+	Item_Description_Paint(descriptionItem);
+	descriptionItem = NULL;
 
 	if (debugMode) {
 		vec4_t v = {1, 1, 1, 1};

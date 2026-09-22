@@ -92,6 +92,29 @@ configure_file(
     @ONLY
 )
 
+# Emits debug info for Release builds of this one target (matched by CI
+# splitting it into a separate .pdb/.debug/.dSYM and stripping the shipped
+# binary - see .github/workflows/build.yml), so crash dumps from real,
+# shipped builds are symbolicatable. Scoped to just this target rather than
+# project-wide, so there's exactly one debug file to deal with per platform
+# instead of one per bundled third-party library too.
+#
+# Uses the older per-config LINK_FLAGS_<CONFIG> property rather than
+# target_link_options() (CMake 3.13+) since this project only requires
+# CMake 3.10.
+function(jof_enable_release_symbols target)
+	if(MSVC)
+		# /Zi writes one PDB per target. Serialize concurrent compiler writes so
+		# builds using /MP or `cmake --build --parallel` do not fail with C1041.
+		target_compile_options(${target} PRIVATE
+			$<$<CONFIG:Release>:/Zi>
+			$<$<CONFIG:Release>:/FS>)
+		set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " /DEBUG /OPT:REF /OPT:ICF")
+	elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
+		target_compile_options(${target} PRIVATE $<$<CONFIG:Release>:-g>)
+	endif()
+endfunction()
+
 #    Add Game Project
 if(BuildMPGame)
 	add_subdirectory("${MPDir}/game")
@@ -251,7 +274,7 @@ if(BuildMPEngine OR BuildMPDed)
 	set(MPEngineAndDedLibraries ${MPBotLib})
 	# Platform-specific libraries
 	if(WIN32)
-		set(MPEngineAndDedLibraries ${MPEngineAndDedLibraries} "winmm" "wsock32")
+		set(MPEngineAndDedLibraries ${MPEngineAndDedLibraries} "winmm" "wsock32" "ws2_32")
 	endif(WIN32)
 
 	# Include directories
@@ -407,6 +430,7 @@ if(BuildMPEngine OR BuildMPDed)
 		"${MPDir}/server/sv_net_chan.cpp"
 		"${MPDir}/server/sv_snapshot.cpp"
 		"${MPDir}/server/sv_world.cpp"
+		"${MPDir}/server/sv_voice.cpp"
 		"${MPDir}/server/sv_gameapi.cpp"
 		"${MPDir}/server/sv_gameapi.h"
 		"${MPDir}/server/duel_cull.cpp"
@@ -546,6 +570,7 @@ if(BuildMPEngine)
 		"${MPDir}/client/cl_ui.cpp"
 		"${MPDir}/client/cl_uiapi.cpp"
 		"${MPDir}/client/cl_uiapi.h"
+		"${MPDir}/client/cl_voice.cpp"
 		"${MPDir}/client/FXExport.cpp"
 		"${MPDir}/client/FXExport.h"
 		"${MPDir}/client/FxPrimitives.cpp"
@@ -632,6 +657,7 @@ if(BuildMPEngine)
 		"${SharedDir}/sys/sys_public.h"
 		"${SharedDir}/sys/con_local.h"
 		"${SharedDir}/sys/con_log.cpp"
+		"${SharedDir}/sys/sys_crashdump.cpp"
 		)
 
 	if(WIN32)
@@ -694,10 +720,21 @@ if(BuildMPEngine)
 	endif(WIN32)
 
 	if(MakeApplicationBundles)
+		# A source-built SDL2 has an @rpath install name rather than an absolute
+		# one, which fixup_bundle cannot resolve on its own. Hand it the library
+		# directory explicitly; harmless when the install name is already absolute.
+		set(MPEngineBundleDirs "")
+		foreach(BundleLib ${SDL2_LIBRARY})
+			if(EXISTS "${BundleLib}")
+				get_filename_component(BundleLibDir "${BundleLib}" DIRECTORY)
+				list(APPEND MPEngineBundleDirs "${BundleLibDir}")
+			endif()
+		endforeach()
+		list(REMOVE_DUPLICATES MPEngineBundleDirs)
 		install(CODE "
 			include(BundleUtilities)
 			set(BU_CHMOD_BUNDLE_ITEMS ON)
-			fixup_bundle(\"${CMAKE_BINARY_DIR}/${MPEngine}.app\" \"\" \"\")
+			fixup_bundle(\"${CMAKE_BINARY_DIR}/${MPEngine}.app\" \"\" \"${MPEngineBundleDirs}\")
 			"
 			COMPONENT Runtime)
 		install(TARGETS ${MPEngine}
@@ -720,6 +757,8 @@ if(BuildMPEngine)
 
 	# Hide symbols not explicitly marked public.
 	set_property(TARGET ${MPEngine} APPEND PROPERTY COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
+
+	jof_enable_release_symbols(${MPEngine})
 
 	set_target_properties(${MPEngine} PROPERTIES INCLUDE_DIRECTORIES "${MPEngineIncludeDirectories}")
 	set_target_properties(${MPEngine} PROPERTIES PROJECT_LABEL "MP Client")
@@ -795,6 +834,7 @@ if(BuildMPDed)
 			"${SharedDir}/sys/con_local.h"
 			"${SharedDir}/sys/con_log.cpp"
 			"${SharedDir}/sys/con_win32.cpp"
+			"${SharedDir}/sys/sys_crashdump.cpp"
 			)
 		set(MPDedLibraries ${MPDedLibraries} ${CMAKE_DL_LIBS})
 		source_group("sys" FILES ${MPDedSysFiles})
@@ -810,6 +850,7 @@ if(BuildMPDed)
 			"${SharedDir}/sys/con_local.h"
 			"${SharedDir}/sys/con_log.cpp"
 			"${SharedDir}/sys/con_tty.cpp"
+			"${SharedDir}/sys/sys_crashdump.cpp"
 			)
 		set(MPDedLibraries ${MPDedLibraries} ${CMAKE_DL_LIBS})
 		source_group("sys" FILES ${MPDedSysFiles})
@@ -826,6 +867,8 @@ if(BuildMPDed)
 
 	# Hide symbols not explicitly marked public.
 	set_property(TARGET ${MPDed} APPEND PROPERTY COMPILE_OPTIONS ${OPENJK_VISIBILITY_FLAGS})
+
+	jof_enable_release_symbols(${MPDed})
 
 	set_target_properties(${MPDed} PROPERTIES INCLUDE_DIRECTORIES "${MPDedIncludeDirectories}")
 	set_target_properties(${MPDed} PROPERTIES PROJECT_LABEL "MP Dedicated Server")
@@ -872,10 +915,18 @@ set(GameLibFullPaths)
 		COMPONENT ${JKAMPCoreComponent})
 endif()
 
+# Track menu definitions and icons so edits also rebuild existing asset archives.
+file(GLOB_RECURSE JAPRO_MENU_FILES CONFIGURE_DEPENDS
+	"${CMAKE_SOURCE_DIR}/assets/japro/ui/*"
+	"${CMAKE_SOURCE_DIR}/assets/japro/gfx/menus/*")
 add_zip_command(japro-assets.pk3
-	FILES ${CMAKE_SOURCE_DIR}/assets/japro/*)
+	FILES ${CMAKE_SOURCE_DIR}/assets/japro/*
+	DEPENDS ${JAPRO_MENU_FILES})
+file(GLOB_RECURSE JOFCLIENT_ASSET_FILES CONFIGURE_DEPENDS
+	"${CMAKE_SOURCE_DIR}/assets/jofclient/*")
 add_zip_command(jofclient-assets.pk3
-	FILES ${CMAKE_SOURCE_DIR}/assets/jofclient/*)
+	FILES ${CMAKE_SOURCE_DIR}/assets/jofclient/*
+	DEPENDS ${JOFCLIENT_ASSET_FILES})
 add_custom_target(Assets
 	ALL
 	DEPENDS japro-assets.pk3 jofclient-assets.pk3)

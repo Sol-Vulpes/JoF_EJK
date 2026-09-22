@@ -1132,6 +1132,24 @@ static void CG_Autologin_f(void)
 
 }
 
+static void CG_SetSaberColorCvar(int bladeNum, int color)
+{
+	char cvarName[16];
+	char currentValue[MAX_COSMETIC_LENGTH * 2] = { 0 };
+	char cosmetic[MAX_COSMETIC_LENGTH] = { 0 };
+
+	Com_sprintf(cvarName, sizeof(cvarName), "color%i", bladeNum);
+
+	// color1/color2 also carry the selected hat/cape after the numeric color.
+	if (bladeNum == 1 || bladeNum == 2)
+	{
+		trap->Cvar_VariableStringBuffer(cvarName, currentValue, sizeof(currentValue));
+		Q_StripDigits(currentValue, cosmetic, sizeof(cosmetic), REMOVE_DIGITS_INITIAL);
+	}
+
+	trap->Cvar_Set(cvarName, va("%i%s", color, cosmetic));
+}
+
 static void CG_Sabercolor_f(void)
 {
 	int red, blue, green;
@@ -1152,10 +1170,10 @@ static void CG_Sabercolor_f(void)
 		green = atoi(CG_Argv(2));
 		blue = atoi(CG_Argv(3));
 
-		trap->Cvar_Set("color1", va("%i", SABER_RGB));
+		CG_SetSaberColorCvar(1, SABER_RGB);
 		trap->Cvar_Set("cp_sbRGB1", va("%i", red | ((green | (blue << 8)) << 8)));
 
-		trap->Cvar_Set("color2", va("%i", SABER_RGB));
+		CG_SetSaberColorCvar(2, SABER_RGB);
 		trap->Cvar_Set("cp_sbRGB2", va("%i", red | ((green | (blue << 8)) << 8)));
 		return;
 	}
@@ -1168,7 +1186,7 @@ static void CG_Sabercolor_f(void)
 		green = atoi(CG_Argv(3));
 		blue = atoi(CG_Argv(4));
 
-		trap->Cvar_Set(va("color%i", bladeNum), va("%i", SABER_RGB));
+		CG_SetSaberColorCvar(bladeNum, SABER_RGB);
 		trap->Cvar_Set(va("cp_sbRGB%i", bladeNum), va("%i", red | ((green | (blue << 8)) << 8)));
 		return;
 	}
@@ -1179,14 +1197,14 @@ static void CG_Sabercolor_f(void)
 		green = atoi(CG_Argv(2));
 		blue = atoi(CG_Argv(3));
 
-		trap->Cvar_Set("color1", va("%i", SABER_RGB));
+		CG_SetSaberColorCvar(1, SABER_RGB);
 		trap->Cvar_Set("cp_sbRGB1", va("%i", red | ((green | (blue << 8)) << 8)));
 
 		red = atoi(CG_Argv(4));
 		green = atoi(CG_Argv(5));
 		blue = atoi(CG_Argv(6));
 
-		trap->Cvar_Set("color2", va("%i", SABER_RGB));
+		CG_SetSaberColorCvar(2, SABER_RGB);
 		trap->Cvar_Set("cp_sbRGB2", va("%i", red | ((green | (blue << 8)) << 8)));
 	}
 }
@@ -1475,12 +1493,12 @@ static qboolean japroPluginDisables[] = {
 	qfalse,//{"End duel rotation"},//3
 	qtrue,//{"Black saber disable"},//4
 	qfalse,//{"Auto reply disable"},//5
-	qfalse,//{"New force effect"},//6
+	qfalse,//{"Disable new force effect"},//6
 	qfalse,//{"New deathmsg disable"},//7
 	qfalse,//{"New sight effect"},//8
 	qfalse,//{"No alt dim effect"},//9
 	qfalse,//{"Holstered saber"},//10
-	qfalse,//{"Ledge grab"},//11
+	qfalse,//{"Disable Ledge grab"},//11
 	qfalse,//{"Disable New DFA Primary"},//12
 	qfalse,//{"Disable New DFA Alt"},//13
 	qfalse,//{"No SP Cartwheel"},//14
@@ -1510,12 +1528,12 @@ static qboolean japlusPluginDisables[] = {
 	qtrue,//{"End duel rotation"},//3
 	qtrue,//{"Black saber disable"},//4
 	qtrue,//{"Auto reply disable"},//5
-	qtrue,//{"New force effect"},//6
+	qtrue,//{"Disable new force effect"},//6
 	qtrue,//{"New deathmsg disable"},//7
 	qtrue,//{"New sight effect"},//8
 	qtrue,//{"No alt dim effect"},//9
 	qtrue,//{"Holstered saber"},//10
-	qtrue,//{"Ledge grab"},//11
+	qtrue,//{"Disable Ledge grab"},//11
 	qtrue,//{"Disable New DFA Primary"},//12
 	qtrue,//{"Disable New DFA Alt"},//13
 	qtrue,//{"No SP Cartwheel"},//14
@@ -1545,12 +1563,12 @@ static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{"End duel rotation"},//3
 	{"No black sabers"},//4
 	{"No auto replier"},//5
-	{"New force effect"},//6
+	{"Disable new force effects"},//6
 	{"No new deathmsg"},//7
-	{"New sight effect"},//8
+	{"Force Sense camera effect"},//8 - /plugin 7 on JA+
 	{"No alt dim effect"},//9
 	{"Holster staff on back"},//10
-	{"Ledge grab"},//11
+	{"Disable Ledge grab"},//11
 	{"Disable New DFA Primary"},//12
 	{"Disable New DFA Alt"},//13
 	{"No SP Cartwheel"},//14
@@ -1576,13 +1594,8 @@ static bitInfo_T pluginDisables[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 static const int MAX_PLUGINDISABLES = ARRAY_LEN( pluginDisables );
 
 static qboolean CG_PluginOptionEnabled(int index)
-{
-	if (index == 9)
-	{ // Plugin 9 is inverted: bit set means option disabled
-		return !(cp_pluginDisable.integer & (1 << index));
-	}
-
-	return (cp_pluginDisable.integer & (1 << index)) != 0;
+{ //these are JA+ disable bits, so the feature behind one is on while its bit is clear
+	return (qboolean)(!(cp_pluginDisable.integer & (1 << index)) != 0);
 }
 
 void CG_PluginDisable_f( void ) {
@@ -1601,7 +1614,9 @@ void CG_PluginDisable_f( void ) {
 			if (cgs.serverMod == SVMOD_JAPRO && !japroPluginDisables[i])
 				continue;
 
-			if ( CG_PluginOptionEnabled(i) ) {
+			//nearly every entry is named as a disable, so its box tracks the bit. Plugin 9 is named
+			//as the feature itself ("Holster staff on back"), so its box ticks when the bit is clear
+			if ( (i == 9) ? CG_PluginOptionEnabled(i) : (cp_pluginDisable.integer & (1 << i)) != 0 ) {
 				Com_Printf( "%2d [X] %s\n", display, pluginDisables[i].string );
 			}
 			else {
@@ -1643,9 +1658,14 @@ void CG_PluginDisable_f( void ) {
 
 		trap->Cvar_Set( "cp_pluginDisable", va( "%i", (1 << index2) ^ (cp_pluginDisable.integer & mask ) ) );
 		trap->Cvar_Update( &cp_pluginDisable );
-
-		Com_Printf( "%s %s^7\n", pluginDisables[index2].string, (CG_PluginOptionEnabled(i)
-			? "^2Enabled" : "^1Disabled") );
+		if (index2 == 10 || index2 == 5 || index2 == 7) {
+			Com_Printf("%s %s^7\n", pluginDisables[index2].string, (CG_PluginOptionEnabled(index2)
+				? "^1Disabled" : "^2Enabled") );
+		}
+		else {
+			Com_Printf( "%s %s^7\n", pluginDisables[index2].string, (CG_PluginOptionEnabled(index2)
+				? "^2Enabled" : "^1Disabled") );
+		}
 	}
 }
 
@@ -1667,7 +1687,7 @@ static qboolean japroPlayerStyles[] = {
 	qtrue,//Fade corpses immediately
 	qtrue,//Disable corpse fading SFX
 	qtrue,//Color respawn bubbles by team
-	qtrue,//Hide player cosmetics
+	qfalse,//Unused (former hide player cosmetics bit)
 	qtrue,//Disable breathing effects
 	qtrue,//Old JA+ style grapple line
 	qtrue,//Disable alternate standing pose
@@ -1694,7 +1714,7 @@ static qboolean japlusPlayerStyles[] = {
 	qtrue,//Fade corpses immediately
 	qtrue,//Disable corpse fading SFX
 	qtrue,//Color respawn bubbles by team
-	qtrue,//Hide player cosmetics
+	qfalse,//Unused (former hide player cosmetics bit)
 	qtrue,//Disable breathing effects
 	qtrue,//Old JA+ style grapple line
 	qtrue,//Disable alternate standing pose
@@ -1719,7 +1739,7 @@ static bitInfo_T playerStyles[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{ "Fade corpses immediately" },//13
 	{ "Disable corpse fading SFX" },//14
 	{ "Color respawn bubbles by team" },//15
-	{ "Hide player cosmetics" },//16
+	{ "" },//16 - reserved; cosmetics visibility is controlled by cg_cosmetics
 	{ "Disable breathing effects" },//17
 	{ "Old JA+ style grapple line" },//18
 	{ "Enable alternate stand pose on some characters" },//19
@@ -1728,16 +1748,24 @@ static bitInfo_T playerStyles[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 };
 static const int MAX_PLAYERSTYLES = ARRAY_LEN(playerStyles);
 
+static qboolean CG_StylePlayerOptionAvailable( int index )
+{
+	if ( !playerStyles[index].string[0] )
+		return qfalse;
+	if ( cgs.serverMod == SVMOD_JAPLUS )
+		return japlusPlayerStyles[index];
+	if ( cgs.serverMod == SVMOD_JAPRO )
+		return japroPlayerStyles[index];
+	return qtrue;
+}
+
 void CG_StylePlayer_f(void)
 {
 	if (trap->Cmd_Argc() == 1) {
 		int i = 0, display = 0;
 
 		for (i = 0; i < MAX_PLAYERSTYLES; i++) {
-
-			if (cgs.serverMod == SVMOD_JAPLUS && !japlusPlayerStyles[i])
-				continue;
-			if (cgs.serverMod == SVMOD_JAPRO && !japroPlayerStyles[i])
+			if (!CG_StylePlayerOptionAvailable(i))
 				continue;
 
 			if ((cg_stylePlayer.integer & (1 << i))) {
@@ -1752,20 +1780,18 @@ void CG_StylePlayer_f(void)
 	}
 	else {
 		char arg[8] = { 0 };
-		int index, index2, i, n = 0;
+		int index, index2 = -1, i, n = 0;
 		const uint32_t mask = (1 << MAX_PLAYERSTYLES) - 1;
 
 		trap->Cmd_Argv(1, arg, sizeof(arg));
 		index = atoi(arg);
-		index2 = index;
-
 		for (i = 0; i < MAX_PLAYERSTYLES; i++) {
 			//ok so, if they type /plugin #
 			//go through the list of plugindisables, from 0 to max,
 			//for each qtrue, increment I
 			//once I = #, thats the actual index we want
 
-			if ((cgs.serverMod == SVMOD_JAPLUS && japlusPlayerStyles[i]) || (cgs.serverMod == SVMOD_JAPRO && japroPlayerStyles[i])) {
+			if (CG_StylePlayerOptionAvailable(i)) {
 				//Com_Printf("Option found %i, %s, n is %i, index is %i\n", i, pluginDisables[i], n, index);
 				if (n == index) {
 					index2 = i;
@@ -1775,8 +1801,8 @@ void CG_StylePlayer_f(void)
 			}
 		}
 
-		if (index2 < 0 || index2 >= MAX_PLAYERSTYLES) {
-			Com_Printf("style: Invalid range: %i [0, %i]\n", index2, MAX_PLAYERSTYLES - 1);
+		if (index2 < 0) {
+			Com_Printf("style: Invalid range: %i [0, %i]\n", index, n - 1);
 			return;
 		}
 
@@ -1813,6 +1839,7 @@ static bitInfo_T speedometerSettings[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{ "Speed graph" },//7
 	{ "Display speed in kilometers instead of units" },//8
 	{ "Display speed in imperial miles instead of units" },//9
+	{ "XYZ speed" },//10
 };
 static const int MAX_SPEEDOMETER_SETTINGS = ARRAY_LEN(speedometerSettings);
 
@@ -2027,7 +2054,8 @@ static void CG_Cosmetics_Wear_f(const char *category)
 	if (trap->Cmd_Argc() == 2) {	//list what we have
 		Com_Printf("^5Available %s:\n", category);
 		for (i = 0; i < total; i++) {
-			Com_Printf("%2d %s %s\n", i, (worn == &items[i]) ? "^2[X]^7" : "[ ]", items[i].name);
+			Com_Printf("%2d %s %s%s\n", i, (worn == &items[i]) ? "^2[X]^7" : "[ ]", items[i].name,
+				items[i].handle ? "" : " ^3(Get from JoF Launcher or Cloud)^7");
 		}
 		Com_Printf("Wear one with ^3cosmetics %s <num>^7, take it off with the same command.\n", category);
 		return;
@@ -2048,6 +2076,11 @@ static void CG_Cosmetics_Wear_f(const char *category)
 			return;
 		}
 		item = &items[i];
+	}
+	if ( !item->handle ) {
+		Com_Printf( "Cosmetic '%s' is not installed. Get %s from JoF Launcher or Cloud.\n",
+			item->name, !Q_stricmp(category, "hats") ? "hats" : "capes" );
+		return;
 	}
 
 	trap->Cvar_VariableStringBuffer(cvarName, cvarValue, sizeof(cvarValue));
@@ -2077,14 +2110,46 @@ static void CG_Cosmetics_Clear_f(void)
 	Com_Printf("Hat and cape removed.\n");
 }
 
+static void CG_Cosmetics_Visibility_f(void)
+{
+	static const char *visibilityNames[] = { "Off", "On", "Only Me" };
+	char arg[16] = { 0 };
+	int value = cg_cosmetics.integer;
+
+	if (trap->Cmd_Argc() == 2) {
+		if (value < JAPRO_COSMETICS_OFF || value > JAPRO_COSMETICS_ONLY_ME)
+			value = JAPRO_COSMETICS_ON;
+		Com_Printf("Cosmetics visibility: ^3%s^7\n", visibilityNames[value]);
+		Com_Printf("Set it with ^3cosmetics visibility <off|on|onlyme>^7.\n");
+		return;
+	}
+
+	trap->Cmd_Argv(2, arg, sizeof(arg));
+	if (!Q_stricmp(arg, "off") || !Q_stricmp(arg, "0"))
+		value = JAPRO_COSMETICS_OFF;
+	else if (!Q_stricmp(arg, "on") || !Q_stricmp(arg, "1"))
+		value = JAPRO_COSMETICS_ON;
+	else if (!Q_stricmp(arg, "onlyme") || !Q_stricmp(arg, "only-me") || !Q_stricmp(arg, "2"))
+		value = JAPRO_COSMETICS_ONLY_ME;
+	else {
+		Com_Printf("Unknown visibility '%s'. Use ^3off^7, ^3on^7, or ^3onlyme^7.\n", arg);
+		return;
+	}
+
+	trap->Cvar_Set("cg_cosmetics", va("%i", value));
+	trap->Cvar_Update(&cg_cosmetics);
+	Com_Printf("Cosmetics visibility: ^3%s^7\n", visibilityNames[value]);
+}
+
 static void CG_Cosmetics_f(void)
 {
 	char arg[16] = { 0 };
 
 	if (trap->Cmd_Argc() == 1) {
-		Com_Printf("Usage: ^3cosmetics <hats|capes|clear|unlocks> [num]^7\n");
+		Com_Printf("Usage: ^3cosmetics <hats|capes|clear|visibility|unlocks> [value]^7\n");
 		Com_Printf("  ^3hats^7 / ^3capes^7  list what you have, or wear one by number\n");
 		Com_Printf("  ^3clear^7         take off both\n");
+		Com_Printf("  ^3visibility^7    show cosmetics: off, on, or onlyme\n");
 		Com_Printf("  ^3unlocks^7       jaPRO server-granted cosmetics\n");
 		Com_Printf("Hats and capes are visible to anyone else running this client, on any server.\n");
 		return;
@@ -2096,6 +2161,8 @@ static void CG_Cosmetics_f(void)
 		CG_Cosmetics_Wear_f(arg);
 	else if (!Q_stricmp(arg, "clear"))
 		CG_Cosmetics_Clear_f();
+	else if (!Q_stricmp(arg, "visibility"))
+		CG_Cosmetics_Visibility_f();
 	else if (!Q_stricmp(arg, "unlocks"))
 		CG_Cosmetics_Unlocks_f();
 	else

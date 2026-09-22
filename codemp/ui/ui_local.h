@@ -67,11 +67,13 @@ typedef struct uiQ3ModelBuild_s {
 } uiQ3ModelBuild_t;
 void UI_BuildQ3Model_List(char* dirptr, char* filelist, int bufsize);
 void UI_BuildQ3Model_List_ProcessDir(char* dirptr, char* filelist, int numfiles);
+void UI_BuildQ3Model_List_Async(void);
 
 void UI_GetCharacterCvars( void );
 const char *UI_GetModelWithSkin(char *model);
 int UI_HeadIndexForModel(const char *model);
 void UI_SetTeamColorFromModel(const char *model);
+void UI_UpdateSpeciesBrowser(void);
 
 //
 // ui_players.c
@@ -150,10 +152,11 @@ typedef struct playerInfo_s {
 #define MAX_ALIASES				64
 #define MAX_TEAMS				64
 #define MAX_COSMETIC_LENGTH		14	// must match cg_local.h
-
 //a hat or cape the UI found on disk. Same folders and naming rules as cgame uses.
 #define UI_COSMETIC_HATS_PATH	"models/cosmetics/hats/"
 #define UI_COSMETIC_CAPES_PATH	"models/cosmetics/capes/"
+#define UI_COSMETIC_HATS_LEGACY_PATH	"models/players/hats/"
+#define UI_COSMETIC_CAPES_LEGACY_PATH	"models/players/capes/"
 
 typedef struct uiCosmeticItem_s {
 	char		name[MAX_COSMETIC_LENGTH];
@@ -437,9 +440,8 @@ typedef struct uiInfo_s {
 	//cosmetics folders itself to fill the menu lists and to draw them on the preview.
 	uiCosmeticItem_t		*hats;
 	uiCosmeticItem_t		*capes;
-	int						totalHats;
-	int						totalCapes;
-
+	int				totalHats;
+	int				totalCapes;
 } uiInfo_t;
 extern uiInfo_t uiInfo;
 
@@ -448,6 +450,7 @@ void UI_LoadCosmetics( void );
 void UI_ClearCosmetics( void );
 void UI_GetCosmeticCvars( void );
 void UI_UpdateCosmeticsCharacter( void );
+void UI_UpdateWornCharacter( itemDef_t *item, int *animRunLength );
 
 qboolean	UI_ConsoleCommand( int realTime );
 void		UI_DrawHandlePic( float x, float y, float w, float h, qhandle_t hShader );

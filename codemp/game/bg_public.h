@@ -23,6 +23,26 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
+// Optional binocular telemetry, negotiated with the binoScan userinfo key.
+#define MAX_BINOCULAR_TARGETS 32
+#define BINOCULAR_UPDATE_MSEC 200
+#define BINOCULAR_EXPIRE_MSEC 600
+#define BINOCULAR_RANGE 8192.0f
+#define MAX_MISSION_PARTY 7
+#define MISSION_PARTY_UPDATE_MSEC 250
+#define MISSION_PARTY_EXPIRE_MSEC 1500
+#define MISSION_PARTY_DEAD_MSEC 8000
+
+typedef struct binocularTarget_s {
+	int entityNum;
+	int health;
+	int maxHealth;
+	int armor;
+	int force;
+	int maxForce;
+	char name[64]; // Optional binoNames extension; empty when unavailable.
+} binocularTarget_t;
+
 // bg_public.h -- definitions shared by both the server game and client game modules
 
 // because games can change separately from the main system version, we need a
@@ -672,6 +692,7 @@ extern	pmove_t		*pm;
 #define SETANIM_FLAG_HOLD		2//Set the new timer
 #define SETANIM_FLAG_RESTART	4//Allow restarting the anim if playing the same one (weapon fires)
 #define SETANIM_FLAG_HOLDLESS	8//Set the new timer
+#define SETANIM_FLAG_PACE		16//Restart only after the current animation has finished
 
 
 // if a full pmove isn't done on the client, you can just update the angles
@@ -1928,6 +1949,8 @@ void BG_ClearRocketLock( playerState_t *ps );
 
 extern int WeaponReadyAnim[WP_NUM_WEAPONS];
 extern int WeaponAttackAnim[WP_NUM_WEAPONS];
+qboolean BG_WeaponIsVehicleGun(int weapon);
+qboolean BG_IsDroidClass(class_t npcClass);
 
 extern int forcePowerDarkLight[NUM_FORCE_POWERS];
 

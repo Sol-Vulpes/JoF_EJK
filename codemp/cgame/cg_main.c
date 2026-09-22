@@ -24,6 +24,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 // cg_main.c -- initialization and primary entry point for cgame
 #include "cg_local.h"
+#include "cg_dialogue.h"
 
 #include "ui/ui_shared.h"
 // display context for new ui stuff
@@ -540,14 +541,49 @@ static void CG_AS_Register(void)
 	trap->AS_ParseSets();
 }
 
+//every rain variant the world effect system knows about
+static qboolean CG_WeatherIsRain(const char *token)
+{
+	return (qboolean)(!Q_stricmp(token, "rain") || !Q_stricmp(token, "lightrain") ||
+		!Q_stricmp(token, "heavyrain") || !Q_stricmp(token, "heavyrainfog") ||
+		!Q_stricmp(token, "acidrain"));
+}
+
 //a global weather effect (rain, snow, etc)
 void CG_ParseWeatherEffect(const char *str)
 {
 	char *sptr = (char *)str;
+	qboolean isRain = qfalse;
 	sptr++; //pass the '*'
 
-	if (Q_stricmpn(sptr, "die", 3) && Q_stricmpn(sptr, "clear", 5) && Q_stricmpn(sptr, "freeze", 6)
-	&& Q_stricmpn(sptr, "zone", 4) && Q_stricmpn(sptr, "acidrain", 8) && Q_stricmpn(sptr, "spacedust", 9)
+	// Weather commands accumulate clouds; snow/wind do not remove existing rain.
+	{
+		const char *command = sptr;
+		const char *token = COM_ParseExt(&command, qfalse);
+		isRain = CG_WeatherIsRain(token);
+		if (!Q_stricmp(token, "die") || !Q_stricmp(token, "clear"))
+		{
+			cg.saberRainActive = qfalse;
+			if (!Q_stricmp(token, "die"))
+				cg.saberRainFrozen = qfalse;
+		}
+		else if (!Q_stricmp(token, "freeze"))
+		{
+			cg.saberRainFrozen = !cg.saberRainFrozen;
+		}
+		else if (!Q_stricmp(token, "rain") || !Q_stricmp(token, "acidrain") ||
+			!Q_stricmp(token, "lightrain") || !Q_stricmp(token, "heavyrain"))
+		{
+			cg.saberRainActive = qtrue;
+		}
+	}
+
+	if (isRain)
+	{ //rain is wet, not cold - kill the puffs even if something earlier turned them on
+		cg.coldBreathEffects = qfalse;
+	}
+	else if (Q_stricmpn(sptr, "die", 3) && Q_stricmpn(sptr, "clear", 5) && Q_stricmpn(sptr, "freeze", 6)
+	&& Q_stricmpn(sptr, "zone", 4) && Q_stricmpn(sptr, "spacedust", 9)
 	&& Q_stricmpn(sptr, "sand", 4) && Q_stricmpn(sptr, "outsideshake", 12) && Q_stricmpn(sptr, "outsidepain", 11))
 	{ //should come with a better way to detect this...
 		cg.coldBreathEffects = qtrue;
@@ -789,9 +825,9 @@ static void CG_RegisterSounds( void ) {
 	trap->S_RegisterSound("sound/weapons/force/see.wav");
 	trap->S_RegisterSound("sound/weapons/force/rage.wav");
 	trap->S_RegisterSound("sound/weapons/force/lightning");
-	trap->S_RegisterSound("sound/weapons/force/lightninghit1");
-	trap->S_RegisterSound("sound/weapons/force/lightninghit2");
-	trap->S_RegisterSound("sound/weapons/force/lightninghit3");
+	cgs.media.forceLightningImpactSounds[0] = trap->S_RegisterSound("sound/weapons/force/lightninghit1");
+	cgs.media.forceLightningImpactSounds[1] = trap->S_RegisterSound("sound/weapons/force/lightninghit2");
+	cgs.media.forceLightningImpactSounds[2] = trap->S_RegisterSound("sound/weapons/force/lightninghit3");
 	trap->S_RegisterSound("sound/weapons/force/drain.wav");
 	trap->S_RegisterSound("sound/weapons/force/jumpbuild.wav");
 	trap->S_RegisterSound("sound/weapons/force/distract.wav");
@@ -1322,6 +1358,7 @@ static void CG_RegisterGraphics( void )
 	cgs.effects.mTurretMuzzleFlash = trap->FX_RegisterEffect("effects/turret/muzzle_flash.efx");
 	cgs.effects.mSparks = trap->FX_RegisterEffect("sparks/spark_nosnd.efx"); //sparks/spark.efx
 	cgs.effects.mSaberCut = trap->FX_RegisterEffect("saber/saber_cut.efx");
+	cgs.effects.mSaberRainSteam = trap->FX_RegisterEffect("saber/fizz.efx");
 	cgs.effects.mSaberBlock = trap->FX_RegisterEffect("saber/saber_block.efx");
 	cgs.effects.mSaberBloodSparks = trap->FX_RegisterEffect("saber/blood_sparks_mp.efx");
 	cgs.effects.mSaberBloodSparksSmall = trap->FX_RegisterEffect("saber/blood_sparks_25_mp.efx");
@@ -1334,6 +1371,11 @@ static void CG_RegisterGraphics( void )
 
 	cgs.effects.forceLightning		= trap->FX_RegisterEffect( "effects/force/lightning.efx" );
 	cgs.effects.forceLightningWide	= trap->FX_RegisterEffect( "effects/force/lightningwide.efx" );
+	cgs.effects.demp2WallImpactEffectSmall = trap->FX_RegisterEffect( "effects/mp/wall_impact_small" );
+	cgs.effects.forceLightningBranch = trap->FX_RegisterEffect( "effects/mp/lightning_branch" );
+
+	cgs.media.forceLightningArcShader = trap->R_RegisterShader("gfx/misc/blueLine");
+	cgs.media.forceLightningFlashShader = trap->R_RegisterShader("gfx/misc/lightningFlash");
 	cgs.effects.forceDrain		= trap->FX_RegisterEffect( "effects/mp/drain.efx" );
 	cgs.effects.forceDrainWide	= trap->FX_RegisterEffect( "effects/mp/drainwide.efx" );
 	cgs.effects.forceDrainWideJaPRO	= trap->FX_RegisterEffect( "effects/mp/drainwide_japro.efx" );
@@ -1372,6 +1414,7 @@ static void CG_RegisterGraphics( void )
 	cgs.media.playerShieldDamage = trap->R_RegisterShader("gfx/misc/personalshield");
 	cgs.media.protectShader = trap->R_RegisterShader("gfx/misc/forceprotect");
 	cgs.media.forceSightBubble = trap->R_RegisterShader("gfx/misc/sightbubble");
+	cgs.media.forceSenseOverlay = trap->R_RegisterShader("gfx/2d/jsense");
 	cgs.media.forceShell = trap->R_RegisterShader("powerups/forceshell");
 	cgs.media.sightShell = trap->R_RegisterShader("powerups/sightshell");
 
@@ -1896,15 +1939,78 @@ void CG_StartMusic( qboolean bForceStart ) {
 	Q_strncpyz( parm1, COM_Parse( (const char **)&s ), sizeof( parm1 ) );
 	Q_strncpyz( parm2, COM_Parse( (const char **)&s ), sizeof( parm2 ) );
 
-	// musicless map: an empty CS_MUSIC means there's no track to start, so make
-	// sure anything currently playing (e.g. duel music) is stopped instead of
-	// leaving it running. S_StartBackgroundTrack won't stop it for an empty name.
-	if ( !parm1[0] ) {
-		trap->S_StopBackgroundTrack();
+	trap->S_StartBackgroundTrack( parm1, parm2, !bForceStart );
+}
+
+/*
+======================
+CG_MusicStartTime
+
+Server time at which the currently advertised track started playing.
+
+The server can state this outright by appending a third token to CS_MUSIC, which is how a client that joined
+part way through a track gets it right. CG_StartMusic only ever parses the first two tokens, so the extra one is
+invisible to every other client and mod.
+
+Failing that we use the last time we saw CS_MUSIC change, which is set to the level start at map load - correct
+for a map whose track comes from worldspawn, and correct for anyone who was connected when the track changed.
+======================
+*/
+static int CG_MusicStartTime( void ) {
+	char	*s = (char *)CG_ConfigString( CS_MUSIC );
+	char	token[MAX_QPATH];
+
+	COM_Parse( (const char **)&s );		// intro
+	COM_Parse( (const char **)&s );		// loop
+	Q_strncpyz( token, COM_Parse( (const char **)&s ), sizeof( token ) );
+
+	if ( token[0] >= '0' && token[0] <= '9' ) {
+		return atoi( token );
+	}
+
+	return cgs.musicStartTime;
+}
+
+/*
+======================
+CG_StartMusicSynced
+
+Starts the level's music at the point it would have reached had it been playing uninterrupted since the current
+track started, instead of from the beginning. The offset is derived purely from server time, so every client
+lands on the same point in the track and everyone outside of a duel hears the same thing at the same time.
+
+The offset is handed to the engine through the one-shot "s_musicOffset" cvar, which it consumes and clears on the
+next background track start. Engines that don't know about it simply ignore the cvar and we get the old
+start-from-the-beginning behaviour, so this stays safe to run against any client.
+======================
+*/
+void CG_StartMusicSynced( void ) {
+	int		msec;
+	char	offsetStr[16];
+
+	if ( !cg_musicSync.integer ) {
+		CG_StartMusic( qtrue );
 		return;
 	}
 
-	trap->S_StartBackgroundTrack( parm1, parm2, !bForceStart );
+	// cg.time isn't valid yet on the very first snapshot, so fall back to the snapshot's own server time
+	msec = cg.time;
+	if ( cg.snap && (msec <= 0 || msec < cgs.levelStartTime) ) {
+		msec = cg.snap->serverTime;
+	}
+
+	msec -= CG_MusicStartTime();
+	if ( msec < 0 ) {
+		msec = 0;
+	}
+
+	Com_sprintf( offsetStr, sizeof( offsetStr ), "%i", msec );
+	trap->Cvar_Set( "s_musicOffset", offsetStr );
+
+	CG_StartMusic( qtrue );
+
+	// the engine clears this itself once it has used it, but make sure of it for engines that don't support it
+	trap->Cvar_Set( "s_musicOffset", "0" );
 }
 
 char *CG_GetMenuBuffer(const char *filename) {
@@ -2861,6 +2967,42 @@ void CG_LoadAllCosmetics(void)
 {
 	CG_LoadCosmetics(COSMETIC_HATS_PATH, COSMETIC_HATS_PATH_LENGTH, &localCosmetics.totalHats, &localCosmetics.hats);
 	CG_LoadCosmetics(COSMETIC_CAPES_PATH, COSMETIC_CAPES_PATH_LENGTH, &localCosmetics.totalCapes, &localCosmetics.capes);
+	if ( !localCosmetics.totalHats )
+		CG_LoadCosmetics(COSMETIC_HATS_LEGACY_PATH, strlen(COSMETIC_HATS_LEGACY_PATH), &localCosmetics.totalHats, &localCosmetics.hats);
+	if ( !localCosmetics.totalCapes )
+		CG_LoadCosmetics(COSMETIC_CAPES_LEGACY_PATH, strlen(COSMETIC_CAPES_LEGACY_PATH), &localCosmetics.totalCapes, &localCosmetics.capes);
+	{
+		static const char *knownHats[] = { "afro", "beard", "bucket", "cap", "cringe", "crown", "fedora", "fedora2", "fedora3", "fedora4", "glasses", "gradcap", "headcrab", "horns", "mario", "mask", "metalhelm", "plaguemask", "predatorhelm", "pumpkin", "santahat", "sombrero", "supersaiyan", "tophat" };
+		static const char *knownCapes[] = { "ak47", "crowbar", "goose", "grogucape", "royalcape", "rpg", "vadercape", "yodacape" };
+		int i, j;
+		cosmeticItem_t *items;
+		items = (cosmeticItem_t *)realloc( localCosmetics.hats, ( localCosmetics.totalHats + ARRAY_LEN( knownHats ) ) * sizeof( *items ) );
+		if ( items ) {
+			localCosmetics.hats = items;
+			for ( i = 0; i < ARRAY_LEN( knownHats ); i++ ) {
+				qboolean found = qfalse;
+				for ( j = 0; j < localCosmetics.totalHats; j++ ) if ( !Q_stricmp( items[j].name, knownHats[i] ) ) { found = qtrue; break; }
+				if ( found ) continue;
+				Q_strncpyz( items[localCosmetics.totalHats].name, knownHats[i], sizeof( items[localCosmetics.totalHats].name ) );
+				items[localCosmetics.totalHats].handle = trap->R_RegisterModel( va( "%s%s.md3", COSMETIC_HATS_PATH, knownHats[i] ) );
+				if ( !items[localCosmetics.totalHats].handle ) items[localCosmetics.totalHats].handle = trap->R_RegisterModel( va( "%s%s.md3", COSMETIC_HATS_LEGACY_PATH, knownHats[i] ) );
+				localCosmetics.totalHats++;
+			}
+		}
+		items = (cosmeticItem_t *)realloc( localCosmetics.capes, ( localCosmetics.totalCapes + ARRAY_LEN( knownCapes ) ) * sizeof( *items ) );
+		if ( items ) {
+			localCosmetics.capes = items;
+			for ( i = 0; i < ARRAY_LEN( knownCapes ); i++ ) {
+				qboolean found = qfalse;
+				for ( j = 0; j < localCosmetics.totalCapes; j++ ) if ( !Q_stricmp( items[j].name, knownCapes[i] ) ) { found = qtrue; break; }
+				if ( found ) continue;
+				Q_strncpyz( items[localCosmetics.totalCapes].name, knownCapes[i], sizeof( items[localCosmetics.totalCapes].name ) );
+				items[localCosmetics.totalCapes].handle = trap->R_RegisterModel( va( "%s%s.md3", COSMETIC_CAPES_PATH, knownCapes[i] ) );
+				if ( !items[localCosmetics.totalCapes].handle ) items[localCosmetics.totalCapes].handle = trap->R_RegisterModel( va( "%s%s.md3", COSMETIC_CAPES_LEGACY_PATH, knownCapes[i] ) );
+				localCosmetics.totalCapes++;
+			}
+		}
+	}
 }
 
 void CG_FreeCosmetics(void)
@@ -2954,6 +3096,11 @@ void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum )
 	const char	*s;
 	int i = 0;
 
+	// The new-force-rank server command may arrive before EV_SET_FREE_SABER.
+	// Mark the rule unknown for each connection so the UI cannot validate a
+	// saved allocation using a stale rule from the previous server.
+	trap->Cvar_Set("ui_freeSaber", "-1");
+
 	BG_InitAnimsets(); //clear it out
 
 	trap->RegisterSharedMemory( cg.sharedBuffer.raw );
@@ -3004,6 +3151,7 @@ Ghoul2 Insert End
 	cgDC.Assets.qhBigFont = cgDC.Assets.qhMediumFont;
 
 	memset( &cgs, 0, sizeof( cgs ) );
+	CG_DialogueReset();
 	memset( cg_weapons, 0, sizeof(cg_weapons) );
 	memset( cg_dueltypes, 0, sizeof(cg_dueltypes) );//JAPRO - Clientside - Fullforce Duels
 
@@ -3022,6 +3170,8 @@ Ghoul2 Insert End
 	// load a few needed things before we do any screen updates
 	cgs.media.charsetShader			= trap->R_RegisterShaderNoMip( "gfx/2d/charsgrid_med" );
 	cgs.media.whiteShader			= trap->R_RegisterShader( "white" );
+	cgs.media.binocularHudFont		= trap->R_RegisterFont( "jof_binohud" );
+	cgs.media.missionPartyUnknownIcon = trap->R_RegisterShaderNoMip( "icons/icon_default_unknown" );
 
 	cgs.media.loadBarLED			= trap->R_RegisterShaderNoMip( "gfx/hud/load_tick" );
 	cgs.media.loadBarLEDCap			= trap->R_RegisterShaderNoMip( "gfx/hud/load_tick_cap" );
@@ -3108,6 +3258,7 @@ Ghoul2 Insert End
 	cgs.media.rageRecShader = trap->R_RegisterShaderNoMip("gfx/mp/f_icon_ragerec");
 	cgs.media.repulseIcon   = trap->R_RegisterShaderNoMip("gfx/jof/force_repulse.tga");	// JoF: Force Repulse wheel icon
 	cgs.media.dashIcon      = trap->R_RegisterShaderNoMip("gfx/jof/force_dash.tga");		// JoF: Force Dash wheel icon
+	cgs.media.flamethrowerIcon = trap->R_RegisterShaderNoMip("gfx/jof/force_flamethrower.png");
 
 
 	//body decal shaders -rww
@@ -3117,6 +3268,8 @@ Ghoul2 Insert End
 	cgs.media.mSaberDamageGlow = trap->R_RegisterShader("gfx/effects/saberDamageGlow");
 
 	CG_RegisterCvars();
+	trap->Cvar_Set("cg_pickupConfirm", "1");
+	trap->Cvar_Set("cg_pickupReady", "3");
 
 	CG_InitConsoleCommands();
 
@@ -3182,6 +3335,9 @@ Ghoul2 Insert End
 
 	s = CG_ConfigString( CS_LEVEL_START_TIME );
 	cgs.levelStartTime = atoi( s );
+
+	// a map's own worldspawn track is set before anyone connects, so it started when the level did
+	cgs.musicStartTime = cgs.levelStartTime;
 
 	CG_ParseServerinfo();
 
@@ -3311,6 +3467,18 @@ Called before every level change or subsystem restart
 */
 void CG_Shutdown( void )
 {
+	// Keep the last known saber costs until the next gamestate supplies its rules.
+	// A temporary paid-saber reset makes the UI trim fully spent loadouts during
+	// reconnect; restoring free costs afterwards cannot restore the lost ranks.
+	// CG_SyncFreeSaber initializes the next server's rules independently.
+	// Userinfo is handled by the engine even when game commands are flood
+	// filtered. Do not leave readiness behind for a subsequently loaded mod.
+	trap->Cvar_Set("cg_pickupReady", "0");
+	if (cg.pickupHandshakeActive) {
+		trap->SendClientCommand("jof_pickupReady 0");
+	}
+	cg.pickupHandshakeActive = cg.pickupConfirmed = qfalse;
+
 	BG_ClearAnimsets(); //free all dynamic allocations made through the engine
 
 	CG_FreeCosmetics();
