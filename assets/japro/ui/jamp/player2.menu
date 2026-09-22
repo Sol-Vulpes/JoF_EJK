@@ -745,7 +745,7 @@
 			textstyle			3
 			forecolor			1 .682 0 1
 			visible				1
-	\t	action
+			action
 			{
 				play			"sound/interface/button1.wav"
 				close			all
