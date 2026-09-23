@@ -89,7 +89,7 @@ void CG_DialogueServerCommand( void ) {
 		CG_EventHandling( CGAME_EVENT_DIALOGUE );
 		trap->Key_SetCatcher( trap->Key_GetCatcher() | KEYCATCH_CGAME );
 	} else if ( !Q_stricmp( action, "stop" ) ) {
-		if ( !s_dialogue.active || serial == s_dialogue.serial ) CG_DialogueCloseLocal();
+		if ( serial == s_dialogue.serial ) CG_DialogueCloseLocal();
 	}
 }
 
@@ -124,11 +124,11 @@ qboolean CG_DialogueKeyEvent( int key ) {
 		return qtrue;
 	}
 	if ( key == A_CURSOR_UP || key == A_KP_8 || key == A_MWHEELUP ) {
-		s_dialogue.selected = ( s_dialogue.selected + s_dialogue.numChoices - 1 ) % s_dialogue.numChoices;
+		if ( s_dialogue.selected > 0 ) --s_dialogue.selected;
 		return qtrue;
 	}
 	if ( key == A_CURSOR_DOWN || key == A_KP_2 || key == A_MWHEELDOWN ) {
-		s_dialogue.selected = ( s_dialogue.selected + 1 ) % s_dialogue.numChoices;
+		if ( s_dialogue.selected + 1 < s_dialogue.numChoices ) ++s_dialogue.selected;
 		return qtrue;
 	}
 	if ( key == A_ENTER || key == A_KP_ENTER || key == A_SPACE ) {

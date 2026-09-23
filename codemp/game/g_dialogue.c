@@ -12,10 +12,10 @@ text and choices.
 #include "g_dialogue.h"
 
 #define DLG_MAX_FILES           32
-#define DLG_MAX_NODES           64
+#define DLG_MAX_NODES           128   /* was 64 */
 #define DLG_MAX_CHOICES         12
 #define DLG_MAX_ACTIONS         8
-#define DLG_MAX_QUESTS          32
+#define DLG_MAX_QUESTS          256   /* was 32 */
 #define DLG_MAX_FILE_SIZE       (128 * 1024)
 #define DLG_ID_SIZE             32
 #define DLG_SPEAKER_SIZE        64
@@ -519,11 +519,11 @@ void Cmd_DialogueResponse_f( gentity_t *ent ) {
 	if ( trap->Argc() != 3 || !session->active ) return;
 	trap->Argv( 1, arg, sizeof( arg ) ); serial = (unsigned int)strtoul( arg, NULL, 10 );
 	trap->Argv( 2, arg, sizeof( arg ) ); selection = atoi( arg );
+	if ( serial != session->serial ) return;
 	if ( selection == -1 ) {
 		DLG_Stop( ent, qfalse );
 		return;
 	}
-	if ( serial != session->serial ) return;
 	if ( selection < 0 || selection >= session->visibleCount ) return;
 	node = &session->dialogue->nodes[session->node];
 	if ( session->visibleChoices[selection] < 0 ) {
