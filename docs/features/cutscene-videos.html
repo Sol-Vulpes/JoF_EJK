@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cutscene videos — JoF EternalJK</title>
+<style>
+  :root {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --step--1: clamp(0.80rem, 0.78rem + 0.1vw, 0.86rem);
+    --step-0:  clamp(1.00rem, 0.97rem + 0.15vw, 1.08rem);
+    --step-1:  clamp(1.20rem, 1.14rem + 0.3vw, 1.35rem);
+    --step-2:  clamp(1.50rem, 1.38rem + 0.6vw, 1.85rem);
+    --step-3:  clamp(2.10rem, 1.80rem + 1.5vw, 3.10rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #17140F;
+      --paper-sunk: #100E0A;
+      --card:       #201C16;
+      --ink:        #EFE9E0;
+      --ink-soft:   #C8BFB2;
+      --stone:      #948A7C;
+      --rule:       #362F26;
+      --ember:      #E1833E;
+      --ember-wash: #2A1D12;
+      --pine:       #6FB3A3;
+      --pine-wash:  #1A2A26;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #17140F;
+    --paper-sunk: #100E0A;
+    --card:       #201C16;
+    --ink:        #EFE9E0;
+    --ink-soft:   #C8BFB2;
+    --stone:      #948A7C;
+    --rule:       #362F26;
+    --ember:      #E1833E;
+    --ember-wash: #2A1D12;
+    --pine:       #6FB3A3;
+    --pine-wash:  #1A2A26;
+  }
+  :root[data-theme="light"] {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    max-width: 92rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+  }
+  @media (min-width: 62rem) {
+    .page {
+      grid-template-columns: 15rem minmax(0, 1fr);
+      padding: 4.5rem 3rem 8rem;
+      gap: 4.5rem;
+    }
+  }
+
+  /* ---- section rail ---- */
+  .rail { display: none; }
+  @media (min-width: 62rem) {
+    .rail {
+      display: block;
+      position: sticky;
+      top: 4.5rem;
+      align-self: start;
+      font-size: var(--step--1);
+    }
+  }
+  .rail__label {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.68rem;
+    color: var(--stone);
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 0.9rem;
+  }
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .rail a {
+    color: var(--stone);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    padding-left: 0.75rem;
+    display: block;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .rail a:hover,
+  .rail a:focus-visible { color: var(--ember); border-left-color: var(--ember); }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 1px solid var(--rule); padding-bottom: 2.5rem; margin-bottom: 3rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ember);
+    margin: 0 0 1.1rem;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-3);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-family: var(--display);
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0 0 2rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 2rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    margin: 0;
+  }
+  .meta div { display: flex; gap: 0.5rem; }
+  .meta dt { color: var(--stone); }
+  .meta dd { margin: 0; }
+  a { color: var(--ember); text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---- prose ---- */
+  main { min-width: 0; }
+  section { margin-bottom: 4rem; scroll-margin-top: 2rem; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-2);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 1.25rem;
+  }
+  h3 {
+    font-family: var(--body);
+    font-weight: 650;
+    font-size: var(--step-0);
+    margin: 0 0 0.5rem;
+  }
+  p, ul, ol { max-width: var(--measure); }
+  p { margin: 0 0 1.15rem; text-wrap: pretty; }
+  ul { padding-left: 1.1rem; margin: 0 0 1.15rem; }
+  li { margin-bottom: 0.5rem; }
+  li::marker { color: var(--stone); }
+  strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.08em 0.35em;
+    word-break: break-word;
+  }
+
+  /* ---- method cards ---- */
+  .methods { display: flex; flex-direction: column; gap: 1.25rem; }
+  .method {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.5rem 1.5rem 1.25rem;
+  }
+  .method__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+  }
+  .method__head h3 { margin: 0; }
+  .method__head code { background: none; border: none; padding: 0; color: var(--ember); font-size: 0.95em; }
+  .scope {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 0.15em 0.5em;
+    white-space: nowrap;
+  }
+  .method p:last-child { margin-bottom: 0; }
+
+  pre {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.6;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--ember);
+    border-radius: 3px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1.15rem;
+    overflow-x: auto;
+  }
+  pre .c { color: var(--stone); }
+
+  /* ---- callouts ---- */
+  .note {
+    border-left: 2px solid var(--ember);
+    background: var(--ember-wash);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.15rem;
+    max-width: var(--measure);
+    border-radius: 0 3px 3px 0;
+  }
+  .note p { margin: 0; }
+  .note__label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ember);
+    margin-bottom: 0.4rem;
+  }
+  .keeps {
+    border-left: 2px solid var(--pine);
+    background: var(--pine-wash);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.5rem;
+    max-width: var(--measure);
+    border-radius: 0 3px 3px 0;
+  }
+  .keeps p { margin: 0; }
+  .keeps strong { color: var(--pine); }
+
+  /* ---- the two paths ---- */
+  .paths { display: grid; gap: 1rem; margin: 0 0 1.5rem; max-width: var(--measure); }
+  @media (min-width: 40rem) { .paths { grid-template-columns: 1fr 1fr; } }
+  .path {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.1rem 1.25rem;
+    background: var(--card);
+  }
+  .path h3 { font-family: var(--mono); font-size: var(--step--1); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+  .path--player h3 { color: var(--ember); }
+  .path--npc h3 { color: var(--pine); }
+  .path ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .path li { margin: 0; }
+  .path li + li::before { content: "↓ "; color: var(--stone); }
+  .path .gate { color: var(--ember); font-weight: 600; }
+
+  /* ---- table ---- */
+  .table-wrap { overflow-x: auto; margin: 0 0 1.15rem; border: 1px solid var(--rule); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: var(--step--1); background: var(--card); }
+  th, td { text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    background: var(--paper-sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { font-family: var(--mono); color: var(--ember); white-space: nowrap; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    max-width: var(--measure);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="rail" aria-label="Sections">
+    <div class="rail__label">On this page</div>
+    <ol>
+      <li><a href="#making">Making a video</a></li>
+      <li><a href="#shipping">Shipping it with a map</a></li>
+      <li><a href="#testing-local">Testing locally</a></li>
+      <li><a href="#triggering">Triggering from a map</a></li>
+      <li><a href="#protocol">The protocol</a></li>
+      <li><a href="#unix">macOS and Linux</a></li>
+      <li><a href="#where">Where it lives</a></li>
+      <li><a href="#limits">Known limits</a></li>
+      <li><a href="#testing">Testing notes</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="masthead">
+      <p class="eyebrow">JoF EternalJK · client + cgame</p>
+      <h1>Cutscene videos</h1>
+      <p class="standfirst">
+        Play a fullscreen MP4 during a multiplayer game, without dropping the player. Maps can show a
+        pre-rendered cutscene when someone walks into a trigger, and a server can show one to a single
+        player or to everybody.
+      </p>
+      <dl class="meta">
+        <div>
+          <dt>Commit</dt>
+          <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/5db76efcdb5dc7597047212c5e14a0e94976c931"><code>5db76ef</code></a></dd>
+        </div>
+        <div>
+          <dt>Trello</dt>
+          <dd>none</dd>
+        </div>
+      </dl>
+    </header>
+
+    <p>Stock JKA only decodes RoQ, and its <code>cinematic</code> command switches the client into a state
+    where it stops talking to the server: anyone who watches a video that way times out. The
+    single-player camera commands exist in MP ICARUS but do nothing. This adds real video decoding to the
+    client and keeps it connected the whole time.</p>
+
+    <div class="note">
+      <span class="note__label">Client only, so far</span>
+      <p>The client side is done: decoding, drawing, skipping, and the protocol below. The server side (a
+      <code>target_cutscene</code> map entity, freezing the player, an admin command) lives in the
+      server's game module and is not part of this commit. Until the server implements it, the only way
+      to start a video is the local <code>cutscene</code> console command.</p>
+    </div>
+
+    <section id="making">
+      <h2>Making a video</h2>
+      <p>Use <strong>H.264 video + AAC audio in an MP4</strong>. Windows decodes that out of the box on
+      every supported version, and so does FFmpeg. HEVC, VP9 and AV1 only work on Windows machines that
+      happen to have the codec installed (HEVC is a paid Store extension), so don't use them.</p>
+      <pre>ffmpeg -i source.mov -vf "scale=1280:-2" -r 30 \
+       -c:v libx264 -profile:v high -pix_fmt yuv420p -crf 20 \
+       -c:a aac -b:a 160k -ac 2 \
+       -movflags +faststart video/intro.mp4</pre>
+      <ul>
+        <li><strong>Resolution:</strong> 1280×720 is the sweet spot. 1920×1080 works but costs twice the
+        upload per frame (see <a href="#limits">limits</a>). Anything above 2048 in either dimension is
+        refused.</li>
+        <li><strong>Frame rate:</strong> 24–30 fps. Higher just burns CPU.</li>
+        <li><strong>Aspect:</strong> anything. The video is letterboxed or pillarboxed to the player's
+        window, never stretched.</li>
+        <li><strong>Audio:</strong> stereo is best. 5.1 is folded down to stereo, keeping the centre
+        (dialogue) channel.</li>
+        <li><strong>Size:</strong> the whole file is loaded into memory while it plays, and it is
+        downloaded along with the map. Keep cutscenes short and the bitrate sensible
+        (<code>-crf 20</code>–<code>23</code>).</li>
+      </ul>
+    </section>
+
+    <section id="shipping">
+      <h2>Shipping it with a map</h2>
+      <p>Put the file anywhere in the map's pk3; <code>video/</code> is the convention:</p>
+      <pre>mymap.pk3
+├── maps/mymap.bsp
+└── video/mymap_intro.mp4</pre>
+      <p>Players who auto-download the map get the video with it. Paths are relative to the game
+      directory like any other asset, and <code>.mp4</code> is assumed if no extension is given.</p>
+    </section>
+
+    <section id="testing-local">
+      <h2>Testing a video locally</h2>
+      <pre>/cutscene video/mymap_intro.mp4    <span class="c">play it now, on this client only</span>
+/cutscene stop                     <span class="c">end it</span></pre>
+      <p>Loose (non-pk3) files need <code>sv_pure 0</code>. Space, Enter, Escape or a mouse click skips.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Cvar</th><th scope="col">Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>cl_videoVolume</td><td>Video volume relative to <code>s_volume</code> (0–2, default 1). Archived.</td></tr>
+            <tr><td>cl_video</td><td>Read-only. <code>1</code> if this client can play videos, <code>0</code> if not. Sent in userinfo so the server can tell.</td></tr>
+            <tr><td>cl_videoBackend</td><td>Read-only. <code>mediafoundation</code>, <code>ffmpeg</code>, or <code>none</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="triggering">
+      <h2>Triggering it from a map</h2>
+      <p><em>Needs the server side — see the note at the top.</em> The intended setup, which the server
+      prompt describes, is the usual trigger chain:</p>
+      <pre>trigger_multiple  <span class="c">(brush)</span>          target      intro_cs
+target_cutscene   <span class="c">(point entity)</span>   targetname  intro_cs
+                                   video       video/mymap_intro.mp4
+                                   spawnflags  2        <span class="c">(skippable)</span>
+                                   target      after_cs <span class="c">(fired when the video ends)</span></pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Key</th><th scope="col">Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>video</td><td>Path of the video in the pk3. Required.</td></tr>
+            <tr><td>spawnflags 1</td><td>Play for <strong>everyone</strong> on the server, not just the player who triggered it.</td></tr>
+            <tr><td>spawnflags 2</td><td>The player may skip it.</td></tr>
+            <tr><td>spawnflags 4</td><td>Don't freeze the player (by default they are frozen and cannot be hurt while watching).</td></tr>
+            <tr><td>spawnflags 8</td><td>Play only once per player per map.</td></tr>
+            <tr><td>timeout</td><td>Seconds the server waits for the client to report the end before releasing the player anyway. Default 120.</td></tr>
+            <tr><td>target</td><td>Fired, with the player as activator, when their video ends, is skipped, or times out.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Anything that fires targets can start a cutscene: buttons, doors, <code>target_delay</code>,
+      <code>target_relay</code>, ICARUS scripts.</p>
+    </section>
+
+    <section id="protocol">
+      <h2>The protocol</h2>
+      <p>For whoever writes the server side. All text commands, same style as <code>jof_dialogue</code>.</p>
+      <h3>Server → client (server commands)</h3>
+      <pre>jof_video play &lt;serial&gt; "&lt;path&gt;" &lt;flags&gt;     <span class="c">flags: 1 = skippable</span>
+jof_video stop &lt;serial&gt;</pre>
+      <p><code>serial</code> is any number the server picks to recognise the reply. A new
+      <code>play</code> replaces a video that is still running.</p>
+      <h3>Client → server (client command)</h3>
+      <p>Sent exactly once per <code>play</code> the client receives:</p>
+      <pre>videodone &lt;serial&gt; &lt;reason&gt;</pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Reason</th><th scope="col">When</th></tr></thead>
+          <tbody>
+            <tr><td>end</td><td>The video played to the end.</td></tr>
+            <tr><td>skip</td><td>The player skipped it.</td></tr>
+            <tr><td>stopped</td><td>The server sent <code>stop</code>, a newer <code>play</code> replaced it, or the player typed <code>cutscene stop</code>.</td></tr>
+            <tr><td>error</td><td>The file is missing, corrupt, or in a format this machine cannot decode.</td></tr>
+            <tr><td>unsupported</td><td>The client has no video decoder (e.g. Windows N without the Media Feature Pack).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Clients advertise support in userinfo: <code>cl_video</code> is <code>1</code> when they can play
+      videos. Stock and older clients don't send the key at all and would never reply, so the server
+      should not freeze them or wait for them.</p>
+      <div class="note">
+        <span class="note__label">Always keep a timeout</span>
+        <p>No reply is sent if the client's cgame shuts down mid-video (<code>vid_restart</code>,
+        disconnect, map change).</p>
+      </div>
+    </section>
+
+    <section id="unix">
+      <h2>macOS and Linux</h2>
+      <p>Windows needs nothing: Media Foundation ships with it. On macOS and Linux the client uses the
+      system's FFmpeg, which is <strong>not</strong> bundled with the game:</p>
+      <ul>
+        <li><strong>Players</strong> install FFmpeg (<code>brew install ffmpeg</code>,
+        <code>sudo apt install ffmpeg</code>, …).</li>
+        <li><strong>Building:</strong> CMake looks for FFmpeg's development libraries through pkg-config
+        (<code>libavformat-dev libavcodec-dev libswscale-dev libswresample-dev</code> on Debian/Ubuntu).
+        If they are found, video support is compiled in and the client <strong>needs</strong> FFmpeg's
+        libraries installed to start. If not, the client builds without video and reports
+        <code>cl_video 0</code>. Turn it off explicitly with <code>-DUseFFmpegVideo=OFF</code>.</li>
+      </ul>
+      <p>FFmpeg 4.4 through 9.x are supported.</p>
+    </section>
+
+    <section id="where">
+      <h2>Where it lives</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">File</th><th scope="col">What it does</th></tr></thead>
+          <tbody>
+            <tr><td>codemp/client/cl_video.cpp</td><td>Playback: loading the file, the clock, audio scheduling, the power-of-two texture, the <code>cl_video*</code> cvars.</td></tr>
+            <tr><td>codemp/client/cl_video_mf.cpp</td><td>Windows decoder (Media Foundation, loaded at runtime).</td></tr>
+            <tr><td>codemp/client/cl_video_ffmpeg.cpp</td><td>macOS/Linux decoder (FFmpeg), compiled only with <code>USE_FFMPEG</code>.</td></tr>
+            <tr><td>codemp/client/cl_video.h</td><td>The decoder interface both implement.</td></tr>
+            <tr><td>codemp/cgame/cg_video.c</td><td><code>jof_video</code>, <code>videodone</code>, the <code>cutscene</code> command, skipping, letterboxing, the skip hint.</td></tr>
+            <tr><td>codemp/cgame/cg_public.h</td><td><code>trap-&gt;ext.Video_*</code>, appended to the import table, and <code>CGAME_EVENT_VIDEO</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>How it fits together:</p>
+      <ul>
+        <li>The engine decodes, cgame draws. cgame calls <code>trap-&gt;ext.Video_Draw</code> at the end of
+        each frame, so the video covers the world, HUD and chat. The menus and the console still draw on
+        top.</li>
+        <li>The video runs on a wall clock. Each client frame shows the newest decoded picture that is due
+        and keeps about 0.2&nbsp;s of sound queued ahead. Sound is scheduled against that clock, not against
+        the mixer, so a muted or unfocused window can't make the decoder race ahead.</li>
+        <li>Every renderer's <code>DrawStretchRaw</code>, including the prebuilt Vulkan one, only accepts
+        power-of-two images. Rather than resample, each frame is copied into the corner of a black
+        power-of-two texture and the quad is stretched so the padding lands off the video's rectangle, on
+        the black background.</li>
+        <li>cgame only touches <code>trap-&gt;ext.Video_*</code> when <code>cl_video</code> is set, because
+        an older engine's import table ends before those entries.</li>
+        <li>Media Foundation's DLLs are loaded with <code>LoadLibrary</code>, not linked, so the client
+        still starts on Windows N editions; there <code>cl_video</code> is simply 0.</li>
+      </ul>
+    </section>
+
+    <section id="limits">
+      <h2>Known limits</h2>
+      <ul>
+        <li><strong>The server keeps running.</strong> Other players, monsters and projectiles carry on
+        while someone watches. Freezing and protecting the viewer is the server's job; without the server
+        side, a local <code>cutscene</code> is purely visual.</li>
+        <li><strong>Clients without this build see nothing.</strong> Stock clients ignore
+        <code>jof_video</code> and never reply.</li>
+        <li><strong>Pre-rendered only.</strong> There is no in-engine camera (SP-style ICARUS
+        <code>camera</code> commands are still stubs in MP). A cutscene cannot show the player's own model
+        or what is actually happening in the game.</li>
+        <li><strong>Only the level music is paused.</strong> Game sounds, and voice chat, carry on under
+        the video. Voice chat shares the raw sound buffer and may briefly stutter the video's audio.</li>
+        <li><strong>Upload cost.</strong> A 1080p frame pads to a 2048×2048 texture (16&nbsp;MB per frame);
+        720p pads to 2048×1024. Fine on current hardware, but 720p is the safer choice.</li>
+        <li><strong>No pause, no seeking, no subtitles.</strong> Burn subtitles into the video if you need
+        them.</li>
+        <li><strong><code>vid_restart</code> or a map change ends the video</strong> without telling the
+        server (see the protocol).</li>
+        <li><strong>The macOS/Linux decoder is compile-checked, not play-tested.</strong> It compiles
+        against FFmpeg 4.4 and 9.0 headers, but nobody has run it on a Mac or Linux box yet.</li>
+      </ul>
+    </section>
+
+    <section id="testing">
+      <h2>Testing notes</h2>
+      <ul>
+        <li>Tested on Windows 11 with both the OpenGL renderer and the Vulkan renderer: a 1920×1080
+        H.264/AAC stereo clip and a 1000×750 (4:3, odd height) H.264/AAC 5.1 clip. Both played in sync,
+        letterboxed/pillarboxed correctly, ended on their own, and the level music came back.</li>
+        <li><code>cutscene video/missing</code> reports the missing file and plays nothing.</li>
+        <li>Not yet tested: the server path (<code>jof_video</code> / <code>videodone</code>), because no
+        server sends it yet, and skipping by key, which needs someone at the keyboard.</li>
+        <li>Headless mode (<code>com_headless 1</code>) cannot load a map, so it cannot test this. Use a
+        real windowed client.</li>
+      </ul>
+    </section>
+
+    <footer>
+      Sol branch documentation · the feature commit itself carries no docs, so alpha and beta stay clean.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
