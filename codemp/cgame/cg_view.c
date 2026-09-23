@@ -24,6 +24,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // cg_view.c -- setup all the parameters (position, angle, etc)
 // for a 3D rendering
 #include "cg_local.h"
+#include "cg_video.h"
 #include "game/bg_saga.h"
 
 // force cost table, defined in bg_pmove.c (compiled into cgame)
@@ -3271,6 +3272,9 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 
 	// actually issue the rendering calls
 	CG_DrawActive( stereoView );
+
+	// a cutscene video covers everything cgame drew
+	CG_VideoDraw();
 
 	CG_DrawAutoMap();
 

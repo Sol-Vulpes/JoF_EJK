@@ -3060,6 +3060,7 @@ void CL_Frame ( int msec ) {
 
 	// advance local effects for next frame
 	SCR_RunCinematic();
+	CL_VideoFrame();
 
 	Con_RunConsole();
 
@@ -4019,6 +4020,7 @@ void CL_Init( void ) {
 
 	CL_InitInput ();
 	CL_VoiceInit();
+	CL_VideoInit();
 
 	CL_ConsoleSocket_Init ();
 
@@ -4297,6 +4299,7 @@ void CL_Shutdown( void ) {
 	CL_ShutdownAll( qtrue );
 
 	CL_ConsoleSocket_Shutdown();
+	CL_VideoShutdown();
 	CL_VoiceShutdown();
 	S_Shutdown();
 	//CL_ShutdownUI();

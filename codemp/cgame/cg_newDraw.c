@@ -23,6 +23,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include "cg_local.h"
 #include "cg_dialogue.h"
+#include "cg_video.h"
 #include "ui/ui_shared.h"
 
 extern displayContextDef_t cgDC;
@@ -829,6 +830,10 @@ type 0 - no event handling
 
 */
 void CG_EventHandling(int type) {
+	/* Escape drops KEYCATCH_CGAME and lands here: for a skippable video that means skip */
+	if ( type == CGAME_EVENT_NONE && cgs.eventHandling == CGAME_EVENT_VIDEO && CG_VideoIsActive() ) {
+		CG_VideoSkip();
+	}
 	if ( type == CGAME_EVENT_NONE && cgs.eventHandling == CGAME_EVENT_DIALOGUE && CG_DialogueIsActive() ) {
 		CG_DialogueCancel();
 	}
@@ -851,6 +856,12 @@ void CG_EventHandling(int type) {
 
 
 void CG_KeyEvent(int key, qboolean down) {
+
+	/* a skippable cutscene video owns the keyboard until it ends */
+	if ( CG_VideoIsActive() && cgs.eventHandling == CGAME_EVENT_VIDEO ) {
+		if ( down ) CG_VideoKeyEvent( key );
+		return;
+	}
 
 	/* wowchat focus overrides all other key handling (also intercepts key-up
 	   so we can detect mouse button release for drag termination) */
