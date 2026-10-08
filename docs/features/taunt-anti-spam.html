@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taunt anti-spam — JoF EternalJK</title>
+<style>
+  :root {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --step--1: clamp(0.80rem, 0.78rem + 0.1vw, 0.86rem);
+    --step-0:  clamp(1.00rem, 0.97rem + 0.15vw, 1.08rem);
+    --step-1:  clamp(1.20rem, 1.14rem + 0.3vw, 1.35rem);
+    --step-2:  clamp(1.50rem, 1.38rem + 0.6vw, 1.85rem);
+    --step-3:  clamp(2.10rem, 1.80rem + 1.5vw, 3.10rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #17140F;
+      --paper-sunk: #100E0A;
+      --card:       #201C16;
+      --ink:        #EFE9E0;
+      --ink-soft:   #C8BFB2;
+      --stone:      #948A7C;
+      --rule:       #362F26;
+      --ember:      #E1833E;
+      --ember-wash: #2A1D12;
+      --pine:       #6FB3A3;
+      --pine-wash:  #1A2A26;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #17140F;
+    --paper-sunk: #100E0A;
+    --card:       #201C16;
+    --ink:        #EFE9E0;
+    --ink-soft:   #C8BFB2;
+    --stone:      #948A7C;
+    --rule:       #362F26;
+    --ember:      #E1833E;
+    --ember-wash: #2A1D12;
+    --pine:       #6FB3A3;
+    --pine-wash:  #1A2A26;
+  }
+  :root[data-theme="light"] {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    max-width: 92rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+  }
+  @media (min-width: 62rem) {
+    .page {
+      grid-template-columns: 15rem minmax(0, 1fr);
+      padding: 4.5rem 3rem 8rem;
+      gap: 4.5rem;
+    }
+  }
+
+  /* ---- section rail ---- */
+  .rail { display: none; }
+  @media (min-width: 62rem) {
+    .rail {
+      display: block;
+      position: sticky;
+      top: 4.5rem;
+      align-self: start;
+      font-size: var(--step--1);
+    }
+  }
+  .rail__label {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.68rem;
+    color: var(--stone);
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 0.9rem;
+  }
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .rail a {
+    color: var(--stone);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    padding-left: 0.75rem;
+    display: block;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .rail a:hover,
+  .rail a:focus-visible { color: var(--ember); border-left-color: var(--ember); }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 1px solid var(--rule); padding-bottom: 2.5rem; margin-bottom: 3rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ember);
+    margin: 0 0 1.1rem;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-3);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-family: var(--display);
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0 0 2rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 2rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    margin: 0;
+  }
+  .meta div { display: flex; gap: 0.5rem; }
+  .meta dt { color: var(--stone); }
+  .meta dd { margin: 0; }
+  a { color: var(--ember); text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---- prose ---- */
+  main { min-width: 0; }
+  section { margin-bottom: 4rem; scroll-margin-top: 2rem; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-2);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 1.25rem;
+  }
+  h3 {
+    font-family: var(--body);
+    font-weight: 650;
+    font-size: var(--step-0);
+    margin: 0 0 0.5rem;
+  }
+  p, ul, ol { max-width: var(--measure); }
+  p { margin: 0 0 1.15rem; text-wrap: pretty; }
+  ul { padding-left: 1.1rem; margin: 0 0 1.15rem; }
+  li { margin-bottom: 0.5rem; }
+  li::marker { color: var(--stone); }
+  strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.08em 0.35em;
+    word-break: break-word;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.6;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--ember);
+    border-radius: 3px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1.15rem;
+    overflow-x: auto;
+  }
+  pre .c { color: var(--stone); }
+
+  /* ---- callouts ---- */
+  .keeps {
+    border-left: 2px solid var(--pine);
+    background: var(--pine-wash);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.5rem;
+    max-width: var(--measure);
+    border-radius: 0 3px 3px 0;
+  }
+  .keeps p { margin: 0; }
+  .keeps strong { color: var(--pine); }
+
+  /* ---- table ---- */
+  .table-wrap { overflow-x: auto; margin: 0 0 1.15rem; border: 1px solid var(--rule); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: var(--step--1); background: var(--card); }
+  th, td { text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    background: var(--paper-sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink-soft); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    max-width: var(--measure);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="rail" aria-label="Sections">
+    <div class="rail__label">On this page</div>
+    <ol>
+      <li><a href="#use">How to use</a></li>
+      <li><a href="#how">How the taunt hold works</a></li>
+      <li><a href="#where">Where it lives</a></li>
+      <li><a href="#limits">Known limits</a></li>
+      <li><a href="#testing">Testing notes</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="masthead">
+      <p class="eyebrow">JoF EternalJK · cgame + engine</p>
+      <h1>Taunt anti-spam</h1>
+      <p class="standfirst">
+        Model voice lines carry no rate limit of their own. A player holding a taunt bind can fire the
+        same line as fast as the server sends the event, and a player bobbing at a water surface gasps
+        on every frame their head clears it. This throttles those lines per player, on your screen
+        only, and holds a player's next taunt until the last one has finished playing.
+      </p>
+      <dl class="meta">
+        <div>
+          <dt>Commit</dt>
+          <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/86b0af485d80b569176454164228ecbb998e69fe"><code>86b0af4</code></a></dd>
+        </div>
+        <div>
+          <dt>Issue</dt>
+          <dd><a href="https://github.com/JediofFreedom/JoF_EJK/issues/311">#311</a></dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="keeps">
+      <p><code>cg_tauntAntiSpam</code> is <strong>archived and defaults to on</strong>. The taunt family
+      &mdash; taunt, flourish, gloat, bow, meditate &mdash; shares one timer, and <strong>a player's next
+      taunt waits for the last one to finish</strong>, however long that model's line is.</p>
+    </div>
+
+    <section id="use">
+      <h2>How to use</h2>
+      <pre>/cg_tauntAntiSpam 1    <span class="c">// default — throttle repeated voice lines per player</span>
+/cg_tauntAntiSpam 0    <span class="c">// every voice line plays</span></pre>
+      <p>Client-side, takes effect immediately, saved to the config. Also in
+      <strong>Setup → Sound → Taunt Anti-Spam</strong>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Line</th><th scope="col">How long it holds that player's next one back</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Taunt, flourish, gloat (and bow / meditate lines a server sends)</td><td>The length of the line that just played</td></tr>
+            <tr><td>Gasp</td><td>2 s</td></tr>
+            <tr><td>Jump, roll, landing grunts</td><td>1 s each, on separate timers</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Only the audio is suppressed &mdash; the taunt animation still plays.</p>
+    </section>
+
+    <section id="how">
+      <h2>How the taunt hold works</h2>
+      <p>Before, the taunt family used a fixed 2.5&nbsp;s timer. Lines vary a lot by model and by
+      variant (<code>taunt1</code>…<code>taunt3</code>, <code>gloat1</code>…<code>gloat3</code>, …), so a
+      short line still made the player wait out the full 2.5&nbsp;s, while a line longer than 2.5&nbsp;s
+      got cut off mid-sentence: the next taunt lands on the same player's <code>CHAN_VOICE</code>, and
+      the mixer always replaces a sound from the same entity on that channel.</p>
+      <p>Now, when a taunt-family line gets through, cgame asks the engine for the length of that exact
+      sample and holds the player's taunt timer for that long. It's the same length the mixer uses to
+      decide when the channel is done, so the next taunt is allowed the moment the last one stops.</p>
+      <p>The engine exposes the length through a new cgame import,
+      <code>trap-&gt;ext.S_GetSampleLengthMs</code>. It's appended to the end of the <code>ext</code>
+      block, and an older engine's import table simply ends before that slot &mdash; reading it there
+      would be reading past the table. So the engine also registers a read-only cvar,
+      <code>cl_soundLength 1</code>, and cgame calls the import only when that cvar is set. This is the
+      same guard <code>cl_video</code> provides for the video imports.</p>
+      <p>If the length can't be read &mdash; an older engine, no sound system (<code>s_initsound 0</code>),
+      or a missing file that registered as the placeholder sound &mdash; the taunt hold falls back to the
+      old 2.5&nbsp;s.</p>
+    </section>
+
+    <section id="where">
+      <h2>Where it lives</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">File</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>codemp/cgame/cg_event.c</td>
+              <td><code>CG_VoiceLineThrottled</code> keeps a start time and a hold time per player per line
+              class. <code>CG_SoundLengthMs</code> checks <code>cl_soundLength</code> before calling the
+              import. <code>CG_ClassifyVoiceLine</code> maps sound names sent through generic sound events
+              onto the same classes. The <code>EV_TAUNT</code>, <code>EV_TAUNT1</code>–<code>3</code>,
+              <code>EV_GENERAL_SOUND</code> and <code>EV_ENTITY_SOUND</code> paths resolve the sample
+              <em>before</em> the throttle check so it knows what's about to play.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_public.h</td>
+              <td><code>ext.S_GetSampleLengthMs</code>, at the end of the import table.</td>
+            </tr>
+            <tr>
+              <td>codemp/client/cl_cgameapi.cpp</td>
+              <td>Fills the import and registers <code>cl_soundLength</code> (<code>CVAR_ROM</code>) in
+              <code>CL_BindCGame</code>.</td>
+            </tr>
+            <tr>
+              <td>codemp/client/snd_dma.cpp</td>
+              <td><code>S_GetSampleLengthMs</code> &mdash; wraps stock
+              <code>S_GetSampleLengthInMilliSeconds</code>, returning 0 instead of its 512-second stand-in
+              when there's no sound system, and 0 for the placeholder sound.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_xcvar.h, codemp/ui/ui_xdocs.h</td>
+              <td>The cvar and its in-game help text.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limits">
+      <h2>Known limits</h2>
+      <ul>
+        <li><strong>Taunts only.</strong> Gasp, jump, roll and landing grunts keep their fixed timers.
+        Those were already sized to roughly the stock line, and they fire during ordinary movement, so
+        they weren't part of this change.</li>
+        <li><strong>The hold counts game time, the line plays in real time.</strong> At normal speed the
+        two match. With a server <code>timescale</code> below 1, the hold outlasts the line; above 1, it
+        ends early and the next taunt can cut the last one off &mdash; the same as before this change.</li>
+        <li><strong>A line cut short still holds for its full length.</strong> If a player dies or takes a
+        pain sound mid-taunt, <code>CHAN_VOICE</code> is taken over, but their taunt timer keeps running
+        until the original line would have ended. Taunts are short, so this was left alone.</li>
+        <li><strong>Needs the matching engine.</strong> A new cgame on an old engine falls back to
+        2.5&nbsp;s. The cgame and engine must come from the same branch: <code>beta</code> has no video
+        imports, so on <code>beta</code> this import sits at a different position than on
+        <code>alpha</code> / <code>🦊Sol</code>.</li>
+        <li><strong>Players only.</strong> NPCs (entity numbers above <code>MAX_CLIENTS</code>) aren't
+        throttled &mdash; they have their own cooldowns.</li>
+        <li><strong>Your view only.</strong> Other players without this client still hear the spam.</li>
+      </ul>
+    </section>
+
+    <section id="testing">
+      <h2>Testing notes</h2>
+      <p>Needs both the new engine and the new cgame. Two clients, or a client plus a bot on a listen
+      server:</p>
+      <ul>
+        <li><code>cl_soundLength</code> in the console &mdash; should print <code>1</code>.</li>
+        <li>Hammer a taunt bind (<code>taunt</code>, <code>flourish</code>, <code>gloat</code>) on the other
+        client. Each line should play to the end, and the next one should start right after &mdash; never
+        cut off and no long dead gap.</li>
+        <li>Try a model with long taunt lines &mdash; they should no longer be cut off at 2.5&nbsp;s.</li>
+        <li><code>cg_tauntAntiSpam 0</code> &mdash; lines cut each other off again.</li>
+        <li>With <code>sv_cheats 1</code>, <code>s_show 1</code> prints <code>...overrides &lt;sound&gt;</code>
+        whenever a sound replaces another on the same channel (default mixer only, not
+        <code>s_UseOpenAL 1</code>). With the cvar on, taunts should never show up there.</li>
+      </ul>
+    </section>
+
+    <footer>
+      Sol branch documentation · the feature commit itself carries no docs, so alpha and beta stay clean.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
