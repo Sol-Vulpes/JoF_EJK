@@ -94,6 +94,12 @@ static void (*captureFunc) (void *p) = NULL;
 static void *captureData = NULL;
 static itemDef_t *itemCapture = NULL;   // item that has the mouse captured ( if any )
 
+static void Item_ClearCapture(void) {
+	itemCapture = NULL;
+	captureFunc = NULL;
+	captureData = NULL;
+}
+
 displayContextDef_t *DC = NULL;
 
 static qboolean g_waitingForKey = qfalse;
@@ -1489,6 +1495,9 @@ void Menus_CloseByName ( const char *p )
 	}
 
 	Menu_ClearHoverState(menu);
+	if (itemCapture && itemCapture->parent == menu) {
+		Item_ClearCapture();
+	}
 
 	// Run the close script for the menu
 	Menu_RunCloseScript(menu);
@@ -1522,6 +1531,7 @@ void Menus_CloseAll()
 {
 	int i;
 
+	Item_ClearCapture();
 	g_waitingForKey = qfalse;
 
 	for (i = 0; i < menuCount; i++)
@@ -4046,7 +4056,9 @@ void Item_StartCapture(itemDef_t *item, int key)
 }
 
 void Item_StopCapture(itemDef_t *item) {
-
+	if (itemCapture == item) {
+		Item_ClearCapture();
+	}
 }
 
 qboolean Item_Slider_HandleKey(itemDef_t *item, int key, qboolean down) {
@@ -4093,9 +4105,6 @@ qboolean Item_Slider_HandleKey(itemDef_t *item, int key, qboolean down) {
 qboolean Item_HandleKey(itemDef_t *item, int key, qboolean down) {
 	if (itemCapture) {
 		Item_StopCapture(itemCapture);
-		itemCapture = NULL;
-		captureFunc = 0;
-		captureData = NULL;
 	} else {
 		if ( down && ( key == A_MOUSE1 || key == A_MOUSE2 || key == A_MOUSE3 ) ) {
 			Item_StartCapture(item, key);
@@ -4276,6 +4285,7 @@ static void Display_CloseCinematics() {
 }
 
 void  Menus_Activate(menuDef_t *menu) {
+	Item_ClearCapture();
 	menu->window.flags |= (WINDOW_HASFOCUS | WINDOW_VISIBLE);
 	if (menu->onOpen) {
 		itemDef_t item;
@@ -4339,6 +4349,13 @@ void Menus_HandleOOBClick(menuDef_t *menu, int key, qboolean down) {
 void Menu_HandleKey(menuDef_t *menu, int key, qboolean down) {
 	int i;
 	itemDef_t *item = NULL;
+
+	// End a drag before focus, visibility or disabled-item checks can swallow
+	// the release. Mouse movement is suppressed for as long as capture exists.
+	if (itemCapture) {
+		Item_ClearCapture();
+		Menu_HandleMouseMove(menu, DC->cursorx, DC->cursory);
+	}
 
 	if (g_waitingForKey && down) {
 		Item_Bind_HandleKey(g_bindItem, key, down);
@@ -9900,6 +9917,7 @@ void Menu_PaintAll() {
 }
 
 void Menu_Reset(void) {
+	Item_ClearCapture();
 	menuCount = 0;
 }
 
