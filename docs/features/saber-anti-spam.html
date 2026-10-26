@@ -305,6 +305,10 @@
           <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/5c2c7c0799b22a589757c651bbf44a54148a9df5"><code>5c2c7c0</code></a></dd>
         </div>
         <div>
+          <dt>Fix</dt>
+          <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/e244d5a36e5931a3e725bf9073977fead3127d31"><code>e244d5a</code></a> (review on <a href="https://github.com/JediofFreedom/JoF_EJK/pull/401">#401</a>)</dd>
+        </div>
+        <div>
           <dt>Replaces</dt>
           <dd><a href="https://github.com/JediofFreedom/JoF_EJK/pull/74">PR #74</a> (closed)</dd>
         </div>
@@ -364,7 +368,7 @@
               <td>codemp/cgame/cg_event.c</td>
               <td><code>CG_SaberToggleThrottled</code> keeps a GCRA budget per player
               (<code>SABER_TOGGLE_BURST</code> 4, <code>SABER_TOGGLE_INTERVAL</code> 500&nbsp;ms) and repeats
-              its answer for the rest of a frame. <code>CG_SaberToggleSoundThrottled</code> finds the owner of
+              its answer for the rest of a snapshot. <code>CG_SaberToggleSoundThrottled</code> finds the owner of
               a <code>G_Sound</code> toggle &mdash; the nearest player within 64 units whose hilt (or, for a
               forced hilt, the server's) plays that sound. Checked in <code>EV_GENERAL_SOUND</code> and
               <code>EV_SABER_UNHOLSTER</code>.</td>
@@ -372,7 +376,8 @@
             <tr>
               <td>codemp/cgame/cg_players.c</td>
               <td>The weapon switch path for other players (<code>CG_Player</code>), and the JA+ staff
-              put-away shutdown.</td>
+              put-away shutdown. The switch-away paths only ask the budget when a hilt would really
+              sound, so a staff shutdown already heard on the back is not paid for twice.</td>
             </tr>
             <tr>
               <td>codemp/cgame/cg_weapons.c</td>
@@ -397,9 +402,9 @@
       <ul>
         <li><strong>The numbers are fixed.</strong> Four and 500&nbsp;ms, no cvar for either. Easy to
         change in <code>cg_event.c</code> if testing says otherwise.</li>
-        <li><strong>A toggle's sounds must land in one frame.</strong> They do &mdash; both hilts come in
-        the same snapshot, or the same weapon switch. If a lagging client takes several snapshots in one
-        frame, those toggles share one answer, so a little more gets through, never less.</li>
+        <li><strong>One toggle = one snapshot.</strong> Both hilts of a toggle come in the same snapshot
+        and share one answer. Several snapshots run in one frame (a lagging client catching up) each pay
+        for their own toggle. Toggles the server sends twice in one snapshot count as one.</li>
         <li><strong>Owner by position.</strong> <code>G_Sound</code> names no owner. Two players standing
         within a few units with the same hilt can be confused, and the cap then lands on the nearer
         one.</li>
@@ -410,7 +415,14 @@
 
     <section id="testing">
       <h2>Testing notes</h2>
-      <p>Two clients, or a client plus a second instance on a listen server:</p>
+      <p><code>tests/saber-anti-spam</code> compiles the real budget and
+      <code>CG_CheckPlayerG2Weapons</code> and checks the burst and interval, both hilts of one toggle, a
+      backlog of snapshots in one frame, a staff's late shutdown copy, players kept apart, NPCs and the
+      cvar, and time going back:</p>
+      <pre>cmake -S tests/saber-anti-spam -B build/saber-anti-spam-check
+cmake --build build/saber-anti-spam-check --config Release
+ctest --test-dir build/saber-anti-spam-check -C Release --output-on-failure</pre>
+      <p>In game, two clients, or a client plus a second instance on a listen server:</p>
       <ul>
         <li>On the other client, with the saber out, mash the saber key (pressing it again toggles the
         blade) next to you: four sounds, then about two a second.</li>

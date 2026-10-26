@@ -11,6 +11,7 @@ budget refills at that pace. Quick toggling by hand is never cut.
 The cvar is **archived and defaults to on**.
 
 - Commit: [`5c2c7c0`](https://github.com/Sol-Vulpes/JoF_EJK/commit/5c2c7c0799b22a589757c651bbf44a54148a9df5) — saber on/off spam held to a burst, then one toggle every half second
+- Fix: [`e244d5a`](https://github.com/Sol-Vulpes/JoF_EJK/commit/e244d5a36e5931a3e725bf9073977fead3127d31) — toggles counted per snapshot; a staff shutdown already heard is not charged (review on [#401](https://github.com/JediofFreedom/JoF_EJK/pull/401))
 - Replaces the March fix, [PR #74](https://github.com/JediofFreedom/JoF_EJK/pull/74) (closed)
 - Same doc as a rendered page: [`saber-anti-spam.html`](saber-anti-spam.html) (open it locally — GitHub shows HTML as source)
 
@@ -48,8 +49,8 @@ not at all.
 
 | File | What it does |
 |---|---|
-| `codemp/cgame/cg_event.c` | `CG_SaberToggleThrottled` keeps a GCRA budget per player (`SABER_TOGGLE_BURST` 4, `SABER_TOGGLE_INTERVAL` 500 ms) and repeats its answer for the rest of a frame. `CG_SaberToggleSoundThrottled` finds the owner of a `G_Sound` toggle — the nearest player within 64 units whose hilt (or, for a forced hilt, the server's) plays that sound. Checked in `EV_GENERAL_SOUND` and `EV_SABER_UNHOLSTER`. |
-| `codemp/cgame/cg_players.c` | The weapon switch path for other players (`CG_Player`), and the JA+ staff put-away shutdown. |
+| `codemp/cgame/cg_event.c` | `CG_SaberToggleThrottled` keeps a GCRA budget per player (`SABER_TOGGLE_BURST` 4, `SABER_TOGGLE_INTERVAL` 500 ms) and repeats its answer for the rest of a snapshot. `CG_SaberToggleSoundThrottled` finds the owner of a `G_Sound` toggle — the nearest player within 64 units whose hilt (or, for a forced hilt, the server's) plays that sound. Checked in `EV_GENERAL_SOUND` and `EV_SABER_UNHOLSTER`. |
+| `codemp/cgame/cg_players.c` | The weapon switch path for other players (`CG_Player`), and the JA+ staff put-away shutdown. The switch-away paths only ask the budget when a hilt would really sound, so a staff shutdown already heard on the back is not paid for twice. |
 | `codemp/cgame/cg_weapons.c` | The weapon switch path for the local view (`CG_CheckPlayerG2Weapons`). |
 | `codemp/cgame/cg_xcvar.h`, `codemp/ui/ui_xcvar.h`, `codemp/ui/ui_xdocs.h` | The cvar and its in-game help text. |
 | `assets/japro/ui/jamp/setup.menu`, `ingame_setup.menu` | The Saber Anti-Spam row under Taunt Anti-Spam. On `🦊Sol` the in-game Text, Voice and Set Language controls move down a row for it. |
@@ -58,9 +59,9 @@ not at all.
 
 - **The numbers are fixed.** Four and 500 ms, no cvar for either. Easy to change in `cg_event.c` if
   testing says otherwise.
-- **A toggle's sounds must land in one frame.** They do — both hilts come in the same snapshot, or
-  the same weapon switch. If a lagging client takes several snapshots in one frame, those toggles
-  share one answer, so a little more gets through, never less.
+- **One toggle = one snapshot.** Both hilts of a toggle come in the same snapshot and share one
+  answer. Several snapshots run in one frame (a lagging client catching up) each pay for their
+  own toggle. Toggles the server sends twice in one snapshot count as one.
 - **Owner by position.** `G_Sound` names no owner. Two players standing within a few units with the
   same hilt can be confused, and the cap then lands on the nearer one.
 - **Players only.** NPCs aren't capped — no one binds their toggles.
@@ -68,7 +69,17 @@ not at all.
 
 ## Testing notes
 
-Two clients, or a client plus a second instance on a listen server:
+`tests/saber-anti-spam` compiles the real budget and `CG_CheckPlayerG2Weapons` and checks the burst
+and interval, both hilts of one toggle, a backlog of snapshots in one frame, a staff's late shutdown
+copy, players kept apart, NPCs and the cvar, and time going back:
+
+```
+cmake -S tests/saber-anti-spam -B build/saber-anti-spam-check
+cmake --build build/saber-anti-spam-check --config Release
+ctest --test-dir build/saber-anti-spam-check -C Release --output-on-failure
+```
+
+In game, two clients, or a client plus a second instance on a listen server:
 
 1. On the other client, with the saber out, mash the saber key (pressing it again toggles the
    blade) next to you: four sounds, then about two a second.
