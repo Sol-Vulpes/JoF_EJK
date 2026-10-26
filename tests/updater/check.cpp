@@ -173,6 +173,19 @@ static void CheckManifests( const std::string &repo, const std::string &python )
 	std::string error;
 	require( Update_ParseManifest( manifest, &release, &error ), "the release script's manifest parses: " + error );
 	require( release.tag == "1.6.2-beta.4" && release.version.kind == RELEASE_BETA && release.files.size() == files.size(), "it lists every file" );
+	auto since = []( const updateRelease_t &r, const std::string &path, const char *tag ) {
+		releaseVersion_t v;
+		require( Update_ParseTag( tag, &v ), "tags parse" );
+		for ( const updateFile_t &file : r.files ) {
+			if ( file.path == path )
+				return file.haveSince && !Update_IsNewer( file.since, v ) && !Update_IsNewer( v, file.since );
+		}
+		return false;
+	};
+	bool allNew = true;
+	for ( const auto &file : files )
+		allNew = allNew && since( release, file.first, "1.6.2-beta.4" );
+	require( allNew, "with no earlier manifests, every file is shipped since this release" );
 
 	auto refusesIn = []( const std::string &text, const std::string &from, const std::string &to, const std::string &what ) {
 		std::string changed = text;
@@ -194,6 +207,12 @@ static void CheckManifests( const std::string &repo, const std::string &python )
 	refuses( "\"path\": \"base/JoF_Test.pk3\"", "\"path\": \"empty.dll\"", "a file listed twice is refused" );
 	refuses( "\"format\": 1", "\"format\": 2", "a newer manifest format is refused" );
 	refuses( "\"name\": \"JoF-update-", "\"name\": \"../JoF-update-", "an archive name with a path is refused" );
+	refuses( "\"since\": \"1.6.2-beta.4\"", "\"since\": \"1.6.2-beta.5\"", "a file shipped since a later release is refused" );
+	refuses( "\"since\": \"1.6.2-beta.4\"", "\"since\": \"1.6.2-alpha.1\"", "a file shipped since an alpha build is refused" );
+	refuses( "\"since\": \"1.6.2-beta.4\"", "\"since\": 4", "a since that is not a tag is refused" );
+	std::string older = manifest;
+	older.replace( older.find( "\"since\": \"1.6.2-beta.4\"" ), 23, "\"since\": \"1.6.1\"" );
+	require( Update_ParseManifest( older, &release, &error ), "a file shipped since an earlier stable release parses: " + error );
 
 	// The release script's zip, through the client's reader.
 	const std::wstring archive = out + L"\\" + Update_Widen( release.archive );
@@ -215,12 +234,20 @@ static void CheckManifests( const std::string &repo, const std::string &python )
 	}
 	CloseHandle( zip );
 
-	// A release that drops nothing has an empty remove list, and one without any parses.
+	// A release that drops nothing has an empty remove list, and one without any
+	// parses, as does one made before files said since when.
 	std::string bare = manifest;
-	const std::string emptyRemove = ",\n  \"remove\": []";
+	const std::string emptyRemove = ",\n  \"remove\": []", sinceField = ",\n      \"since\": \"1.6.2-beta.4\"";
 	require( bare.find( emptyRemove ) != std::string::npos, "a release that drops nothing has an empty remove list" );
 	bare.erase( bare.find( emptyRemove ), emptyRemove.size() );
-	require( Update_ParseManifest( bare, &release, &error ) && release.remove.empty(), "a manifest without a remove list parses: " + error );
+	for ( size_t at; ( at = bare.find( sinceField ) ) != std::string::npos; )
+		bare.erase( at, sinceField.size() );
+	require( Update_ParseManifest( bare, &release, &error ) && release.remove.empty() && release.files.size() == files.size(),
+		"a manifest without a remove list or since releases parses: " + error );
+	bool noneSince = true;
+	for ( const updateFile_t &file : release.files )
+		noneSince = noneSince && !file.haveSince;
+	require( noneSince, "and says since when for none of its files" );
 
 	// The next release no longer ships the EternalJK pk3, and a pk3 from before
 	// manifests is retired: its manifest removes both, with the versions shipped.
@@ -250,6 +277,44 @@ static void CheckManifests( const std::string &repo, const std::string &python )
 	};
 	require( nextRelease.remove.size() == 2 && removes( nextRelease, pk3, &shipped ) && removes( nextRelease, "base/JoF_Old.pk3", &retired ),
 		"it removes the dropped pk3 and the retired one, each with the version shipped, and nothing it still ships" );
+	require( since( nextRelease, "eternaljk.x86_64.exe", "1.6.2-beta.4" ) && since( nextRelease, "base/JoF_Test.pk3", "1.6.2-beta.4" ),
+		"it ships the files it kept since the release before" );
+
+	// Unpacked over beta 4 without its base/ pk3, which the player left out: the
+	// update leaves it out too and stages the rest. It goes in where it is there,
+	// and for a player whose release came before it.
+	const std::wstring nextArchive = nextOut + L"\\" + Update_Widen( nextRelease.archive );
+	const std::wstring installed = work + L"\\installed", pending = work + L"\\pending";
+	WriteAll( installed + L"\\eternaljk.x86_64.exe", "beta 4's program" );
+	auto unpack = [&]( const char *installedTag, std::vector<std::string> *leftOut ) {
+		updateSettings_t s;
+		s.installed = installedTag;
+		s.dir = installed;
+		Update_RemoveTree( pending );
+		Update_MakeDirs( pending );
+		int staged = 0;
+		std::vector<std::string> kept;
+		std::string e;
+		updatePending_t list;
+		leftOut->clear();
+		require( Update_Unpack( s, nextRelease, nextArchive, pending, &staged, &kept, leftOut, &e ) && staged > 0
+			&& Update_ReadPending( pending + L"\\ready.txt", &list ), std::string( "the next release stages over " ) + installedTag + ": " + e );
+		return list.files;
+	};
+	auto stages = []( const std::vector<std::string> &list, const std::string &path ) {
+		return std::find( list.begin(), list.end(), path ) != list.end();
+	};
+	std::vector<std::string> leftOut, staged = unpack( "1.6.2-beta.4", &leftOut );
+	require( leftOut == std::vector<std::string>( { "base/JoF_Test.pk3" } ) && !stages( staged, "base/JoF_Test.pk3" ),
+		"a base/ pk3 the player's release had and they do not have is left out" );
+	require( staged.size() == 3 && stages( staged, "eternaljk.x86_64.exe" ) && stages( staged, "empty.dll" ) && stages( staged, "rd-test_x86_64.dll" ),
+		"while the program goes in, and the libraries they do not have" );
+	staged = unpack( "1.6.2-beta.3", &leftOut );
+	require( leftOut.empty() && staged.size() == 4 && stages( staged, "base/JoF_Test.pk3" ), "for a player on an earlier release it is new, so it goes in" );
+	WriteAll( installed + L"\\base\\JoF_Test.pk3", "beta 4's pk3" );
+	staged = unpack( "1.6.2-beta.4", &leftOut );
+	require( leftOut.empty() && staged.size() == 4 && stages( staged, "base/JoF_Test.pk3" ), "one the player has is updated" );
+	Update_RemoveTree( pending );
 
 	// Later releases keep removing them from the remove list alone, for a player
 	// who skipped beta 5, until a release ships the file again.
@@ -259,9 +324,12 @@ static void CheckManifests( const std::string &repo, const std::string &python )
 	require( packageAs( next, "1.6.2-beta.6", laterOut, "--previous \"" + Update_Narrow( onlyNext ) + "\"" ) == 0
 		&& Update_ParseManifest( ReadAll( laterOut + L"\\" + Update_Widen( UPDATE_MANIFEST ) ), &later, &error )
 		&& later.remove.size() == 2 && removes( later, pk3, &shipped ), "an earlier release's remove list carries over: " + error );
+	require( since( later, "base/JoF_Test.pk3", "1.6.2-beta.4" ), "and so does its since, past the releases given" );
 	require( packageAs( gamedata, "1.6.2-beta.7", laterOut, "--previous \"" + Update_Narrow( onlyNext ) + "\"" ) == 0
 		&& Update_ParseManifest( ReadAll( laterOut + L"\\" + Update_Widen( UPDATE_MANIFEST ) ), &later, &error )
 		&& later.remove.size() == 1 && !removes( later, pk3, NULL ), "a file shipped again is not removed: " + error );
+	require( since( later, pk3, "1.6.2-beta.7" ) && since( later, "base/JoF_Test.pk3", "1.6.2-beta.4" ),
+		"it counts as shipped since it came back, the others since before" );
 	WriteAll( work + L"\\retired-retail.json", retiredJSON( "base/assets0.pk3", retired ) );
 	require( packageAs( next, "1.6.2-beta.5", work + L"\\out-retail", "--retired \"" + Update_Narrow( work + L"\\retired-retail.json" ) + "\"" ) != 0,
 		"make_update_package.py refuses to remove a retail file" );
@@ -331,6 +399,29 @@ static void CheckRemovals( void ) {
 	WriteAll( dir + L"\\base\\shipped.pk3", "edited! v2" );
 	require( Update_Swap( dir, noStaging, {}, remove, Journal( L"changed" ), &moved, &error ) && moved == 0
 		&& ReadAll( dir + L"\\base\\shipped.pk3" ) == "edited! v2", "a file changed since the check is left alone" );
+}
+
+static void CheckLeftOut( void ) {
+	// Only a base/ pk3 the installed release had, missing here, stays out.
+	const std::wstring dir = work + L"\\leftout";
+	WriteAll( dir + L"\\base\\JoF_Here.pk3", "here" );
+	releaseVersion_t installed;
+	require( Update_ParseTag( "1.6.1-beta.122", &installed ), "tags parse" );
+	auto leftOut = [&]( const char *path, const char *since ) {
+		updateFile_t file;
+		file.path = path;
+		file.haveSince = since != NULL;
+		require( !since || Update_ParseTag( since, &file.since ), "tags parse" );
+		return Update_LeftOut( dir, file, installed );
+	};
+	require( leftOut( "base/JoF_Animations.pk3", "1.6.1-beta.100" ) && leftOut( "base/JoF_Animations.pk3", "1.6.1-beta.122" ),
+		"a base/ pk3 shipped since the installed release or before, not here, is left out" );
+	require( leftOut( "base/JoF_Animations.pk3", "1.6.1" ), "also since the stable release under it" );
+	require( !leftOut( "base/JoF_Here.pk3", "1.6.1-beta.100" ), "one that is here is not" );
+	require( !leftOut( "base/JoF_New.pk3", "1.6.1-beta.123" ) && !leftOut( "base/JoF_New.pk3", "1.6.2" ), "nor one new since the installed release" );
+	require( !leftOut( "base/JoF_Animations.pk3", NULL ), "nor one in a manifest that does not say since when" );
+	require( !leftOut( "EternalJK/jofclient-assets.pk3", "1.6.1-beta.100" ) && !leftOut( "eternaljk.x86_64.exe", "1.6.1-beta.100" )
+		&& !leftOut( "rd-vulkan_x86_64.dll", "1.6.1-beta.100" ), "nor the client's own pk3s, programs and libraries" );
 }
 
 static void CheckSwap( void ) {
@@ -554,6 +645,7 @@ int main( int argc, char **argv ) {
 	CheckPaths();
 	CheckManifests( argv[1], argv[2] );
 	CheckRemovals();
+	CheckLeftOut();
 	CheckPending();
 	CheckSwap();
 
