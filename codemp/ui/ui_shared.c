@@ -3558,6 +3558,28 @@ void Leaving_EditField(itemDef_t *item)
 	}
 }
 
+// Starts editing an edit field as a click on it would, with the cursor after its text: for
+// a menu that opens ready to type in (the SJK chat menu).
+void Item_TextField_Begin( itemDef_t *item )
+{
+	char buff[2048];
+	editFieldDef_t *editPtr;
+	int len;
+
+	if ( !item || item->type != ITEM_TYPE_EDITFIELD || !item->cvar || !item->typeData.edit )
+		return;
+	editPtr = item->typeData.edit;
+	buff[0] = 0;
+	DC->getCVarString( item->cvar, buff, sizeof( buff ) );
+	len = (int)strlen( buff );
+	if ( editPtr->maxChars && len > editPtr->maxChars )
+		len = editPtr->maxChars;
+	item->cursorPos = len;
+	editPtr->paintOffset = editPtr->maxPaintChars && len > editPtr->maxPaintChars ? len - editPtr->maxPaintChars : 0;
+	g_editingField = qtrue;
+	g_editItem = item;
+}
+
 #ifdef UI_BUILD
 qboolean Item_TextField_HandleKey( itemDef_t *item, int key );
 void Item_TextField_Paste( itemDef_t *item ) {
@@ -4988,8 +5010,35 @@ void Item_Multi_Paint(itemDef_t *item) {
 
 	Item_TextColor(item, &color);
 	if (item->text) {
-		Item_Text_Paint(item);
-		DC->drawText(item->textRect.x + item->textRect.w + 8, item->textRect.y, item->textscale, color, text, 0, 0, item->textStyle,item->iMenuFont);
+		if (item->textalignment == ITEM_ALIGN_CENTER) {
+			const char *label = item->text;
+			char labelTemp[MAX_STRING_CHARS];
+			float x = item->textalignx;
+			float y = item->textaligny;
+			int labelWidth;
+			int valueWidth;
+
+			if (*label == '@') {
+				trap->SE_GetStringTextString(&label[1], labelTemp, sizeof(labelTemp));
+				label = labelTemp;
+			}
+
+			labelWidth = DC->textWidth(label, item->textscale, item->iMenuFont);
+			valueWidth = DC->textWidth(text, item->textscale, item->iMenuFont);
+			ToWindowCoords(&x, &y, &item->window);
+			x -= (labelWidth + 8 + valueWidth) / 2.0f;
+
+			item->textRect.x = x;
+			item->textRect.y = y;
+			item->textRect.w = labelWidth;
+			item->textRect.h = DC->textHeight(label, item->textscale, item->iMenuFont);
+
+			DC->drawText(x, y, item->textscale, color, label, 0, 0, item->textStyle, item->iMenuFont);
+			DC->drawText(x + labelWidth + 8, y, item->textscale, color, text, 0, 0, item->textStyle, item->iMenuFont);
+		} else {
+			Item_Text_Paint(item);
+			DC->drawText(item->textRect.x + item->textRect.w + 8, item->textRect.y, item->textscale, color, text, 0, 0, item->textStyle,item->iMenuFont);
+		}
 	} else {
 		//JLF added xoffset
 		DC->drawText(item->textRect.x+item->xoffset, item->textRect.y, item->textscale, color, text, 0, 0, item->textStyle,item->iMenuFont);
@@ -5084,6 +5133,7 @@ static const char *g_bindCommands[] = {
 	"engage_gunduel",
 	"force_dash",
 	"force_repulse",
+	"force_destruction",
 	"amTeleMark", //teleport marker
 	"amTele", //teleport to marker
 	"noclip",
@@ -5891,9 +5941,6 @@ void Item_ListBox_Paint(itemDef_t *item) {
 			// draw scrollbar to right side of the window
 			x = item->window.rect.x + item->window.rect.w - SCROLLBAR_SIZE - 1;
 
-			if ( (int)item->special == FEEDER_Q3HEADS )
-				x -= 2;
-
 			y = item->window.rect.y + 1;
 			DC->drawHandlePic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowUp);
 			y += SCROLLBAR_SIZE - 1;
@@ -5919,12 +5966,13 @@ void Item_ListBox_Paint(itemDef_t *item) {
 			//x = item->window.rect.x + item->window.rect.w - SCROLLBAR_SIZE - 1;
 			x = item->window.rect.x + item->window.rect.w - SCROLLBAR_SIZE - (1 * DC->widthRatioCoef);
 
-			if ( (int)item->special == FEEDER_Q3HEADS )
-				x -= 2;
-
 			if (xOffset < 0.0f)
 				xOffset *= -1.0f;
 			x += xOffset;
+
+			// Keep the Profile scrollbar against the border when aspect correction narrows it.
+			if ( (int)item->special == FEEDER_Q3HEADS )
+				x = item->window.rect.x + item->window.rect.w - width - (1 * DC->widthRatioCoef);
 
 			y = item->window.rect.y + 1;
 			DC->drawHandlePic(x, y, width, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowUp);
@@ -6109,7 +6157,8 @@ void Item_ListBox_Paint(itemDef_t *item) {
 							textyOffset = 0;
 //							DC->drawText(x + 4 + listPtr->columnInfo[j].pos, y + listPtr->elementHeight, item->textscale, item->window.foreColor, text, 0, listPtr->columnInfo[j].maxChars, item->textStyle);
 	//WAS LAST						DC->drawText(x + 4 + listPtr->columnInfo[j].pos, y, item->textscale, item->window.foreColor, text, 0, listPtr->columnInfo[j].maxChars, item->textStyle, item->iMenuFont);
-							DC->drawText(x + 4 + listPtr->columnInfo[j].pos, y + listPtr->elementHeight+ textyOffset + item->textaligny, item->textscale, item->window.foreColor, text, 0,listPtr->columnInfo[j].maxChars, item->textStyle, item->iMenuFont);
+							if ( !DC->feederItemPaint || !DC->feederItemPaint( item->special, i, j, x + 4 + listPtr->columnInfo[j].pos, y + listPtr->elementHeight + textyOffset + item->textaligny, item->textscale, item->window.foreColor, item->textStyle, item->iMenuFont ) )
+								DC->drawText(x + 4 + listPtr->columnInfo[j].pos, y + listPtr->elementHeight+ textyOffset + item->textaligny, item->textscale, item->window.foreColor, text, 0,listPtr->columnInfo[j].maxChars, item->textStyle, item->iMenuFont);
 
 
 //JLF END
@@ -6143,19 +6192,29 @@ void Item_ListBox_Paint(itemDef_t *item) {
 					else if (text)
 					{
 						float textScale = item->textscale;
+						float textY = y + item->textaligny;
 
 						if ( ((int)item->special == FEEDER_COSMETIC_HATS || (int)item->special == FEEDER_COSMETIC_CAPES)
 							&& !Q_stricmpn( text, "^3Get ", 6 ) )
 							textScale *= 0.78f;
 //						DC->drawText(x + 4, y + listPtr->elementHeight, item->textscale, item->window.foreColor, text, 0, 0, item->textStyle);
-						DC->drawText(x + 4, y + item->textaligny, textScale, item->window.foreColor, text, 0, 0, item->textStyle, item->iMenuFont);
+						if ((int)item->special == FEEDER_PLAYER_SPECIES_BROWSER)
+						{
+							// Center the font line, then apply the menu's visible-glyph correction.
+							const float rowY = y + listPtr->elementHeight + 2;
+							const float textHeight = DC->textHeight(text, textScale, item->iMenuFont);
+							textY = rowY + (listPtr->elementHeight - textHeight) * 0.5f + item->textaligny;
+						}
+						DC->drawText(x + 4, textY, textScale, item->window.foreColor, text, 0, 0, item->textStyle, item->iMenuFont);
 					}
 				}
 
 				if (i == item->cursorPos) {
 					DC->fillRect(x + 2, y + listPtr->elementHeight + 2, item->window.rect.w - SCROLLBAR_SIZE - 4, listPtr->elementHeight, item->window.outlineColor);
 				} else if (i == listPtr->cursorPos && (item->window.flags & WINDOW_HASFOCUS) && (item->window.flags & WINDOW_MOUSEOVER)) {
-					DC->drawRect(x, y, listPtr->elementWidth-1, listPtr->elementHeight-1, item->window.borderSize, hoverColor);
+					const float hoverY = (int)item->special == FEEDER_PLAYER_SPECIES_BROWSER
+						? y + listPtr->elementHeight + 2 : y;
+					DC->drawRect(x, hoverY, listPtr->elementWidth-1, listPtr->elementHeight-1, item->window.borderSize, hoverColor);
 				}
 
 				sizeHeight -= listPtr->elementHeight;
@@ -8427,8 +8486,59 @@ qboolean ItemParse_cvarFloat( itemDef_t *item, int handle ) {
 }
 
 #ifdef UI_BUILD
-char currLanguage[32][128];
-static const char languageString[32] = "@MENUS_MYLANGUAGE";
+static const char *UI_LanguageDisplayName(const char *language)
+{
+	// Keep the language choices readable with fonts that lack accented glyphs.
+	if (!Q_stricmp(language, "english"))
+		return "English";
+	if (!Q_stricmp(language, "russian"))
+		return "Russian";
+	if (!Q_stricmp(language, "french"))
+		return "Francais";
+	if (!Q_stricmp(language, "german"))
+		return "Deutsch";
+	if (!Q_stricmp(language, "spanish"))
+		return "Espanol";
+	return language;
+}
+
+// Fixed order for the Text language selector. The engine reports languages in
+// whatever order it finds their strings folders, which depends on pk3 load
+// order, so known languages are put in this order and any others follow in
+// the order they were found.
+static int UI_LanguageSortRank(const char *language)
+{
+	static const char *languageOrder[] = { "english", "russian", "french", "german", "spanish" };
+	int i;
+
+	for (i = 0; i < (int)ARRAY_LEN(languageOrder); i++)
+	{
+		if (!Q_stricmp(language, languageOrder[i]))
+			return i;
+	}
+	return (int)ARRAY_LEN(languageOrder);
+}
+
+static void UI_SortLanguageOptions(multiDef_t *multiPtr)
+{
+	int i, j;
+
+	// Stable insertion sort so unknown languages keep their discovery order.
+	for (i = 1; i < multiPtr->count; i++)
+	{
+		const char *label = multiPtr->cvarList[i];
+		const char *value = multiPtr->cvarStr[i];
+		const int rank = UI_LanguageSortRank(value);
+
+		for (j = i - 1; j >= 0 && UI_LanguageSortRank(multiPtr->cvarStr[j]) > rank; j--)
+		{
+			multiPtr->cvarList[j + 1] = multiPtr->cvarList[j];
+			multiPtr->cvarStr[j + 1] = multiPtr->cvarStr[j];
+		}
+		multiPtr->cvarList[j + 1] = label;
+		multiPtr->cvarStr[j + 1] = value;
+	}
+}
 #endif
 
 qboolean ItemParse_cvarStrList( itemDef_t *item, int handle ) {
@@ -8466,15 +8576,35 @@ qboolean ItemParse_cvarStrList( itemDef_t *item, int handle ) {
 		if (item->special == FEEDER_LANGUAGES)
 		{
 #ifdef UI_BUILD
-			for (; multiPtr->count < uiInfo.languageCount; multiPtr->count++)
+			int languageIndex;
+			int existingIndex;
+			char language[128];
+
+			// English is the default language and must always be selectable.
+			multiPtr->cvarList[0] = "English";
+			multiPtr->cvarStr[0] = "english";
+			multiPtr->count = 1;
+			for (languageIndex = 0; languageIndex < uiInfo.languageCount && multiPtr->count < MAX_MULTI_CVARS; languageIndex++)
 			{
-				// The displayed text
-				trap->SE_GetLanguageName( (const int) multiPtr->count,(char *) currLanguage[multiPtr->count]  );	// eg "English"
-				multiPtr->cvarList[multiPtr->count] = languageString;
-				// The cvar value that goes into se_language
-				trap->SE_GetLanguageName( (const int) multiPtr->count,(char *) currLanguage[multiPtr->count] );
-				multiPtr->cvarStr[multiPtr->count] = currLanguage[multiPtr->count];
+				trap->SE_GetLanguageName(languageIndex, language);
+				if (!language[0])
+					continue;
+
+				// Selection matches cvars without regard to case. Duplicate values
+				// would send cycling back to the first match before it wraps to English.
+				for (existingIndex = 0; existingIndex < multiPtr->count; existingIndex++)
+				{
+					if (!Q_stricmp(language, multiPtr->cvarStr[existingIndex]))
+						break;
+				}
+				if (existingIndex < multiPtr->count)
+					continue;
+
+				multiPtr->cvarList[multiPtr->count] = String_Alloc(UI_LanguageDisplayName(language));
+				multiPtr->cvarStr[multiPtr->count] = String_Alloc(language);
+				multiPtr->count++;
 			}
+			UI_SortLanguageOptions(multiPtr);
 #endif
 			return qtrue;
 		}

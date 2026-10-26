@@ -1604,6 +1604,10 @@ void StopFollowing( gentity_t *ent ) {
 	ent->client->sess.sessionTeam = TEAM_SPECTATOR;
 	ent->client->sess.spectatorState = SPECTATOR_FREE;
 	ent->client->ps.pm_flags &= ~PMF_FOLLOW;
+	// Discard the followed player's rancor attachment when leaving their camera.
+	ent->client->ps.eFlags2 &= ~EF2_HELD_BY_MONSTER;
+	ent->client->ps.hasLookTarget = qfalse;
+	ent->client->ps.lookTarget = ENTITYNUM_NONE;
 	ent->r.svFlags &= ~SVF_BOT;
 	ent->client->ps.clientNum = ent - g_entities;
 	ent->client->ps.weapon = WP_NONE;
@@ -8960,6 +8964,7 @@ command_t commands[] = {
 	{ "follownext",			Cmd_FollowNext_f,			CMD_NOINTERMISSION },
 	{ "followprev",			Cmd_FollowPrev_f,			CMD_NOINTERMISSION },
 	{ "forcechanged",		Cmd_ForceChanged_f,			0 },
+	{ "force_destruction", ForceDestruction, CMD_ALIVE|CMD_NOINTERMISSION },
 
 	{ "gc",					Cmd_GameCommand_f,			CMD_NOINTERMISSION },
 	{ "give",				Cmd_Give_f,					CMD_CHEAT|CMD_ALIVE|CMD_NOINTERMISSION },

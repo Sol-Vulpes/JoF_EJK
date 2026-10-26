@@ -37,6 +37,7 @@ XCVAR_DEF( capturelimit,					"0",					NULL,				CVAR_ARCHIVE|CVAR_NORESTART|CVAR_
 XCVAR_DEF( cl_ratioFix,						"1",					UI_Set2DRatio,		CVAR_ARCHIVE ) //cvar name is shared in jaPRO cgame & EternalJK engine
 XCVAR_DEF( cg_drawCrosshair,				"1",					NULL,				CVAR_ARCHIVE )
 XCVAR_DEF( cg_drawCrosshairNames,			"1",					NULL,				CVAR_ARCHIVE )
+XCVAR_DEF( cg_lightningEnvironment,			"2",					NULL,				CVAR_ARCHIVE ) // keep default in sync with cgame/cg_xcvar.h; 0: off, 1: contained, 2: erratic
 XCVAR_DEF( cg_marks,						"1",					NULL,				CVAR_ARCHIVE )
 XCVAR_DEF( cg_selectedPlayer,				"0",					NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
 XCVAR_DEF( cg_selectedPlayerName,			"",						NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
@@ -45,6 +46,14 @@ XCVAR_DEF( cp_sbRGB2,						"0",					NULL,				CVAR_ARCHIVE|CVAR_USERINFO )
 XCVAR_DEF( g_botsFile,						"",						NULL,				CVAR_INIT|CVAR_ROM )
 XCVAR_DEF( g_spSkill,						"2",					NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
 XCVAR_DEF( g_warmup,						"20",					NULL,				CVAR_ARCHIVE )
+// rend2 cvars the setup menus show that default to non-zero. Registered here so the Rend2
+// Advanced Settings page shows the real defaults before rd-rend2 has ever been loaded
+// (an unregistered cvar reads as 0, i.e. "Off"). Keep defaults in sync with codemp/rd-rend2/tr_init.cpp.
+XCVAR_DEF( r_autoExposure,					"1",					NULL,				CVAR_ARCHIVE )
+XCVAR_DEF( r_deluxeMapping,					"1",					NULL,				CVAR_ARCHIVE )
+XCVAR_DEF( r_deluxeSpecular,				"1",					NULL,				CVAR_ARCHIVE )
+XCVAR_DEF( r_hdr,							"1",					NULL,				CVAR_ARCHIVE )
+XCVAR_DEF( r_toneMap,						"1",					NULL,				CVAR_ARCHIVE )
 XCVAR_DEF( se_language,						"english",				NULL,				CVAR_ARCHIVE|CVAR_NORESTART )
 XCVAR_DEF( ui_PrecacheModels,				"0",					NULL,				CVAR_ARCHIVE )
 XCVAR_DEF( ui_actualNetGametype,			"3",					NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
@@ -99,7 +108,7 @@ XCVAR_DEF( ui_menuFilesMP,					"ui/jampmenus.txt",		NULL,				CVAR_ARCHIVE|CVAR_I
 XCVAR_DEF( ui_netGameType,					"0",					NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
 XCVAR_DEF( ui_netSource,					"0",					NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
 XCVAR_DEF( ui_opponentName,					DEFAULT_BLUETEAM_NAME,	NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
-XCVAR_DEF( ui_rankChange,					"0",					NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
+XCVAR_DEF( ui_rankChange,					"0",					NULL,				CVAR_INTERNAL )
 XCVAR_DEF( ui_recordSPDemo,					"0",					NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
 XCVAR_DEF( ui_redteam,						DEFAULT_REDTEAM_NAME,	NULL,				CVAR_ARCHIVE|CVAR_INTERNAL )
 XCVAR_DEF( ui_redteam1,						"1",					NULL,				CVAR_ARCHIVE|CVAR_INTERNAL ) //rww - these used to all default to 0 (closed).. I changed them to 1 (human)

@@ -42,6 +42,7 @@ field_t		historyEditLines[COMMAND_HISTORY];
 field_t		chatField;
 qboolean	chat_team;
 int			chat_playerNum;
+qboolean	chat_sjk;
 
 keyGlobals_t	kg;
 
@@ -617,6 +618,11 @@ void Field_Paste( field_t *edit ) {
 	Z_Free( cbd );
 }
 
+// Same boundary set as the ctrl-backspace word-delete below, for consistency.
+static qboolean Field_IsWordBoundary( char c ) {
+	return ( c == ' ' || c == '/' || c == '_' || c == '-' ) ? qtrue : qfalse;
+}
+
 /*
 =================
 Field_KeyDownEvent
@@ -675,13 +681,25 @@ void Field_KeyDownEvent( field_t *edit, int key ) {
 			break;
 
 		case A_CURSOR_RIGHT:
-			if ( edit->cursor < len ) {
+			if ( kg.keys[A_CTRL].down ) {
+				// Skip the rest of the current word, then any separators after it.
+				while ( edit->cursor < len && !Field_IsWordBoundary( edit->buffer[edit->cursor] ) )
+					edit->cursor++;
+				while ( edit->cursor < len && Field_IsWordBoundary( edit->buffer[edit->cursor] ) )
+					edit->cursor++;
+			} else if ( edit->cursor < len ) {
 				edit->cursor++;
 			}
 			break;
 
 		case A_CURSOR_LEFT:
-			if ( edit->cursor > 0 ) {
+			if ( kg.keys[A_CTRL].down ) {
+				// Skip separators immediately to the left, then the word behind them.
+				while ( edit->cursor > 0 && Field_IsWordBoundary( edit->buffer[edit->cursor - 1] ) )
+					edit->cursor--;
+				while ( edit->cursor > 0 && !Field_IsWordBoundary( edit->buffer[edit->cursor - 1] ) )
+					edit->cursor--;
+			} else if ( edit->cursor > 0 ) {
 				edit->cursor--;
 			}
 			break;
@@ -975,6 +993,45 @@ void Console_Key( int key ) {
 
 /*
 ================
+CL_SayToServer
+
+Says text in the game server's chat, to everyone, quoted as Message_Key quotes the
+All channel (" as '' and % as the sequence the cgame turns back), without the chat
+style: SJK chat's copy of a line (cl_sjk.cpp)
+================
+*/
+void CL_SayToServer( const char *text ) {
+	char quoted[MAX_STRING_CHARS];
+	char command[MAX_STRING_CHARS];
+	size_t w = 0;
+
+	for ( const char *r = text; *r && w + 4 < sizeof( quoted ); r++ ) {
+		switch ( *r ) {
+			case '%':
+				quoted[w++] = '\xb0';
+				quoted[w++] = '/';
+				quoted[w++] = '.';
+				break;
+			case '"':
+				quoted[w++] = '\'';
+				quoted[w++] = '\'';
+				break;
+			default:
+				quoted[w++] = *r;
+				break;
+		}
+	}
+	quoted[w] = 0;
+
+	if ( cls.JKVersion != VERSION_1_01_CONSOLE )
+		Com_sprintf( command, sizeof( command ), "say \"%s\"\n", quoted );
+	else
+		Com_sprintf( command, sizeof( command ), "say %s", quoted );
+	CL_AddReliableCommand( command, qfalse );
+}
+
+/*
+================
 Message_Key
 
 In game talk message
@@ -988,6 +1045,33 @@ void Message_Key( int key ) {
 	if ( key == A_ESCAPE ) {
 		Key_SetCatcher( Key_GetCatcher() & ~KEYCATCH_MESSAGE );
 		Field_Clear( &chatField );
+		return;
+	}
+
+	// Tab goes round the channels: All, Team, SJK (while SJK chat is on); a whisper
+	// goes back to All. What is typed stays.
+	if ( key == A_TAB ) {
+		if ( chat_playerNum != -1 || chat_sjk ) {
+			chat_playerNum = -1;
+			chat_team = qfalse;
+			chat_sjk = qfalse;
+		} else if ( !chat_team ) {
+			chat_team = qtrue;
+		} else {
+			chat_team = qfalse;
+			chat_sjk = (qboolean)( Cvar_VariableIntegerValue( "cl_sjkChat" ) != 0 );
+		}
+		return;
+	}
+
+	// SJK chat goes to the SJK hub (cl_sjk.cpp) as typed, in a match or not; in a
+	// match it is said in the server's chat too, so its other players read it.
+	if ( chat_sjk && ( key == A_ENTER || key == A_KP_ENTER ) ) {
+		if ( chatField.buffer[0] )
+			CL_SJK_SayText( chatField.buffer );
+		Key_SetCatcher( Key_GetCatcher() & ~KEYCATCH_MESSAGE );
+		Field_Clear( &chatField );
+		cls.afkTime = cls.realtime;
 		return;
 	}
 
