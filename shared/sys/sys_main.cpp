@@ -418,8 +418,10 @@ static void *Sys_LoadDllFromPaths( const char *filename, const char *gamedir, co
 
 			fn = FS_BuildOSPath( libDir, gamedir, filename );
 			libHandle = Sys_LoadLibrary( fn );
-			if ( libHandle )
+			if ( libHandle ) {
+				FS_NoteGameModule( filename, gamedir );
 				return libHandle;
+			}
 
 			Com_Printf( "%s(%s) failed: \"%s\"\n", callerName, fn, Sys_LibraryError() );
 		}
@@ -435,8 +437,10 @@ static void *Sys_LoadDllFromPaths( const char *filename, const char *gamedir, co
 
 			fn = FS_BuildOSPath(libDir, ETERNALJKGAME, filename);
 			libHandle = Sys_LoadLibrary(fn);
-			if (libHandle)
+			if (libHandle) {
+				FS_NoteGameModule(filename, ETERNALJKGAME);
 				return libHandle;
+			}
 
 			Com_Printf("%s(%s) failed: \"%s\"\n", callerName, fn, Sys_LibraryError());
 		}
@@ -452,8 +456,10 @@ static void *Sys_LoadDllFromPaths( const char *filename, const char *gamedir, co
 
 			fn = FS_BuildOSPath( libDir, BASEGAME, filename );
 			libHandle = Sys_LoadLibrary( fn );
-			if ( libHandle )
+			if ( libHandle ) {
+				FS_NoteGameModule( filename, BASEGAME );
 				return libHandle;
+			}
 
 			Com_Printf( "%s(%s) failed: \"%s\"\n", callerName, fn, Sys_LibraryError() );
 		}
@@ -469,8 +475,10 @@ static void *Sys_LoadDllFromPaths( const char *filename, const char *gamedir, co
 
 			fn = va( "%s%c%s", libDir, PATH_SEP, filename );
 			libHandle = Sys_LoadLibrary( fn );
-			if ( libHandle )
+			if ( libHandle ) {
+				FS_NoteGameModule( filename, "" );
 				return libHandle;
+			}
 
 			Com_Printf( "%s(%s) failed: \"%s\"\n", callerName, fn, Sys_LibraryError() );
 		}
