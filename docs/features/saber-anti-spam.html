@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saber anti-spam — JoF EternalJK</title>
+<style>
+  :root {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --step--1: clamp(0.80rem, 0.78rem + 0.1vw, 0.86rem);
+    --step-0:  clamp(1.00rem, 0.97rem + 0.15vw, 1.08rem);
+    --step-1:  clamp(1.20rem, 1.14rem + 0.3vw, 1.35rem);
+    --step-2:  clamp(1.50rem, 1.38rem + 0.6vw, 1.85rem);
+    --step-3:  clamp(2.10rem, 1.80rem + 1.5vw, 3.10rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #17140F;
+      --paper-sunk: #100E0A;
+      --card:       #201C16;
+      --ink:        #EFE9E0;
+      --ink-soft:   #C8BFB2;
+      --stone:      #948A7C;
+      --rule:       #362F26;
+      --ember:      #E1833E;
+      --ember-wash: #2A1D12;
+      --pine:       #6FB3A3;
+      --pine-wash:  #1A2A26;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #17140F;
+    --paper-sunk: #100E0A;
+    --card:       #201C16;
+    --ink:        #EFE9E0;
+    --ink-soft:   #C8BFB2;
+    --stone:      #948A7C;
+    --rule:       #362F26;
+    --ember:      #E1833E;
+    --ember-wash: #2A1D12;
+    --pine:       #6FB3A3;
+    --pine-wash:  #1A2A26;
+  }
+  :root[data-theme="light"] {
+    --paper:      #F6F3EE;
+    --paper-sunk: #EDE8E0;
+    --card:       #FFFDFA;
+    --ink:        #1A1613;
+    --ink-soft:   #4A423B;
+    --stone:      #6E655C;
+    --rule:       #DED6CA;
+    --ember:      #B4531C;
+    --ember-wash: #F6E7DB;
+    --pine:       #2E665C;
+    --pine-wash:  #E2EDE9;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    max-width: 92rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+  }
+  @media (min-width: 62rem) {
+    .page {
+      grid-template-columns: 15rem minmax(0, 1fr);
+      padding: 4.5rem 3rem 8rem;
+      gap: 4.5rem;
+    }
+  }
+
+  /* ---- section rail ---- */
+  .rail { display: none; }
+  @media (min-width: 62rem) {
+    .rail {
+      display: block;
+      position: sticky;
+      top: 4.5rem;
+      align-self: start;
+      font-size: var(--step--1);
+    }
+  }
+  .rail__label {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.68rem;
+    color: var(--stone);
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 0.9rem;
+  }
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .rail a {
+    color: var(--stone);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    padding-left: 0.75rem;
+    display: block;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .rail a:hover,
+  .rail a:focus-visible { color: var(--ember); border-left-color: var(--ember); }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 1px solid var(--rule); padding-bottom: 2.5rem; margin-bottom: 3rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ember);
+    margin: 0 0 1.1rem;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-3);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-family: var(--display);
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0 0 2rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 2rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    margin: 0;
+  }
+  .meta div { display: flex; gap: 0.5rem; }
+  .meta dt { color: var(--stone); }
+  .meta dd { margin: 0; }
+  a { color: var(--ember); text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---- prose ---- */
+  main { min-width: 0; }
+  section { margin-bottom: 4rem; scroll-margin-top: 2rem; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: var(--step-2);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 1.25rem;
+  }
+  h3 {
+    font-family: var(--body);
+    font-weight: 650;
+    font-size: var(--step-0);
+    margin: 0 0 0.5rem;
+  }
+  p, ul, ol { max-width: var(--measure); }
+  p { margin: 0 0 1.15rem; text-wrap: pretty; }
+  ul { padding-left: 1.1rem; margin: 0 0 1.15rem; }
+  li { margin-bottom: 0.5rem; }
+  li::marker { color: var(--stone); }
+  strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.08em 0.35em;
+    word-break: break-word;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.6;
+    background: var(--paper-sunk);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--ember);
+    border-radius: 3px;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1.15rem;
+    overflow-x: auto;
+  }
+  pre .c { color: var(--stone); }
+
+  /* ---- callouts ---- */
+  .keeps {
+    border-left: 2px solid var(--pine);
+    background: var(--pine-wash);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.5rem;
+    max-width: var(--measure);
+    border-radius: 0 3px 3px 0;
+  }
+  .keeps p { margin: 0; }
+  .keeps strong { color: var(--pine); }
+
+  /* ---- table ---- */
+  .table-wrap { overflow-x: auto; margin: 0 0 1.15rem; border: 1px solid var(--rule); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: var(--step--1); background: var(--card); }
+  th, td { text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--stone);
+    background: var(--paper-sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink-soft); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--stone);
+    max-width: var(--measure);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="rail" aria-label="Sections">
+    <div class="rail__label">On this page</div>
+    <ol>
+      <li><a href="#use">How to use</a></li>
+      <li><a href="#why">Why not a debounce per sound</a></li>
+      <li><a href="#where">Where it lives</a></li>
+      <li><a href="#limits">Known limits</a></li>
+      <li><a href="#testing">Testing notes</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="masthead">
+      <p class="eyebrow">JoF EternalJK · cgame + ui</p>
+      <h1>Saber anti-spam</h1>
+      <p class="standfirst">
+        A bind or script can turn a saber on and off every server frame, or loop weapon switches onto
+        it, and every ignition and shutdown plays. This gives each player a small budget, on your
+        screen only: a burst of toggles plays as usual, then one toggle sounds every half second for as
+        long as the spam goes on.
+      </p>
+      <dl class="meta">
+        <div>
+          <dt>Commit</dt>
+          <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/5c2c7c0799b22a589757c651bbf44a54148a9df5"><code>5c2c7c0</code></a></dd>
+        </div>
+        <div>
+          <dt>Replaces</dt>
+          <dd><a href="https://github.com/JediofFreedom/JoF_EJK/pull/74">PR #74</a> (closed)</dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="keeps">
+      <p><code>cg_saberAntiSpam</code> is <strong>archived and defaults to on</strong>. <strong>Four
+      toggles in a row play as usual, then one every half second</strong>, and the budget refills at
+      that pace, so quick toggling by hand is never cut.</p>
+    </div>
+
+    <section id="use">
+      <h2>How to use</h2>
+      <pre>/cg_saberAntiSpam 1    <span class="c">// default — hold each player's saber toggle spam</span>
+/cg_saberAntiSpam 0    <span class="c">// every ignition and shutdown plays</span></pre>
+      <p>Client-side, takes effect immediately, saved to the config. Also in
+      <strong>Setup → Sound → Saber Anti-Spam</strong> (main menu and in game).</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Toggles from one player</th><th scope="col">What you hear</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Up to 4 back to back</td><td>Every one</td></tr>
+            <tr><td>Kept up past that</td><td>One every 500&nbsp;ms</td></tr>
+            <tr><td>After 2&nbsp;s of quiet</td><td>The full 4 again</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Only the audio is suppressed &mdash; the saber still lights and goes out as the server says.</p>
+    </section>
+
+    <section id="why">
+      <h2>Why not a debounce per sound</h2>
+      <p>PR #74 kept one 800&nbsp;ms timer per sound. Review found two problems with it:</p>
+      <ul>
+        <li><strong>Normal quick toggling lost sounds.</strong> On, off, on within 800&nbsp;ms skipped the
+        second ignition.</li>
+        <li><strong>Duals lost a hilt.</strong> Each hilt's sound had its own timer, so one hilt of a
+        toggle could play while the other was held back.</li>
+      </ul>
+      <p>The budget fixes both. A burst plays untouched, and every sound of one toggle &mdash; both
+      hilts of a dual or a staff &mdash; arrives in the same frame and gets the same answer, so a toggle
+      is heard whole or not at all.</p>
+    </section>
+
+    <section id="where">
+      <h2>Where it lives</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">File</th><th scope="col">What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>codemp/cgame/cg_event.c</td>
+              <td><code>CG_SaberToggleThrottled</code> keeps a GCRA budget per player
+              (<code>SABER_TOGGLE_BURST</code> 4, <code>SABER_TOGGLE_INTERVAL</code> 500&nbsp;ms) and repeats
+              its answer for the rest of a frame. <code>CG_SaberToggleSoundThrottled</code> finds the owner of
+              a <code>G_Sound</code> toggle &mdash; the nearest player within 64 units whose hilt (or, for a
+              forced hilt, the server's) plays that sound. Checked in <code>EV_GENERAL_SOUND</code> and
+              <code>EV_SABER_UNHOLSTER</code>.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_players.c</td>
+              <td>The weapon switch path for other players (<code>CG_Player</code>), and the JA+ staff
+              put-away shutdown.</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_weapons.c</td>
+              <td>The weapon switch path for the local view (<code>CG_CheckPlayerG2Weapons</code>).</td>
+            </tr>
+            <tr>
+              <td>codemp/cgame/cg_xcvar.h, codemp/ui/ui_xcvar.h, codemp/ui/ui_xdocs.h</td>
+              <td>The cvar and its in-game help text.</td>
+            </tr>
+            <tr>
+              <td>assets/japro/ui/jamp/setup.menu, ingame_setup.menu</td>
+              <td>The Saber Anti-Spam row under Taunt Anti-Spam. On <code>🦊Sol</code> the in-game Text,
+              Voice and Set Language controls move down a row for it.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limits">
+      <h2>Known limits</h2>
+      <ul>
+        <li><strong>The numbers are fixed.</strong> Four and 500&nbsp;ms, no cvar for either. Easy to
+        change in <code>cg_event.c</code> if testing says otherwise.</li>
+        <li><strong>A toggle's sounds must land in one frame.</strong> They do &mdash; both hilts come in
+        the same snapshot, or the same weapon switch. If a lagging client takes several snapshots in one
+        frame, those toggles share one answer, so a little more gets through, never less.</li>
+        <li><strong>Owner by position.</strong> <code>G_Sound</code> names no owner. Two players standing
+        within a few units with the same hilt can be confused, and the cap then lands on the nearer
+        one.</li>
+        <li><strong>Players only.</strong> NPCs aren't capped &mdash; no one binds their toggles.</li>
+        <li><strong>Your view only.</strong> Other players without this client still hear the spam.</li>
+      </ul>
+    </section>
+
+    <section id="testing">
+      <h2>Testing notes</h2>
+      <p>Two clients, or a client plus a second instance on a listen server:</p>
+      <ul>
+        <li>On the other client, with the saber out, mash the saber key (pressing it again toggles the
+        blade) next to you: four sounds, then about two a second.</li>
+        <li>Toggle normally &mdash; on, off, on, a second or so apart: every sound plays.</li>
+        <li>A <code>weapon 1; weapon 3</code> loop: capped the same way.</li>
+        <li>Dual sabers and a staff: both hilts sound together on every toggle that plays.</li>
+        <li><code>cg_saberAntiSpam 0</code> &mdash; the spam is back.</li>
+      </ul>
+    </section>
+
+    <footer>
+      Sol branch documentation · the feature commit itself carries no docs, so alpha and beta stay clean.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
