@@ -424,15 +424,20 @@ it JoF shipped:
 
   "remove": [ { "path": "EternalJK/old.pk3", "versions": [ { "size": 123, "sha512": "..." } ] } ]
 
+Each file may say since when JoF has shipped it: "since" is the release from
+which every release up to this one has had it (Update_LeftOut).
+
 scripts/update/make_update_package.py writes them; build.yml signs them.
 
 ===============================================================================
 */
 
 struct updateFile_t {
-	std::string		path;
-	uint64_t		size;
-	uint8_t			sha512[64];
+	std::string			path;
+	uint64_t			size;
+	uint8_t				sha512[64];
+	bool				haveSince = false;	// whether the manifest says since when
+	releaseVersion_t	since;				// the release every one up to this has shipped it in
 };
 
 struct updateVersion_t {	// one version of a file, as JoF shipped it
@@ -574,6 +579,13 @@ static bool Update_ReadManifest( const cJSON *root, updateRelease_t *r, std::str
 			|| !Update_JSONHash( cJSON_GetObjectItemCaseSensitive( item, "sha512" ), file.sha512 ) ) {
 			*error = Update_Format( "the update manifest lists a file the updater may not install (%s)",
 				cJSON_IsString( path ) ? path->valuestring : "?" );
+			return false;
+		}
+		const cJSON *since = cJSON_GetObjectItemCaseSensitive( item, "since" );
+		file.haveSince = since != NULL;
+		if ( since && ( !cJSON_IsString( since ) || !Update_ParseTag( since->valuestring, &file.since )
+			|| file.since.kind == RELEASE_ALPHA || Update_IsNewer( file.since, r->version ) ) ) {
+			*error = Update_Format( "the update manifest gives a bad \"since\" release for %s", path->valuestring );
 			return false;
 		}
 		file.path = path->valuestring;
@@ -1328,11 +1340,26 @@ static void Update_PlanRemovals( const std::wstring &dir, const updateRelease_t 
 	}
 }
 
+// A pk3 in base/ that is not here although the installed release already had it,
+// such as JoF's optional ones, is one the player chose not to install or removed:
+// the update leaves it out too, and updates only the ones that are here. One new
+// since the installed release goes in, as do the programs, the libraries and
+// EternalJK/'s pk3s, which the client needs. A manifest that does not say since
+// when installs everything, as before.
+static bool Update_LeftOut( const std::wstring &dir, const updateFile_t &file, const releaseVersion_t &installed ) {
+	const size_t slash = file.path.find( '/' );
+	if ( !file.haveSince || Update_IsNewer( file.since, installed ) || slash == std::string::npos
+		|| Q_stricmp( file.path.substr( 0, slash ).c_str(), "base" ) )
+		return false;
+	return !Update_Exists( Update_Join( dir, file.path ) );
+}
+
 // Unpacks the files that differ from the installed ones into pending/files/ and
 // lists them in pending/ready.txt, with the files to remove. *staged: how many
-// files go in or out; *kept: files to remove that stay as they are not JoF's.
+// files go in or out; *kept: files to remove that stay as they are not JoF's;
+// *leftOut: pk3s not installed here that stay out (Update_LeftOut).
 static bool Update_Unpack( const updateSettings_t &s, const updateRelease_t &r, const std::wstring &archive,
-		const std::wstring &pending, int *staged, std::vector<std::string> *kept, std::string *error ) {
+		const std::wstring &pending, int *staged, std::vector<std::string> *kept, std::vector<std::string> *leftOut, std::string *error ) {
 	HANDLE zip = CreateFileW( archive.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL );
 	std::vector<zipEntry_t> entries;
 	if ( zip == INVALID_HANDLE_VALUE || !Update_ZipDirectory( zip, &entries ) ) {
@@ -1342,6 +1369,8 @@ static bool Update_Unpack( const updateSettings_t &s, const updateRelease_t &r, 
 		return false;
 	}
 
+	releaseVersion_t installed;
+	Update_ParseTag( s.installed.c_str(), &installed );	// Update_Settings checked it
 	updatePending_t list;
 	list.tag = r.tag;
 	bool ok = true;
@@ -1360,6 +1389,10 @@ static bool Update_Unpack( const updateSettings_t &s, const updateRelease_t &r, 
 			*error = "the update archive does not hold " + file.path;
 			ok = false;
 			break;
+		}
+		if ( Update_LeftOut( s.dir, file, installed ) ) {
+			leftOut->push_back( file.path );
+			continue;
 		}
 
 		uint64_t size;
@@ -1415,7 +1448,7 @@ static void Update_Download( const updateSettings_t &s, const updateRelease_t &r
 	}
 	std::string error;
 	int staged = 0;
-	std::vector<std::string> kept;
+	std::vector<std::string> kept, leftOut;
 	bool ok;
 	{
 		updateLock_t lock( root );
@@ -1430,7 +1463,7 @@ static void Update_Download( const updateSettings_t &s, const updateRelease_t &r
 		Update_MakeDirs( pending );
 
 		const std::wstring archive = downloads + L"\\" + Update_Widen( r.archive );
-		ok = Update_DownloadArchive( s, r, archive, &error ) && Update_Unpack( s, r, archive, pending, &staged, &kept, &error );
+		ok = Update_DownloadArchive( s, r, archive, &error ) && Update_Unpack( s, r, archive, pending, &staged, &kept, &leftOut, &error );
 		Update_RemoveTree( downloads );
 		if ( !ok || !staged )
 			Update_RemoveTree( pending );
@@ -1441,6 +1474,12 @@ static void Update_Download( const updateSettings_t &s, const updateRelease_t &r
 		note += ( note.empty() ? "" : ", " ) + file;
 	if ( !note.empty() )
 		note = "JoF " + Update_Display( r.tag ) + " no longer ships " + note + ", but the copy here was changed or is not JoF's, so it stays.";
+	std::string absent;
+	for ( const std::string &file : leftOut )
+		absent += ( absent.empty() ? "" : ", " ) + file;
+	if ( !absent.empty() )
+		note += ( note.empty() ? "" : " " ) + std::string( "Left out, as you do not have " ) + ( leftOut.size() == 1 ? "it" : "them" )
+			+ " installed: " + absent + ".";
 	if ( !ok )
 		Update_Set( UPDATE_FAILED, error );
 	else if ( !staged )

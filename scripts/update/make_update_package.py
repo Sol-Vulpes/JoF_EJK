@@ -12,7 +12,9 @@ attaches all three to the release; docs/updater.md has the whole picture.
 The manifest's remove list names every file JoF shipped before that this release
 no longer has, with every version of it: --previous gives earlier releases'
 manifests (signatures already checked), --retired the files shipped before
-releases had manifests.
+releases had manifests. From the same manifests, each file's "since" is the
+release from which every release up to this one has shipped it: /update leaves
+out a base/ pk3 the player does not have when their release already had it.
 """
 
 import argparse
@@ -29,7 +31,7 @@ INSTALLABLE = re.compile(r"(?:(?:base|EternalJK)/[A-Za-z0-9_.-]+\.pk3|[A-Za-z0-9
 # Retail game files the client never removes (Update_RetailFile).
 RETAIL = {"base/assets0.pk3", "base/assets1.pk3", "base/assets2.pk3", "base/assets3.pk3", "jamp.exe", "jasp.exe"}
 # /update offers stable and beta releases only, never alpha ones.
-RELEASE_TAG = re.compile(r"\d+\.\d+\.\d+(?:-beta\.\d+)?")
+RELEASE_TAG = re.compile(r"(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?")
 SHA512_HEX = re.compile(r"[0-9a-f]{128}")
 # Every entry gets the same time, so the same files give the same archive.
 ENTRY_TIME = (2020, 1, 1, 0, 0, 0)
@@ -55,12 +57,63 @@ def pk3_intact(path):
         return False
 
 
-def shipped_before(previous, retired, platform):
+def release_order(tag):
+    """Sorts tags as /update compares them (Update_IsNewer): 1.6.2, then its betas, then 1.6.3."""
+    major, minor, patch, beta = RELEASE_TAG.fullmatch(tag).groups()
+    return int(major), int(minor), int(patch), -1 if beta is None else int(beta)
+
+
+def earlier_manifests(previous, platform):
+    """[(source, manifest)] of the earlier releases' manifests in previous, <tag>/JoF-update-<platform>.json."""
+    manifests = []
+    if previous:
+        for manifest_path in sorted(previous.glob(f"*/JoF-update-{platform}.json")):
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            source = f"the {manifest_path.parent.name} manifest"
+            if manifest.get("format") != 1 or manifest.get("platform") != platform:
+                print(f"skipping {source}: format {manifest.get('format')}, platform {manifest.get('platform')}", file=sys.stderr)
+                continue
+            manifests.append((source, manifest))
+    return manifests
+
+
+def shipped_since(manifests, names, tag):
+    """{name: the release from which every release up to this one has shipped it}.
+
+    The run goes down through the earlier releases until one lacks the file, and
+    an earlier manifest's own "since" carries it on past the releases given. A
+    file none of them has is new in this release.
+    """
+    earlier = []
+    for _, manifest in manifests:
+        old = manifest.get("tag")
+        if isinstance(old, str) and RELEASE_TAG.fullmatch(old) and release_order(old) < release_order(tag):
+            files = {file["path"].lower(): file for file in manifest.get("files", [])
+                     if isinstance(file, dict) and isinstance(file.get("path"), str)}
+            earlier.append((release_order(old), old, files))
+    earlier.sort(key=lambda release: release[0], reverse=True)
+
+    since = {}
+    for name in names:
+        since[name] = tag
+        for order, old, files in earlier:
+            file = files.get(name.lower())
+            if file is None:
+                break
+            carried = file.get("since")
+            if isinstance(carried, str) and RELEASE_TAG.fullmatch(carried) and release_order(carried) <= order:
+                since[name] = carried
+                break
+            since[name] = old
+    return since
+
+
+def shipped_before(manifests, retired):
     """Every version of every file JoF shipped before: {lowercase path: (path, {(size, sha512)})}.
 
-    previous holds earlier releases' manifests as <tag>/JoF-update-<platform>.json.
-    Their files and their own remove lists both count, so a file dropped long ago
-    is still removed for a player who skipped the releases in between.
+    The earlier releases' files and their own remove lists both count, so a file
+    dropped long ago is still removed for a player who skipped the releases in
+    between.
     """
     known = {}
 
@@ -80,18 +133,12 @@ def shipped_before(previous, retired, platform):
             return
         known.setdefault(path.lower(), (path, set()))[1].add((size, digest.lower()))
 
-    if previous:
-        for manifest_path in sorted(previous.glob(f"*/JoF-update-{platform}.json")):
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            source = f"the {manifest_path.parent.name} manifest"
-            if manifest.get("format") != 1 or manifest.get("platform") != platform:
-                print(f"skipping {source}: format {manifest.get('format')}, platform {manifest.get('platform')}", file=sys.stderr)
-                continue
-            for file in manifest.get("files", []):
-                add(file.get("path"), file.get("size"), file.get("sha512"), source, strict=False)
-            for old in manifest.get("remove", []):
-                for version in old.get("versions", []):
-                    add(old.get("path"), version.get("size"), version.get("sha512"), source, strict=False)
+    for source, manifest in manifests:
+        for file in manifest.get("files", []):
+            add(file.get("path"), file.get("size"), file.get("sha512"), source, strict=False)
+        for old in manifest.get("remove", []):
+            for version in old.get("versions", []):
+                add(old.get("path"), version.get("size"), version.get("sha512"), source, strict=False)
     if retired:
         for old in json.loads(retired.read_text(encoding="utf-8")).get("files", []):
             for version in old.get("versions", []):
@@ -132,9 +179,11 @@ def main():
     if broken:
         sys.exit("not valid pk3s: " + ", ".join(broken))
 
+    manifests = earlier_manifests(args.previous, args.platform)
+    since = shipped_since(manifests, names, args.tag)
     shipping = {name.lower() for name in names}
     remove = [{"path": path, "versions": [{"size": size, "sha512": digest} for size, digest in sorted(versions)]}
-              for key, (path, versions) in sorted(shipped_before(args.previous, args.retired, args.platform).items())
+              for key, (path, versions) in sorted(shipped_before(manifests, args.retired).items())
               if key not in shipping]
     if len(remove) > MAX_REMOVALS:
         sys.exit(f"{len(remove)} files to remove; the client takes at most {MAX_REMOVALS}")
@@ -159,7 +208,7 @@ def main():
         "platform": args.platform,
         "commit": args.commit,
         "archive": {"name": archive.name, "size": archive.stat().st_size, "sha512": sha512(archive)},
-        "files": [{"path": name, "size": path.stat().st_size, "sha512": sha512(path)}
+        "files": [{"path": name, "size": path.stat().st_size, "sha512": sha512(path), "since": since[name]}
                   for path, name in zip(files, names)],
         "remove": remove,
     }

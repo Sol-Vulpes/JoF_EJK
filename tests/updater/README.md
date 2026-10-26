@@ -18,6 +18,12 @@ against a stand-in for the engine headers, and checks:
   GameData, a file with no versions or listed twice;
 - which files get removed: only one still as JoF shipped it, never one the player
   changed (even at a shipped size), nor the running program;
+- optional pk3s: the script says since when each file has shipped, carried over
+  from earlier manifests and restarted for a file that comes back, and the client
+  refuses a `since` after the release or an alpha one. Unpacked over an install
+  without a `base/` pk3 its release had, the update leaves that pk3 out and
+  stages the rest. The pk3 goes in for a player on an earlier release and where
+  it is installed, and the client's own pk3s, programs and libraries always do;
 - whether a staged update still goes in: never an older release, and the running
   release only to finish a swap that was stopped;
 - the start-up swap: files go in with the old ones kept as `.old`, files to remove

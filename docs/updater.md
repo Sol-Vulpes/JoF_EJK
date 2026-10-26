@@ -11,6 +11,10 @@ downloading anything by hand.
 - `/update` downloads the release in the background, checks it and stages it, then
   says `JoF 1.6.2 is downloaded. Type /update to restart and install it now, or it
   installs the next time you start JoF.` The second `/update` restarts the client.
+- An update leaves out the optional pk3s the player chose not to install, or
+  removed, such as `base/JoF_Animations.pk3` and `base/JoF_AssetsExtra.pk3`, and
+  the console says which ones it left out. The ones that are there are updated, and
+  a pk3 that is new since the player's release is added.
 - By default only stable (master) releases are offered. `/betaupdates 1` offers
   the newest beta as well, and looks for it at once; `/betaupdates 0` goes back.
   **Alpha builds are never offered**, whatever the setting.
@@ -30,7 +34,7 @@ and `windows-x86_64`:
 | file | what it is |
 |------|------------|
 | `JoF-update-<platform>.zip` | the GameData files, paths relative to GameData |
-| `JoF-update-<platform>.json` | the manifest: tag, channel, platform, the size and SHA-512 of the zip and of every file, and the files to remove |
+| `JoF-update-<platform>.json` | the manifest: tag, channel, platform, the size and SHA-512 of the zip and of every file, the release each file has been shipped since, and the files to remove |
 | `JoF-update-<platform>.json.sig` | the Ed25519 signature of the manifest |
 
 The player-facing `JoF-windows-*.zip` downloads are unchanged.
@@ -64,6 +68,17 @@ the client trusts only what the release signing key signed:
 - every path: only `.exe` and `.dll` files beside the client, and `.pk3` files in
   `base/` and `EternalJK/`. Nothing else is ever written, so not even a signed
   manifest can drop a config or reach outside the install folder.
+
+**Optional pk3s.** Every file in the manifest has a `since`: the release from
+which every release up to this one has shipped it. `make_update_package.py` works
+it out from the same earlier manifests as the remove list. It walks down through
+them until one lacks the file, and an earlier manifest's own `since` carries the
+run on past the 100 it fetched. A `base/` pk3 that is not installed, with a `since`
+at or before the installed release, is one the player had and left out or removed,
+so `/update` leaves it out too. One newer than the installed release is new to the
+player, so it goes in. The programs, the libraries and the pk3s in `EternalJK/`
+always go in, since the client needs them. So does every file of a manifest made
+before `since` existed.
 
 **Installing.** `/update` stages the files that differ from the installed ones
 in `GameData/jofupdate/pending/`. The swap happens at the next start, first thing
