@@ -752,6 +752,21 @@ static QINLINE int CG_TeamScoreboard( int y, team_t team, float fade, int maxCli
 
 /*
 =================
+CG_CompactScoreboard
+
+The 24-row scoreboard shown on a server of more than 25 players when dead or at
+intermission, unless the scoreboard key is held. It ends higher, so the chat fits under it.
+=================
+*/
+qboolean CG_CompactScoreboard( void ) {
+	return (qboolean)( cgs.numClients > 25 && !cg.pressingScoreBoard &&
+		( cg.predictedPlayerState.pm_type == PM_DEAD ||
+		  cg.predictedPlayerState.pm_type == PM_INTERMISSION ||
+		  cg.predictedPlayerState.pm_type == PM_SPINTERMISSION ) );
+}
+
+/*
+=================
 CG_DrawScoreboard
 
 Draw the normal in-game scoreboard
@@ -792,7 +807,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 		fade = 1.0;
 		fadeColor = colorWhite;
 	} else {
-		fadeColor = CG_FadeColor( cg.scoreFadeTime, SCOREBOARD_FADE_TIME );
+		fadeColor = CG_FadeColor( cg.scoreFadeTime, FADE_TIME );
 
 		if ( !fadeColor ) {
 			// next time scoreboard comes up, don't print killer
@@ -1073,7 +1088,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 	realMaxClients = maxClients;
 	compactSectionSpacing = maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT;
 
-	if (maxClientsScoreboard && cgs.numClients > 25 && intermissionOrDead && !cg.pressingScoreBoard) {
+	if (CG_CompactScoreboard()) {
 		compactScoreboard = qtrue;
 		maxClients = 24;
 		realMaxClients = maxClients;
@@ -1140,7 +1155,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 				compactHasRows = (n1 > 0);
 			}
 			else {
-				y += (n1 * lineHeight) + (BIGCHAR_HEIGHT - 8);
+				y += (n1 * lineHeight) + teamBottomBorder;
 			}
 
 			n2 = CG_TeamScoreboard( y, TEAM_BLUE, fade, team2MaxCl, lineHeight, qtrue, maxClientsScoreboard );
@@ -1159,7 +1174,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 				}
 			}
 			else {
-				y += (n2 * lineHeight) + (BIGCHAR_HEIGHT - 8);
+				y += (n2 * lineHeight) + teamBottomBorder;
 			}
 
 			maxClients -= (team1MaxCl+team2MaxCl);
@@ -1192,7 +1207,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 				compactHasRows = (n1 > 0);
 			}
 			else {
-				y += (n1 * lineHeight) + (BIGCHAR_HEIGHT - 8);
+				y += (n1 * lineHeight) + teamBottomBorder;
 			}
 
 			n2 = CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qtrue, maxClientsScoreboard );
@@ -1211,7 +1226,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 				}
 			}
 			else {
-				y += (n2 * lineHeight) + (BIGCHAR_HEIGHT - 8);
+				y += (n2 * lineHeight) + teamBottomBorder;
 			}
 
 			maxClients -= (team1MaxCl+team2MaxCl);

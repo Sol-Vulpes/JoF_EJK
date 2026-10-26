@@ -10442,11 +10442,13 @@ static QINLINE void CG_ChatBox_DrawStrings(void)
 	int numToDraw = 0;
 	int linesToDraw = 0;
 	int i = 0;
-	float x = (cg.showScores ? 8 : cg_chatBoxX.value) * cgs.widthRatioCoef;
+	float x = (cg.scoreBoardShowing ? 8 : cg_chatBoxX.value) * cgs.widthRatioCoef;
 	float y = cg_chatBoxHeight.value;
-	if (cg.showScores)
+	if (cg.scoreBoardShowing)
 	{
-		if (cgs.numClients >= 20 && (cg.pressingScoreBoard || cgs.numClients <= 25))
+		// From 20 players the scoreboard reaches down to the chat, except the compact one
+		// (CG_CompactScoreboard). Until the scores arrive the board is empty, so keep the chat.
+		if (cgs.numClients >= 20 && cg.numScores > 0 && !CG_CompactScoreboard())
 			y = 10000;
 		else
 			y = 475;
