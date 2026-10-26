@@ -3041,14 +3041,16 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 		cent->ghoul2weapon = CG_G2WeaponInstance(cent, ps->weapon);
 		if (cent->weapon == WP_SABER && cent->weapon != ps->weapon && !ps->saberHolstered)
 		{ //switching away from the saber
+			//a weapon switch loop past this player's saber sound budget stays quiet
+			qboolean quiet = CG_SaberToggleThrottled( ps->clientNum );
 			//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberoffquick.wav" ));
-			if (cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered
+			if (!quiet && cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered
 				&& !CG_StaffSwapShutdownSounded( ps->clientNum ))
 			{ //a staff going onto a JA+ back was shut down as the blade went in, not here
 				trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOff);
 			}
 
-			if (cgs.clientinfo[ps->clientNum].saber[1].soundOff &&
+			if (!quiet && cgs.clientinfo[ps->clientNum].saber[1].soundOff &&
 				cgs.clientinfo[ps->clientNum].saber[1].model[0] &&
 				!ps->saberHolstered)
 			{
@@ -3057,14 +3059,15 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 		}
 		else if (ps->weapon == WP_SABER && cent->weapon != ps->weapon && !cent->saberWasInFlight)
 		{ //switching to the saber
+			qboolean quiet = CG_SaberToggleThrottled( ps->clientNum );
 			//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberon.wav" ));
-			if (cgs.clientinfo[ps->clientNum].saber[0].soundOn
+			if (!quiet && cgs.clientinfo[ps->clientNum].saber[0].soundOn
 				&& !CG_StaffSwapHoldIgnitionSound( ps->clientNum, cgs.clientinfo[ps->clientNum].saber[0].soundOn ))
 			{ //a staff coming off a JA+ back lights when his hand gets to it, not before
 				trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOn);
 			}
 
-			if (cgs.clientinfo[ps->clientNum].saber[1].soundOn)
+			if (!quiet && cgs.clientinfo[ps->clientNum].saber[1].soundOn)
 			{
 				trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[1].soundOn);
 			}
