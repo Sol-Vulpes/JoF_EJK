@@ -634,6 +634,12 @@ long		FS_FOpenFileRead( const char *qpath, fileHandle_t *file, qboolean uniqueFI
 int		FS_FileIsInPAK(const char *filename, int *pChecksum );
 // returns 1 if a file is in the PAK file, otherwise -1
 long	FS_ReadDLLInPAK(const char *filename, void **buffer);
+const char *FS_CmdlineGame( void );
+// the +set fs_game mod a client with fs_globalcfg 1 still mounts and hosts, or ""
+void	FS_NoteGameModule( const char *filename, const char *gameDir );
+// remembers the game folder a jampgame module was loaded from
+qboolean FS_CmdlineGameModule( void );
+// qtrue when the server game module came from FS_CmdlineGame
 
 qboolean FS_FindPureDLL(const char *name);
 
