@@ -309,6 +309,10 @@
           <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/e244d5a36e5931a3e725bf9073977fead3127d31"><code>e244d5a</code></a> (review on <a href="https://github.com/JediofFreedom/JoF_EJK/pull/401">#401</a>)</dd>
         </div>
         <div>
+          <dt>Fix</dt>
+          <dd><a href="https://github.com/Sol-Vulpes/JoF_EJK/commit/0510eea77368c97f7a13af8809f13aa3371644c2"><code>0510eea</code></a> (second review on #401)</dd>
+        </div>
+        <div>
           <dt>Replaces</dt>
           <dd><a href="https://github.com/JediofFreedom/JoF_EJK/pull/74">PR #74</a> (closed)</dd>
         </div>
@@ -352,8 +356,8 @@
         toggle could play while the other was held back.</li>
       </ul>
       <p>The budget fixes both. A burst plays untouched, and every sound of one toggle &mdash; both
-      hilts of a dual or a staff &mdash; arrives in the same frame and gets the same answer, so a toggle
-      is heard whole or not at all.</p>
+      hilts of a dual or a staff &mdash; gets the same answer, so a toggle is heard whole or not at all,
+      and every toggle pays for itself however it arrives (see Known limits).</p>
     </section>
 
     <section id="where">
@@ -367,8 +371,9 @@
             <tr>
               <td>codemp/cgame/cg_event.c</td>
               <td><code>CG_SaberToggleThrottled</code> keeps a GCRA budget per player
-              (<code>SABER_TOGGLE_BURST</code> 4, <code>SABER_TOGGLE_INTERVAL</code> 500&nbsp;ms) and repeats
-              its answer for the rest of a snapshot. <code>CG_SaberToggleSoundThrottled</code> finds the owner of
+              (<code>SABER_TOGGLE_BURST</code> 4, <code>SABER_TOGGLE_INTERVAL</code> 500&nbsp;ms) and pays once
+              per toggle; <code>CG_SaberToggleHiltThrottled</code> pairs the per-hilt <code>G_Sound</code>
+              sounds of one toggle. <code>CG_SaberToggleSoundThrottled</code> finds the owner of
               a <code>G_Sound</code> toggle &mdash; the nearest player within 64 units whose hilt (or, for a
               forced hilt, the server's) plays that sound. Checked in <code>EV_GENERAL_SOUND</code> and
               <code>EV_SABER_UNHOLSTER</code>.</td>
@@ -402,9 +407,13 @@
       <ul>
         <li><strong>The numbers are fixed.</strong> Four and 500&nbsp;ms, no cvar for either. Easy to
         change in <code>cg_event.c</code> if testing says otherwise.</li>
-        <li><strong>One toggle = one snapshot.</strong> Both hilts of a toggle come in the same snapshot
-        and share one answer. Several snapshots run in one frame (a lagging client catching up) each pay
-        for their own toggle. Toggles the server sends twice in one snapshot count as one.</li>
+        <li><strong>How a toggle is told apart.</strong> A weapon switch, the staff put-away and
+        <code>EV_SABER_UNHOLSTER</code> voice a whole toggle in one call, and each call pays. The server's
+        toggle is one <code>G_Sound</code> per hilt, each its own temp entity, and several toggles can
+        arrive in one snapshot (a server sending snapshots slower than it runs, a client's rate), or
+        several snapshots in one frame. A hilt's sound joins the toggle before it only from the same
+        snapshot, the same way (on or off), and a hilt that toggle has not sounded yet; anything else is
+        a new toggle. A hilt whose one file is used for both ways pays on every sound.</li>
         <li><strong>Owner by position.</strong> <code>G_Sound</code> names no owner. Two players standing
         within a few units with the same hilt can be confused, and the cap then lands on the nearer
         one.</li>
@@ -416,8 +425,10 @@
     <section id="testing">
       <h2>Testing notes</h2>
       <p><code>tests/saber-anti-spam</code> compiles the real budget and
-      <code>CG_CheckPlayerG2Weapons</code> and checks the burst and interval, both hilts of one toggle, a
-      backlog of snapshots in one frame, a staff's late shutdown copy, players kept apart, NPCs and the
+      <code>CG_CheckPlayerG2Weapons</code> and checks the burst and interval, the hilts of one toggle
+      (duals, a shared sound, one file both ways), toggles arriving in one snapshot, a backlog of
+      snapshots in one frame, a staff's late shutdown copy, the <code>G_Sound</code> owner, players kept
+      apart, NPCs and the
       cvar, and time going back:</p>
       <pre>cmake -S tests/saber-anti-spam -B build/saber-anti-spam-check
 cmake --build build/saber-anti-spam-check --config Release

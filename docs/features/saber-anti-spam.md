@@ -12,6 +12,7 @@ The cvar is **archived and defaults to on**.
 
 - Commit: [`5c2c7c0`](https://github.com/Sol-Vulpes/JoF_EJK/commit/5c2c7c0799b22a589757c651bbf44a54148a9df5) — saber on/off spam held to a burst, then one toggle every half second
 - Fix: [`e244d5a`](https://github.com/Sol-Vulpes/JoF_EJK/commit/e244d5a36e5931a3e725bf9073977fead3127d31) — toggles counted per snapshot; a staff shutdown already heard is not charged (review on [#401](https://github.com/JediofFreedom/JoF_EJK/pull/401))
+- Fix: [`0510eea`](https://github.com/Sol-Vulpes/JoF_EJK/commit/0510eea77368c97f7a13af8809f13aa3371644c2) — toggles that arrive in one snapshot told apart by hilt (second review on #401)
 - Replaces the March fix, [PR #74](https://github.com/JediofFreedom/JoF_EJK/pull/74) (closed)
 - Same doc as a rendered page: [`saber-anti-spam.html`](saber-anti-spam.html) (open it locally — GitHub shows HTML as source)
 
@@ -42,14 +43,14 @@ PR #74 kept one 800 ms timer per sound. Review found two problems with it:
   while the other was held back.
 
 The budget fixes both. A burst plays untouched, and every sound of one toggle — both hilts of a
-dual or a staff — arrives in the same frame and gets the same answer, so a toggle is heard whole or
-not at all.
+dual or a staff — gets the same answer, so a toggle is heard whole or not at all, and every toggle
+pays for itself however it arrives (see Known limits).
 
 ## Where it lives
 
 | File | What it does |
 |---|---|
-| `codemp/cgame/cg_event.c` | `CG_SaberToggleThrottled` keeps a GCRA budget per player (`SABER_TOGGLE_BURST` 4, `SABER_TOGGLE_INTERVAL` 500 ms) and repeats its answer for the rest of a snapshot. `CG_SaberToggleSoundThrottled` finds the owner of a `G_Sound` toggle — the nearest player within 64 units whose hilt (or, for a forced hilt, the server's) plays that sound. Checked in `EV_GENERAL_SOUND` and `EV_SABER_UNHOLSTER`. |
+| `codemp/cgame/cg_event.c` | `CG_SaberToggleThrottled` keeps a GCRA budget per player (`SABER_TOGGLE_BURST` 4, `SABER_TOGGLE_INTERVAL` 500 ms) and pays once per toggle. `CG_SaberToggleHiltThrottled` pairs the per-hilt `G_Sound` sounds of one toggle. `CG_SaberToggleSoundThrottled` finds the owner of a `G_Sound` toggle — the nearest player within 64 units whose hilt (or, for a forced hilt, the server's) plays that sound. Checked in `EV_GENERAL_SOUND` and `EV_SABER_UNHOLSTER`. |
 | `codemp/cgame/cg_players.c` | The weapon switch path for other players (`CG_Player`), and the JA+ staff put-away shutdown. The switch-away paths only ask the budget when a hilt would really sound, so a staff shutdown already heard on the back is not paid for twice. |
 | `codemp/cgame/cg_weapons.c` | The weapon switch path for the local view (`CG_CheckPlayerG2Weapons`). |
 | `codemp/cgame/cg_xcvar.h`, `codemp/ui/ui_xcvar.h`, `codemp/ui/ui_xdocs.h` | The cvar and its in-game help text. |
@@ -59,9 +60,13 @@ not at all.
 
 - **The numbers are fixed.** Four and 500 ms, no cvar for either. Easy to change in `cg_event.c` if
   testing says otherwise.
-- **One toggle = one snapshot.** Both hilts of a toggle come in the same snapshot and share one
-  answer. Several snapshots run in one frame (a lagging client catching up) each pay for their
-  own toggle. Toggles the server sends twice in one snapshot count as one.
+- **How a toggle is told apart.** A weapon switch, the staff put-away and `EV_SABER_UNHOLSTER`
+  voice a whole toggle in one call, and each call pays. The server's toggle is one `G_Sound` per
+  hilt, each its own temp entity, and several toggles can arrive in one snapshot (a server sending
+  snapshots slower than it runs, a client's rate), or several snapshots in one frame. A hilt's
+  sound joins the toggle before it only from the same snapshot, the same way (on or off), and a
+  hilt that toggle has not sounded yet; anything else is a new toggle. A hilt whose one file is
+  used for both ways pays on every sound.
 - **Owner by position.** `G_Sound` names no owner. Two players standing within a few units with the
   same hilt can be confused, and the cap then lands on the nearer one.
 - **Players only.** NPCs aren't capped — no one binds their toggles.
@@ -70,8 +75,9 @@ not at all.
 ## Testing notes
 
 `tests/saber-anti-spam` compiles the real budget and `CG_CheckPlayerG2Weapons` and checks the burst
-and interval, both hilts of one toggle, a backlog of snapshots in one frame, a staff's late shutdown
-copy, players kept apart, NPCs and the cvar, and time going back:
+and interval, the hilts of one toggle (duals, a shared sound, one file both ways), toggles arriving
+in one snapshot, a backlog of snapshots in one frame, a staff's late shutdown copy, the `G_Sound`
+owner, players kept apart, NPCs and the cvar, and time going back:
 
 ```
 cmake -S tests/saber-anti-spam -B build/saber-anti-spam-check
