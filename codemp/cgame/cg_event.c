@@ -842,25 +842,31 @@ static qboolean CG_VoiceLineThrottled( int clientNum, voiceLine_t line, sfxHandl
 // weapon switches onto it, and every ignition and shutdown plays.  Each player gets a small
 // budget instead: a burst of toggles plays as usual, so quick toggling by hand is never cut,
 // and once it is spent one toggle sounds per interval for as long as the spam goes on.
-// Every sound of one toggle (both hilts of a dual or staff) arrives in the same frame and gets
-// the same answer, so a toggle is heard whole or not at all.
+// Every sound of one toggle (both hilts of a dual or staff) comes in the same snapshot and gets
+// the same answer, so a toggle is heard whole or not at all. A toggle is told apart by that
+// snapshot, not by cg.time: CG_ProcessSnapshots can run several snapshots' events in one frame,
+// and each of those toggles pays for itself.
 //
 // Only the audio is suppressed; the saber still lights and goes out as the server says.
 #define SABER_TOGGLE_BURST		4
 #define SABER_TOGGLE_INTERVAL	500
 
 typedef struct {
+	qboolean	seen;
 	int			due;		// when the next toggle would be on schedule
-	int			lastTime;	// cg.time of the latest toggle sound
+	int			lastSnap;	// serverTime of the snapshot of the latest toggle sound
+	int			lastTime;	// cg.time it was asked at
 	qboolean	lastQuiet;	// and whether it was suppressed
 } saberToggleBudget_t;
 
 static saberToggleBudget_t cg_saberToggleBudget[MAX_CLIENTS];
 
-// Returns qtrue (suppress) if this player's saber on/off sound at cg.time is past the budget.
+// Returns qtrue (suppress) if this player's saber on/off sound is past the budget. Ask only once
+// a sound is really about to play: each new snapshot that asks pays for a toggle.
 qboolean CG_SaberToggleThrottled( int clientNum ) {
 	saberToggleBudget_t *budget;
 	qboolean quiet;
+	int snap;
 
 	if ( !cg_saberAntiSpam.integer )
 		return qfalse;
@@ -869,15 +875,18 @@ qboolean CG_SaberToggleThrottled( int clientNum ) {
 		return qfalse; // NPCs are not bound to keys
 
 	budget = &cg_saberToggleBudget[clientNum];
-	if ( budget->lastTime && cg.time == budget->lastTime )
+	snap = cg.snap ? cg.snap->serverTime : cg.time;
+	if ( budget->seen && snap == budget->lastSnap )
 		return budget->lastQuiet; // another hilt of the same toggle
 
-	if ( cg.time < budget->lastTime ) // a map restart or a demo going back
-		memset( budget, 0, sizeof( *budget ) );
+	if ( budget->seen && ( cg.time < budget->lastTime || snap < budget->lastSnap ) )
+		memset( budget, 0, sizeof( *budget ) ); // a map restart or a demo going back
 
-	quiet = (qboolean)( budget->due && budget->due - ( SABER_TOGGLE_BURST - 1 ) * SABER_TOGGLE_INTERVAL > cg.time );
+	quiet = (qboolean)( budget->seen && budget->due - ( SABER_TOGGLE_BURST - 1 ) * SABER_TOGGLE_INTERVAL > cg.time );
 	if ( !quiet )
-		budget->due = ( budget->due > cg.time ? budget->due : cg.time ) + SABER_TOGGLE_INTERVAL;
+		budget->due = ( budget->seen && budget->due > cg.time ? budget->due : cg.time ) + SABER_TOGGLE_INTERVAL;
+	budget->seen = qtrue;
+	budget->lastSnap = snap;
 	budget->lastTime = cg.time;
 	budget->lastQuiet = quiet;
 	return quiet;
