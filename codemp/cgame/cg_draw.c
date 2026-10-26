@@ -9139,7 +9139,8 @@ static void CG_DrawSpectator(void)
 	s = CG_GetStringEdString("MP_INGAME", "SPECTATOR");
 	if ((cgs.gametype == GT_DUEL || cgs.gametype == GT_POWERDUEL) &&
 		cgs.duelist1 != -1 &&
-		cgs.duelist2 != -1)
+		cgs.duelist2 != -1 &&
+		cg.snap->ps.clientNum != cg.clientNum)
 	{
 		char text[1024];
 		int size = 64;
@@ -11107,7 +11108,9 @@ static QINLINE void CG_ChatBox_DrawStrings(void)
 	float y = cg_chatBoxHeight.value;
 	if (cg.scoreBoardShowing)
 	{
-		if (cg.pressingScoreBoard && cgs.numClients > 25)
+		// From 20 players the scoreboard reaches down to the chat, except the compact one
+		// (CG_CompactScoreboard). Until the scores arrive the board is empty, so keep the chat.
+		if (cgs.numClients >= 20 && cg.numScores > 0 && !CG_CompactScoreboard())
 			y = 10000;
 		else
 			y = 475;

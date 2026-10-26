@@ -2726,6 +2726,7 @@ void		CG_ParseEntitiesFromString( void );
 // cg_scoreboard.c
 //
 qboolean CG_DrawOldScoreboard( void );
+qboolean CG_CompactScoreboard( void );
 void CG_DrawOldTourneyScoreboard( void );
 
 //

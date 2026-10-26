@@ -831,6 +831,21 @@ static QINLINE int CG_TeamScoreboard( int y, team_t team, float fade, int maxCli
 
 /*
 =================
+CG_CompactScoreboard
+
+The 24-row scoreboard shown on a server of more than 25 players when dead or at
+intermission, unless the scoreboard key is held. It ends higher, so the chat fits under it.
+=================
+*/
+qboolean CG_CompactScoreboard( void ) {
+	return (qboolean)( cgs.numClients > 25 && !cg.pressingScoreBoard &&
+		( cg.predictedPlayerState.pm_type == PM_DEAD ||
+		  cg.predictedPlayerState.pm_type == PM_INTERMISSION ||
+		  cg.predictedPlayerState.pm_type == PM_SPINTERMISSION ) );
+}
+
+/*
+=================
 CG_DrawScoreboard
 
 Draw the normal in-game scoreboard
@@ -1159,7 +1174,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 	realMaxClients = maxClients;
 	compactSectionSpacing = maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT;
 
-	if (maxClientsScoreboard && cgs.numClients > 25 && intermissionOrDead && !cg.pressingScoreBoard) {
+	if (CG_CompactScoreboard()) {
 		compactScoreboard = qtrue;
 		maxClients = 24;
 		realMaxClients = maxClients;
@@ -1185,6 +1200,10 @@ qboolean CG_DrawOldScoreboard( void ) {
 	//value passed in related to how many players are on both teams.
 	if ( cgs.gametype >= GT_TEAM ) {
 		int compactSpectatorMax;
+		// a team background spans y - top .. y - top + rows + bottom, so the step to the next team
+		// must equal the bottom border for the two backgrounds to touch without overlapping
+		const int teamTopBorder = compactScoreboard ? topBorderSize : (BIGCHAR_HEIGHT - 8) / 2;
+		const int teamBottomBorder = compactScoreboard ? bottomBorderSize : BIGCHAR_HEIGHT - 8;
 
 		//
 		// teamplay scoreboard
@@ -1213,7 +1232,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 
 			n1 = CG_TeamScoreboard( y, TEAM_RED, fade, team1MaxCl, lineHeight, qtrue, maxClientsScoreboard );
 			if (n1 > 0) {
-				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
+				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - teamTopBorder, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + teamBottomBorder, 0.33f, TEAM_RED );
 				CG_TeamScoreboard( y, TEAM_RED, fade, team1MaxCl, lineHeight, qfalse, maxClientsScoreboard );
 			}
 			if (compactScoreboard) {
@@ -1222,15 +1241,15 @@ qboolean CG_DrawOldScoreboard( void ) {
 				compactHasRows = (n1 > 0);
 			}
 			else {
-				y += (n1 * lineHeight) + BIGCHAR_HEIGHT;
+				y += (n1 * lineHeight) + teamBottomBorder;
 			}
 
 			n2 = CG_TeamScoreboard( y, TEAM_BLUE, fade, team2MaxCl, lineHeight, qtrue, maxClientsScoreboard );
 			if (compactScoreboard && n2 > 0 && compactHasRows) {
-				y += BIGCHAR_HEIGHT;
+				y += teamBottomBorder;
 			}
 			if (n2 > 0) {
-				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
+				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - teamTopBorder, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + teamBottomBorder, 0.33f, TEAM_BLUE );
 				CG_TeamScoreboard( y, TEAM_BLUE, fade, team2MaxCl, lineHeight, qfalse, maxClientsScoreboard );
 			}
 			if (compactScoreboard) {
@@ -1241,7 +1260,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 				}
 			}
 			else {
-				y += (n2 * lineHeight) + BIGCHAR_HEIGHT;
+				y += (n2 * lineHeight) + teamBottomBorder;
 			}
 
 			maxClients -= (team1MaxCl+team2MaxCl);
@@ -1265,7 +1284,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 
 			n1 = CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qtrue, maxClientsScoreboard );
 			if (n1 > 0) {
-				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + bottomBorderSize, 0.33f, TEAM_BLUE );
+				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - teamTopBorder, 640 - SB_SCORELINE_X * 2 + 10, n1 * lineHeight + teamBottomBorder, 0.33f, TEAM_BLUE );
 				CG_TeamScoreboard( y, TEAM_BLUE, fade, team1MaxCl, lineHeight, qfalse, maxClientsScoreboard );
 			}
 			if (compactScoreboard) {
@@ -1274,15 +1293,15 @@ qboolean CG_DrawOldScoreboard( void ) {
 				compactHasRows = (n1 > 0);
 			}
 			else {
-				y += (n1 * lineHeight) + (maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT);
+				y += (n1 * lineHeight) + teamBottomBorder;
 			}
 
 			n2 = CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qtrue, maxClientsScoreboard );
 			if (compactScoreboard && n2 > 0 && compactHasRows) {
-				y += BIGCHAR_HEIGHT;
+				y += teamBottomBorder;
 			}
 			if (n2 > 0) {
-				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - topBorderSize, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + bottomBorderSize, 0.33f, TEAM_RED );
+				CG_DrawTeamBackground( SB_SCORELINE_X - 5, y - teamTopBorder, 640 - SB_SCORELINE_X * 2 + 10, n2 * lineHeight + teamBottomBorder, 0.33f, TEAM_RED );
 				CG_TeamScoreboard( y, TEAM_RED, fade, team2MaxCl, lineHeight, qfalse, maxClientsScoreboard );
 			}
 			if (compactScoreboard) {
@@ -1293,7 +1312,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 				}
 			}
 			else {
-				y += (n2 * lineHeight) + (maxClientsScoreboard ? BIGCHAR_HEIGHT - 8 : BIGCHAR_HEIGHT);
+				y += (n2 * lineHeight) + teamBottomBorder;
 			}
 
 			maxClients -= (team1MaxCl+team2MaxCl);
@@ -1315,7 +1334,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 			}
 			else {
 				n1 = CG_TeamScoreboard( y, TEAM_FREE, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients, lineHeight, qfalse, maxClientsScoreboard );
-				y += (n1 * lineHeight) + (maxClientsScoreboard ? compactSectionSpacing : BIGCHAR_HEIGHT);
+				y += (n1 * lineHeight) + (BIGCHAR_HEIGHT - 8);
 			}
 		}
 
@@ -1334,7 +1353,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 		}
 		else {
 			n1 = CG_TeamScoreboard( y, TEAM_SPECTATOR, fade, maxClientsScoreboard ? MAX_CLIENTS : maxClients, lineHeight, qfalse, maxClientsScoreboard );
-			y += (n1 * lineHeight) + (maxClientsScoreboard ? compactSectionSpacing : BIGCHAR_HEIGHT);
+			y += (n1 * lineHeight) + (BIGCHAR_HEIGHT - 8);
 		}
 #if NEW_SCOREBOARD
 	} else {
