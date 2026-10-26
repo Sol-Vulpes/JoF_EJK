@@ -24,7 +24,7 @@ void Rancor_Crush(void);
 void Rancor_CheckDropVictim(void);
 void Rancor_Attack(float distance, qboolean doCharge);
 
-// Engine/world services. Damage deliberately has no spectator protection:
+// Engine/world services. Damage deliberately has no spectator or duel protection:
 // these tests require the production AI to reject the target itself.
 void G_Damage(gentity_t *ent, gentity_t *inflictor, gentity_t *attacker,
     vec3_t dir, vec3_t point, int damage, int flags, int mod) {
@@ -162,6 +162,15 @@ static void Spectator(gentity_t *ent, int mode) {
   if (mode == 2) ent->client->tempSpectate = level.time;
 }
 
+// Modes 0-3 make a spectator or follower and DUELLER a client in a duel, none of
+// whom the rancor may touch; NORMAL leaves the client open to it.
+#define DUELLER 4
+#define NORMAL 5
+static void Protect(gentity_t *ent, int mode) {
+  if (mode == DUELLER) ent->client->ps.duelInProgress = qtrue;
+  else Spectator(ent, mode);
+}
+
 static void CheckFollow(qboolean unfollow) {
   gentity_t *victim, *watcher;
   usercmd_t cmd = {0};
@@ -241,12 +250,12 @@ static void CheckAttachment(void) {
 
 static void CheckAttacks(void) {
   int mode, attack;
-  for (mode = 0; mode < 5; ++mode) {
+  for (mode = 0; mode <= NORMAL; ++mode) {
     for (attack = 0; attack < 5; ++attack) {
       gentity_t *victim;
       Reset();
       victim = &g_entities[0];
-      if (mode < 4) Spectator(victim, mode);
+      if (mode < NORMAL) Protect(victim, mode);
       nearby[0] = 0;
       nearbyCount = 1;
       NPCS.NPC->client->ps.groundEntityNum = 0;
@@ -257,7 +266,7 @@ static void CheckAttacks(void) {
       case 3: Rancor_Bite(); break;
       case 4: Rancor_Crush(); break;
       }
-      if (mode < 4) {
+      if (mode < NORMAL) {
         CHECK(!damageCalls && !knockdowns && !throws && !events);
         CHECK(!NPCS.NPC->activator && victim->health == 100);
       } else if (attack == 0) {
@@ -272,20 +281,20 @@ static void CheckAttacks(void) {
 
 static void CheckDelayed(void) {
   int mode, phase;
-  for (mode = 0; mode < 5; ++mode) {
+  for (mode = 0; mode <= NORMAL; ++mode) {
     for (phase = 0; phase < 3; ++phase) {
       gentity_t *victim;
       Reset();
       victim = &g_entities[0];
       Grab(victim);
-      if (mode < 4) Spectator(victim, mode);
+      if (mode < NORMAL) Protect(victim, mode);
       NPCS.NPC->client->ps.legsAnim = phase == 0 ? BOTH_ATTACK1 : BOTH_ATTACK3;
       TIMER_Set(NPCS.NPC, "attacking", 3000);
       TIMER_Set(NPCS.NPC, "clearGrabbed", 5000);
       TIMER_Set(NPCS.NPC, phase == 2 ? "attack_dmg2" : "attack_dmg", -1);
       // Exercise the full production AI entry point, including delayed damage.
       NPC_BSRancor_Default();
-      if (mode < 4) {
+      if (mode < NORMAL) {
         CHECK(!damageCalls && victim->health == 100);
         CHECK(!NPCS.NPC->activator && !NPCS.NPC->count);
         CHECK(!(victim->client->ps.eFlags2 & EF2_HELD_BY_MONSTER));
