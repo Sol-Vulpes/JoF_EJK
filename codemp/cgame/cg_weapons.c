@@ -3041,18 +3041,22 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 		cent->ghoul2weapon = CG_G2WeaponInstance(cent, ps->weapon);
 		if (cent->weapon == WP_SABER && cent->weapon != ps->weapon && !ps->saberHolstered)
 		{ //switching away from the saber
-			//a weapon switch loop past this player's saber sound budget stays quiet
-			qboolean quiet = CG_SaberToggleThrottled( ps->clientNum );
+			//a staff going onto a JA+ back was shut down as the blade went in, not here
+			qboolean first = (qboolean)(cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered
+				&& !CG_StaffSwapShutdownSounded( ps->clientNum ));
+			qboolean second = (qboolean)(cgs.clientinfo[ps->clientNum].saber[1].soundOff
+				&& cgs.clientinfo[ps->clientNum].saber[1].model[0]
+				&& !ps->saberHolstered);
+			//a weapon switch loop past this player's saber sound budget stays quiet; a shutdown
+			//already sounded on the back has nothing left to pay for
+			qboolean quiet = (qboolean)(!(first || second) || CG_SaberToggleThrottled( ps->clientNum ));
 			//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberoffquick.wav" ));
-			if (!quiet && cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered
-				&& !CG_StaffSwapShutdownSounded( ps->clientNum ))
-			{ //a staff going onto a JA+ back was shut down as the blade went in, not here
+			if (!quiet && first)
+			{
 				trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[0].soundOff);
 			}
 
-			if (!quiet && cgs.clientinfo[ps->clientNum].saber[1].soundOff &&
-				cgs.clientinfo[ps->clientNum].saber[1].model[0] &&
-				!ps->saberHolstered)
+			if (!quiet && second)
 			{
 				trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.clientinfo[ps->clientNum].saber[1].soundOff);
 			}
