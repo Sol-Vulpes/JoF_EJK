@@ -3308,10 +3308,11 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 		cent->ghoul2weapon = CG_G2WeaponInstance(cent, ps->weapon);
 		if (cent->weapon == WP_SABER && cent->weapon != ps->weapon && !ps->saberHolstered)
 		{ //switching away from the saber
+			//a weapon switch loop past this player's saber sound budget stays quiet
+			qboolean quiet = CG_SaberToggleThrottled( ps->clientNum );
 			//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberoffquick.wav" ));
-			if (cg.time - cent->saberSoundOffDebounceTime >= 800)
+			if (!quiet)
 			{
-				cent->saberSoundOffDebounceTime = cg.time;
 				//a staff going onto a JA+ back was shut down as the blade went in, not here
 				if (cgs.clientinfo[ps->clientNum].saber[0].soundOff && !ps->saberHolstered
 					&& !CG_StaffSwapShutdownSounded( ps->clientNum ))
@@ -3329,10 +3330,10 @@ void CG_CheckPlayerG2Weapons(playerState_t *ps, centity_t *cent)
 		}
 		else if (ps->weapon == WP_SABER && cent->weapon != ps->weapon && !cent->saberWasInFlight)
 		{ //switching to the saber
+			qboolean quiet = CG_SaberToggleThrottled( ps->clientNum );
 			//trap->S_StartSound(cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, trap->S_RegisterSound( "sound/weapons/saber/saberon.wav" ));
-			if (cg.time - cent->saberSoundOnDebounceTime >= 800)
+			if (!quiet)
 			{
-				cent->saberSoundOnDebounceTime = cg.time;
 				//a staff coming off a JA+ back lights when his hand gets to it, not before
 				if (cgs.clientinfo[ps->clientNum].saber[0].soundOn
 					&& !CG_StaffSwapHoldIgnitionSound( ps->clientNum, cgs.clientinfo[ps->clientNum].saber[0].soundOn ))

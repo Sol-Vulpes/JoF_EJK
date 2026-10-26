@@ -838,6 +838,84 @@ static qboolean CG_VoiceLineThrottled( int clientNum, voiceLine_t line, sfxHandl
 	return qfalse;
 }
 
+// cg_saberAntiSpam: a bind or script can turn a saber on and off every server frame, or loop
+// weapon switches onto it, and every ignition and shutdown plays.  Each player gets a small
+// budget instead: a burst of toggles plays as usual, so quick toggling by hand is never cut,
+// and once it is spent one toggle sounds per interval for as long as the spam goes on.
+// Every sound of one toggle (both hilts of a dual or staff) arrives in the same frame and gets
+// the same answer, so a toggle is heard whole or not at all.
+//
+// Only the audio is suppressed; the saber still lights and goes out as the server says.
+#define SABER_TOGGLE_BURST		4
+#define SABER_TOGGLE_INTERVAL	500
+
+typedef struct {
+	int			due;		// when the next toggle would be on schedule
+	int			lastTime;	// cg.time of the latest toggle sound
+	qboolean	lastQuiet;	// and whether it was suppressed
+} saberToggleBudget_t;
+
+static saberToggleBudget_t cg_saberToggleBudget[MAX_CLIENTS];
+
+// Returns qtrue (suppress) if this player's saber on/off sound at cg.time is past the budget.
+qboolean CG_SaberToggleThrottled( int clientNum ) {
+	saberToggleBudget_t *budget;
+	qboolean quiet;
+
+	if ( !cg_saberAntiSpam.integer )
+		return qfalse;
+
+	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
+		return qfalse; // NPCs are not bound to keys
+
+	budget = &cg_saberToggleBudget[clientNum];
+	if ( budget->lastTime && cg.time == budget->lastTime )
+		return budget->lastQuiet; // another hilt of the same toggle
+
+	if ( cg.time < budget->lastTime ) // a map restart or a demo going back
+		memset( budget, 0, sizeof( *budget ) );
+
+	quiet = (qboolean)( budget->due && budget->due - ( SABER_TOGGLE_BURST - 1 ) * SABER_TOGGLE_INTERVAL > cg.time );
+	if ( !quiet )
+		budget->due = ( budget->due > cg.time ? budget->due : cg.time ) + SABER_TOGGLE_INTERVAL;
+	budget->lastTime = cg.time;
+	budget->lastQuiet = quiet;
+	return quiet;
+}
+
+// G_Sound puts a saber toggle on a temp entity with no owner, at the player's feet.  The owner is
+// the nearest player whose hilt plays that sound (the forced-hilt case keeps the server's own).
+static qboolean CG_SaberToggleSoundThrottled( vec3_t origin, sfxHandle_t sfx ) {
+	int		i, j, best = -1;
+	float	bestDistSq = 64.0f * 64.0f, distSq;
+
+	if ( !cg_saberAntiSpam.integer || !sfx || !cg.snap )
+		return qfalse;
+
+	for ( i = 0; i < MAX_CLIENTS; i++ ) {
+		clientInfo_t *ci = &cgs.clientinfo[i];
+		qboolean match = qfalse;
+
+		if ( !ci->infoValid )
+			continue;
+		for ( j = 0; j < MAX_SABERS; j++ ) {
+			if ( sfx == ci->saber[j].soundOn || sfx == ci->saber[j].soundOff
+				|| sfx == ci->serverSaberSoundOn[j] || sfx == ci->serverSaberSoundOff[j] )
+				match = qtrue;
+		}
+		if ( !match )
+			continue;
+
+		distSq = DistanceSquared( i == cg.snap->ps.clientNum ? cg.snap->ps.origin : cg_entities[i].currentState.pos.trBase, origin );
+		if ( distSq <= bestDistSq ) {
+			bestDistSq = distSq;
+			best = i;
+		}
+	}
+
+	return best >= 0 && CG_SaberToggleThrottled( best );
+}
+
 // Model voice lines a player can fire off at will.  Servers that route these through a
 // generic sound event still land here, so they share the same per-player debounce.
 static qboolean CG_ClassifyVoiceLine( const char *soundName, voiceLine_t *line ) {
@@ -1772,70 +1850,6 @@ static qboolean CG_ProximityCheck(vec3_t pos1, vec3_t pos2) { //Returns qtrue if
 			return qfalse;
 	}
 	return qtrue;
-}
-
-// Per-client, per-sound debounce for saber on/off sounds.  A dual saber setup can
-// legitimately emit different sounds in quick succession, so one timer for the
-// whole client would suppress the second hilt or the opposite transition.
-#define MAX_SABER_SOUND_DEBOUNCES (MAX_SABERS * 2)
-typedef struct {
-	sfxHandle_t	sfx;
-	int			time;
-} saberSoundDebounce_t;
-
-static saberSoundDebounce_t cg_saberSoundDebounce[MAX_CLIENTS][MAX_SABER_SOUND_DEBOUNCES];
-
-// Returns qtrue (suppress the sound) if the sfx is a saber on/off sound that was
-// played too recently for the nearest client. Updates the debounce timer when allowed.
-static qboolean CG_SaberSoundThrottled( sfxHandle_t sfx, vec3_t origin ) {
-	int			i, bestClient, debounceIndex, oldestIndex;
-	float		bestDistSq, distSq;
-	qboolean	isSaberSound;
-
-	if ( !sfx )
-		return qfalse;
-
-	bestClient = -1;
-	bestDistSq = 999999999.0f;
-	isSaberSound = qfalse;
-
-	for ( i = 0; i < MAX_CLIENTS; i++ ) {
-		clientInfo_t *ci = &cgs.clientinfo[i];
-		if ( !ci->infoValid )
-			continue;
-		if ( sfx != ci->saber[0].soundOn  && sfx != ci->saber[0].soundOff &&
-		     sfx != ci->saber[1].soundOn  && sfx != ci->saber[1].soundOff )
-			continue;
-		isSaberSound = qtrue;
-		distSq = DistanceSquared( cg_entities[i].lerpOrigin, origin );
-		if ( distSq < bestDistSq ) {
-			bestDistSq = distSq;
-			bestClient = i;
-		}
-	}
-
-	if ( !isSaberSound || bestClient < 0 )
-		return qfalse;
-
-	oldestIndex = 0;
-	for ( debounceIndex = 0; debounceIndex < MAX_SABER_SOUND_DEBOUNCES; debounceIndex++ ) {
-		saberSoundDebounce_t *debounce = &cg_saberSoundDebounce[bestClient][debounceIndex];
-
-		if ( debounce->sfx == sfx ) {
-			if ( cg.time - debounce->time < 800 )
-				return qtrue; // suppress a repeat of this sound only
-
-			debounce->time = cg.time;
-			return qfalse;
-		}
-
-		if ( debounce->time < cg_saberSoundDebounce[bestClient][oldestIndex].time )
-			oldestIndex = debounceIndex;
-	}
-
-	cg_saberSoundDebounce[bestClient][oldestIndex].sfx = sfx;
-	cg_saberSoundDebounce[bestClient][oldestIndex].time = cg.time;
-	return qfalse;
 }
 
 /*
@@ -3137,23 +3151,18 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 				ci = &cgs.clientinfo[es->number];
 			}
 
-			if (ci)
+			if (ci && !CG_SaberToggleThrottled( es->number ))
 			{
-				centity_t *saberCent = &cg_entities[es->number];
-				if (cg.time - saberCent->saberSoundOnDebounceTime >= 800)
+				//a staff being drawn over a JA+ shoulder is not in his hand yet, so its ignition
+				//waits with the blade rather than going off on an empty hand
+				if (ci->saber[0].soundOn
+					&& !CG_StaffSwapHoldIgnitionSound( es->number, ci->saber[0].soundOn ))
 				{
-					saberCent->saberSoundOnDebounceTime = cg.time;
-					//a staff being drawn over a JA+ shoulder is not in his hand yet, so its
-					//ignition waits with the blade rather than going off on an empty hand
-					if (ci->saber[0].soundOn
-						&& !CG_StaffSwapHoldIgnitionSound( es->number, ci->saber[0].soundOn ))
-					{
-						trap->S_StartSound (NULL, es->number, CHAN_AUTO, ci->saber[0].soundOn );
-					}
-					if (ci->saber[1].soundOn)
-					{
-						trap->S_StartSound (NULL, es->number, CHAN_AUTO, ci->saber[1].soundOn );
-					}
+					trap->S_StartSound (NULL, es->number, CHAN_AUTO, ci->saber[0].soundOn );
+				}
+				if (ci->saber[1].soundOn)
+				{
+					trap->S_StartSound (NULL, es->number, CHAN_AUTO, ci->saber[1].soundOn );
 				}
 			}
 		}
@@ -4093,6 +4102,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			{
 				sfxHandle_t sfx;
 				if ( cgs.gameSounds[ es->eventParm ] ) {
+					if ( CG_SaberToggleSoundThrottled( es->pos.trBase, cgs.gameSounds[ es->eventParm ] ) )
+						break;
 					sfx = CG_ForceOwnSaberSound( es, es->number, cgs.gameSounds[ es->eventParm ] );
 				} else {
 					s = CG_ConfigString( CS_SOUNDS + es->eventParm );
@@ -4106,8 +4117,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 				if ( CG_StaffSwapHoldGeneralSound( es->pos.trBase, sfx ) )
 					break;
 
-				if ( !CG_SaberSoundThrottled( sfx, es->pos.trBase ) )
-					trap->S_StartSound (NULL, es->number, es->saberEntityNum, sfx );
+				trap->S_StartSound (NULL, es->number, es->saberEntityNum, sfx );
 			}
 
 	break;
