@@ -24,7 +24,7 @@ function(extract path first last)
 endfunction()
 
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/actual.h" "")
-extract(codemp/cgame/cg_event.c "#define SABER_TOGGLE_BURST" "// G_Sound puts a saber toggle")
+extract(codemp/cgame/cg_event.c "#define SABER_TOGGLE_BURST" "// Model voice lines a player can fire off at will")
 extract(codemp/cgame/cg_weapons.c "void CG_CheckPlayerG2Weapons(" "Ghoul2 Insert End")
 # The extract ends inside the comment that follows the function.
 file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/actual.h" "*/\n")

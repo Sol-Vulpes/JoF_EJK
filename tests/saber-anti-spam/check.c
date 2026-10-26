@@ -25,6 +25,10 @@ void CG_CopyG2WeaponInstance(centity_t *cent, int weaponNum, void *toGhoul2) { (
 void BG_SI_SetDesiredLength(saberInfo_t *saber, float len, int bladeNum) { (void)saber; (void)len; (void)bladeNum; }
 qboolean CG_StaffSwapShutdownSounded(int clientNum) { (void)clientNum; return staffShutdownSounded; }
 qboolean CG_StaffSwapHoldIgnitionSound(int clientNum, sfxHandle_t sound) { (void)clientNum; (void)sound; return qfalse; }
+float DistanceSquared(const vec3_t a, const vec3_t b) {
+	float x = a[0] - b[0], y = a[1] - b[1], z = a[2] - b[2];
+	return x * x + y * y + z * z;
+}
 
 #include "actual.h"
 
@@ -61,21 +65,97 @@ static void BurstThenOnePerInterval(void) {
 	CHECK(!Allowed(0, 5200, 5200));
 }
 
-static void OneSnapshotsHiltsShareAnAnswer(void) {
+#define PLAYER 2
+
+// The player standing at the origin with these hilt sounds (0 for none).
+static void Hilts(sfxHandle_t on0, sfxHandle_t off0, sfxHandle_t on1, sfxHandle_t off1) {
+	clientInfo_t *ci = &cgs.clientinfo[PLAYER];
+	ci->infoValid = qtrue;
+	ci->saber[0].soundOn = on0;
+	ci->saber[0].soundOff = off0;
+	ci->saber[1].soundOn = on1;
+	ci->saber[1].soundOff = off1;
+}
+
+// The server's G_Sound of `sfx` at the player's feet, first seen in the snapshot of `serverTime`.
+static qboolean Sounded(sfxHandle_t sfx, int time, int serverTime) {
+	vec3_t origin = { 0, 0, 0 };
+	cg.time = time;
+	snapshot.serverTime = serverTime;
+	return (qboolean)!CG_SaberToggleSoundThrottled(origin, sfx);
+}
+
+// How many toggles a fresh budget has paid for, all at `time`.
+static int Paid(int time) {
+	return (cg_saberToggleBudget[PLAYER].due - time) / SABER_TOGGLE_INTERVAL;
+}
+
+static void HiltsOfOneToggleShareAnAnswer(void) {
 	int i;
+
+	// Duals: on0 and on1 are one toggle; then off, then on again are two more.
 	Setup();
-	for (i = 0; i < SABER_TOGGLE_BURST; ++i)
-		CHECK(Allowed(3, 1000 + i * 50, 1000 + i * 50));
-	// Both hilts of the next toggle are held back together.
-	CHECK(!Allowed(3, 1200, 1200));
-	CHECK(!Allowed(3, 1200, 1200));
-	// The two hilts of an allowed toggle play together and pay once.
+	Hilts(1, 3, 2, 4);
+	CHECK(Sounded(1, 1000, 1000) && Sounded(2, 1000, 1000));
+	CHECK(Paid(1000) == 1);
+	CHECK(Sounded(3, 1000, 1000) && Sounded(4, 1000, 1000));
+	CHECK(Sounded(1, 1000, 1000) && Sounded(2, 1000, 1000));
+	CHECK(Paid(1000) == 3);
+	// The burst's last toggle plays both hilts; the next is held back on both.
+	CHECK(Sounded(3, 1000, 1000) && Sounded(4, 1000, 1000));
+	CHECK(!Sounded(1, 1000, 1000) && !Sounded(2, 1000, 1000));
+
+	// A single saber whose removed second slot keeps the default ignition: both hilts play the
+	// same sound, still one toggle; a third copy in the snapshot is a toggle of its own.
 	Setup();
-	CHECK(Allowed(3, 1000, 1000));
-	CHECK(Allowed(3, 1000, 1000));
-	for (i = 1; i < SABER_TOGGLE_BURST; ++i)
-		CHECK(Allowed(3, 1000 + i * 50, 1000 + i * 50));
-	CHECK(!Allowed(3, 1200, 1200));
+	Hilts(5, 6, 5, 0);
+	Sounded(5, 1000, 1000);
+	Sounded(5, 1000, 1000);
+	CHECK(Paid(1000) == 1);
+	Sounded(5, 1000, 1000);
+	CHECK(Paid(1000) == 2);
+
+	// One file for both ways: every sound of the one hilt is a toggle.
+	Setup();
+	Hilts(7, 7, 0, 0);
+	for (i = 0; i < 3; ++i)
+		Sounded(7, 1000, 1000);
+	CHECK(Paid(1000) == 3);
+
+	// The same hilt in the next snapshot is the next toggle.
+	Setup();
+	Hilts(1, 3, 2, 4);
+	Sounded(1, 1000, 1000);
+	Sounded(1, 1050, 1050);
+	CHECK(Paid(1000) == 2);
+
+	// Not a saber sound, or nobody near: not counted.
+	Setup();
+	Hilts(1, 3, 2, 4);
+	CHECK(Sounded(9, 1000, 1000));
+	CHECK(!cg_saberToggleBudget[PLAYER].seen);
+	cg_entities[PLAYER].currentState.pos.trBase[0] = 200;
+	CHECK(Sounded(1, 1000, 1000));
+	CHECK(!cg_saberToggleBudget[PLAYER].seen);
+}
+
+static void TogglesInOneSnapshotPayEach(void) {
+	int i, j, played = 0, expected = 0;
+
+	// A server sending snapshots every 200 ms while a bind toggles every 50: four toggles,
+	// on and off, first seen in each snapshot, for five seconds.
+	Setup();
+	Hilts(1, 3, 0, 0);
+	for (i = 0; i < 25; ++i)
+		for (j = 0; j < 4; ++j)
+			played += Sounded(j & 1 ? 3 : 1, 1000 + i * 200, 1000 + i * 200);
+	// What the same toggles pay one by one: the burst, then one per 500 ms.
+	Setup();
+	for (i = 0; i < 25; ++i)
+		for (j = 0; j < 4; ++j)
+			expected += Allowed(PLAYER, 1000 + i * 200, 1000 + i * 200);
+	CHECK(expected == 13);
+	CHECK(played == expected);
 }
 
 static void SnapshotsRunInOneFramePayEach(void) {
@@ -152,7 +232,8 @@ static void SwitchPathPaysOnlyForASound(void) {
 
 int main(void) {
 	BurstThenOnePerInterval();
-	OneSnapshotsHiltsShareAnAnswer();
+	HiltsOfOneToggleShareAnAnswer();
+	TogglesInOneSnapshotPayEach();
 	SnapshotsRunInOneFramePayEach();
 	PlayersAreApartAndNpcsUncapped();
 	TimeGoingBackStartsAfresh();
