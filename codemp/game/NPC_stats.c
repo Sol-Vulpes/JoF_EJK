@@ -988,7 +988,7 @@ qboolean NPC_ParseParms( const char *NPCName, gentity_t *NPC )
 	int npcSaber1 = 0;
 	int npcSaber2 = 0;
 
-	// Flipkickable is opt-in for each NPC definition, including a reparse.
+	// Flipkickable is opt-in for each NPC definition.
 	NPC->client->ps.eFlags &= ~EF_NPC_FLIPKICKABLE;
 	NPC->s.eFlags &= ~EF_NPC_FLIPKICKABLE;
 

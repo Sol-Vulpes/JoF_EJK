@@ -19,7 +19,7 @@ function(extract path first last)
 endfunction()
 
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/actual.h" "")
-extract(codemp/game/bg_public.h "#define EF_NPC_FLIPKICKABLE" "#define\tEF_TALK")
+extract(codemp/game/bg_public.h "#define EF_NPC_FLIPKICKABLE" "//These new EF2_")
 extract(codemp/game/bg_misc.c "qboolean BG_IsFlipkickableNPC(" "qboolean BG_IsDroidClass(")
 extract(codemp/game/bg_pmove.c "static int GetFlipkick(" "static int GetFixRoll(")
 extract(codemp/game/bg_pmove.c "static qboolean PM_IsPlayerLikeGround(" "qboolean BG_SabersOff(")
