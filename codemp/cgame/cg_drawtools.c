@@ -636,8 +636,8 @@ void CG_DrawNumField (float x, float y, int width, int value,float charWidth,flo
 		tx = fieldRight - textW;
 		ty = y - (charHeight * 0.30f);	// the font cell sits lower than the old bitmap digit; lift it up
 
-		// Use the caller's color (red health, green armor, blue force, etc.), forcing full
-		// alpha so the digits read as a solid, vivid color rather than a washed tint.
+		// Use the caller's color (red health, green armor, blue force, etc.) and its alpha,
+		// the same color the bitmap digits get from R_SetColor (the binocular scale is faint).
 		if (color) {
 			drawColor[0] = color[0];
 			drawColor[1] = color[1];
@@ -645,7 +645,7 @@ void CG_DrawNumField (float x, float y, int width, int value,float charWidth,flo
 		} else {
 			drawColor[0] = drawColor[1] = drawColor[2] = 1.0f;
 		}
-		drawColor[3] = 1.0f;
+		drawColor[3] = color ? color[3] : 1.0f;
 
 		CG_Text_Paint(tx, ty, fontScale, drawColor, disp, 0.0f, 0, ITEM_TEXTSTYLE_SHADOWED, sharpFont);
 		return;
