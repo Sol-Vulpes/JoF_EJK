@@ -2761,6 +2761,7 @@ static void CG_HelpUsSol_f( void ) {
 	Com_Printf( S_COLOR_GREEN "cg_hideForcePushFX " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - hide the force push/pull cloud FX on players; on by default because /amempower spam of it breaks map rendering.\n" );
 	Com_Printf( S_COLOR_GREEN "cg_hideFireFX " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - hide map-placed fire/flame effects (and their bundled sound); off by default.\n" );
 	Com_Printf( S_COLOR_GREEN "cg_noFakeTells " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - recolor pink text in public/team chat so nobody can fake a private message (default 1).\n" );
+	Com_Printf( S_COLOR_GREEN "cg_saberAntiSpam " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - hold a player's saber on/off spam to four sounds, then one every half second (default 1).\n" );
 	Com_Printf( S_COLOR_GREEN "cl_cmdratecap " S_COLOR_YELLOW "0|1" S_COLOR_WHITE " - cap movement command generation at 125Hz, independent of your framerate (default 1).\n" );
 	Com_Printf( S_COLOR_GREEN "r_swapInterval " S_COLOR_YELLOW "0|1|2|3" S_COLOR_WHITE " - how finished frames reach the monitor: 0 vsync off, 1 vsync, 2 adaptive vsync, 3 mailbox (default 3).\n" );
 	Com_Printf( S_COLOR_CYAN "----- " S_COLOR_MAGENTA "about r_swapInterval" S_COLOR_CYAN " -----\n" );
