@@ -843,10 +843,15 @@ static qboolean CG_VoiceLineThrottled( int clientNum, voiceLine_t line, sfxHandl
 // weapon switches onto it, and every ignition and shutdown plays.  Each player gets a small
 // budget instead: a burst of toggles plays as usual, so quick toggling by hand is never cut,
 // and once it is spent one toggle sounds per interval for as long as the spam goes on.
-// Every sound of one toggle (both hilts of a dual or staff) comes in the same snapshot and gets
-// the same answer, so a toggle is heard whole or not at all. A toggle is told apart by that
-// snapshot, not by cg.time: CG_ProcessSnapshots can run several snapshots' events in one frame,
-// and each of those toggles pays for itself.
+// Every sound of one toggle (both hilts of a dual or staff) gets the same answer, so a toggle is
+// heard whole or not at all, and every toggle pays for itself, however they arrive:
+//   - a weapon switch, the JA+ staff put-away and EV_SABER_UNHOLSTER voice a whole toggle in
+//     one call;
+//   - the server's toggle is one G_Sound per hilt, each its own temp entity. Several toggles can
+//     first arrive in one snapshot (a server sending snapshots slower than it runs, a client's
+//     rate), and several snapshots can be run in one frame. So a hilt's sound joins the toggle
+//     before it only from the same snapshot, the same way (on or off), and a hilt that toggle
+//     has not sounded yet; anything else is a new toggle.
 //
 // Only the audio is suppressed; the saber still lights and goes out as the server says.
 #define SABER_TOGGLE_BURST		4
@@ -857,46 +862,85 @@ typedef struct {
 	int			due;		// when the next toggle would be on schedule
 	int			lastSnap;	// serverTime of the snapshot of the latest toggle sound
 	int			lastTime;	// cg.time it was asked at
-	qboolean	lastQuiet;	// and whether it was suppressed
+	// the G_Sound toggle the next hilt's sound may belong to
+	qboolean	grouping;
+	int			groupWay;	// 1 on, 2 off, 3 a sound used both ways
+	int			groupHilts;	// hilt bits already sounded in it
+	qboolean	groupQuiet;
 } saberToggleBudget_t;
 
 static saberToggleBudget_t cg_saberToggleBudget[MAX_CLIENTS];
 
-// Returns qtrue (suppress) if this player's saber on/off sound is past the budget. Ask only once
-// a sound is really about to play: each new snapshot that asks pays for a toggle.
-qboolean CG_SaberToggleThrottled( int clientNum ) {
+// This player's budget, emptied when time goes back (a map restart, a demo seeking back), or NULL.
+static saberToggleBudget_t *CG_SaberToggleBudget( int clientNum, int snap ) {
 	saberToggleBudget_t *budget;
-	qboolean quiet;
-	int snap;
 
 	if ( !cg_saberAntiSpam.integer )
-		return qfalse;
+		return NULL;
 
 	if ( clientNum < 0 || clientNum >= MAX_CLIENTS )
-		return qfalse; // NPCs are not bound to keys
+		return NULL; // NPCs are not bound to keys
 
 	budget = &cg_saberToggleBudget[clientNum];
-	snap = cg.snap ? cg.snap->serverTime : cg.time;
-	if ( budget->seen && snap == budget->lastSnap )
-		return budget->lastQuiet; // another hilt of the same toggle
-
 	if ( budget->seen && ( cg.time < budget->lastTime || snap < budget->lastSnap ) )
-		memset( budget, 0, sizeof( *budget ) ); // a map restart or a demo going back
+		memset( budget, 0, sizeof( *budget ) );
+	return budget;
+}
 
-	quiet = (qboolean)( budget->seen && budget->due - ( SABER_TOGGLE_BURST - 1 ) * SABER_TOGGLE_INTERVAL > cg.time );
+// Pays for one toggle; qtrue (suppress) if the budget is spent.
+static qboolean CG_SaberTogglePay( saberToggleBudget_t *budget, int snap ) {
+	qboolean quiet = (qboolean)( budget->seen && budget->due - ( SABER_TOGGLE_BURST - 1 ) * SABER_TOGGLE_INTERVAL > cg.time );
+
 	if ( !quiet )
 		budget->due = ( budget->seen && budget->due > cg.time ? budget->due : cg.time ) + SABER_TOGGLE_INTERVAL;
 	budget->seen = qtrue;
 	budget->lastSnap = snap;
 	budget->lastTime = cg.time;
-	budget->lastQuiet = quiet;
+	budget->grouping = qfalse;
 	return quiet;
+}
+
+// Returns qtrue (suppress) if a whole toggle of this player's, voiced in this one call, is past the
+// budget. Ask only once a sound is really about to play: every call pays.
+qboolean CG_SaberToggleThrottled( int clientNum ) {
+	int snap = cg.snap ? cg.snap->serverTime : cg.time;
+	saberToggleBudget_t *budget = CG_SaberToggleBudget( clientNum, snap );
+
+	return budget ? CG_SaberTogglePay( budget, snap ) : qfalse;
+}
+
+// The same for one hilt's sound of a toggle: `way` 1 on, 2 off, 3 a sound used both ways, and
+// `hilts` the bits of the hilts that could have played it.
+static qboolean CG_SaberToggleHiltThrottled( int clientNum, int way, int hilts ) {
+	int snap = cg.snap ? cg.snap->serverTime : cg.time;
+	saberToggleBudget_t *budget = CG_SaberToggleBudget( clientNum, snap );
+	int hilt;
+
+	if ( !budget )
+		return qfalse;
+
+	if ( !hilts )
+		hilts = 1;
+
+	if ( budget->grouping && budget->lastSnap == snap && budget->groupWay == way
+		&& ( hilts & ~budget->groupHilts ) ) {
+		hilts &= ~budget->groupHilts;
+		budget->groupHilts |= hilts & -hilts; // another hilt of the same toggle
+		return budget->groupQuiet;
+	}
+
+	hilt = hilts & -hilts;
+	budget->groupQuiet = CG_SaberTogglePay( budget, snap );
+	budget->grouping = qtrue;
+	budget->groupWay = way;
+	budget->groupHilts = hilt;
+	return budget->groupQuiet;
 }
 
 // G_Sound puts a saber toggle on a temp entity with no owner, at the player's feet.  The owner is
 // the nearest player whose hilt plays that sound (the forced-hilt case keeps the server's own).
 static qboolean CG_SaberToggleSoundThrottled( vec3_t origin, sfxHandle_t sfx ) {
-	int		i, j, best = -1;
+	int		i, j, best = -1, bestOn = 0, bestOff = 0;
 	float	bestDistSq = 64.0f * 64.0f, distSq;
 
 	if ( !cg_saberAntiSpam.integer || !sfx || !cg.snap )
@@ -904,28 +948,32 @@ static qboolean CG_SaberToggleSoundThrottled( vec3_t origin, sfxHandle_t sfx ) {
 
 	for ( i = 0; i < MAX_CLIENTS; i++ ) {
 		clientInfo_t *ci = &cgs.clientinfo[i];
-		qboolean match = qfalse;
+		int on = 0, off = 0;
 
 		if ( !ci->infoValid )
 			continue;
 		for ( j = 0; j < MAX_SABERS; j++ ) {
-			if ( sfx == ci->saber[j].soundOn || sfx == ci->saber[j].soundOff
-				|| sfx == ci->serverSaberSoundOn[j] || sfx == ci->serverSaberSoundOff[j] )
-				match = qtrue;
+			if ( sfx == ci->saber[j].soundOn || sfx == ci->serverSaberSoundOn[j] )
+				on |= 1 << j;
+			if ( sfx == ci->saber[j].soundOff || sfx == ci->serverSaberSoundOff[j] )
+				off |= 1 << j;
 		}
-		if ( !match )
+		if ( !on && !off )
 			continue;
 
 		distSq = DistanceSquared( i == cg.snap->ps.clientNum ? cg.snap->ps.origin : cg_entities[i].currentState.pos.trBase, origin );
 		if ( distSq <= bestDistSq ) {
 			bestDistSq = distSq;
 			best = i;
+			bestOn = on;
+			bestOff = off;
 		}
 	}
 
-	return best >= 0 && CG_SaberToggleThrottled( best );
+	if ( best < 0 )
+		return qfalse;
+	return CG_SaberToggleHiltThrottled( best, ( bestOn ? 1 : 0 ) | ( bestOff ? 2 : 0 ), bestOn | bestOff );
 }
-
 // Model voice lines a player can fire off at will.  Servers that route these through a
 // generic sound event still land here, so they share the same per-player debounce.
 static qboolean CG_ClassifyVoiceLine( const char *soundName, voiceLine_t *line ) {
