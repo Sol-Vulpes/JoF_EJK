@@ -27,8 +27,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 // the same format, and names itself EJK in its User-Agent either way.
 //
 // A worker thread registers the key and long-polls the feed, another sends what
-// the player says on the SJK channel; the main thread prints, and in a match says
-// the player's own lines in the game server's chat too, once the hub took them.
+// the player says on the SJK channel, a third claims the player's slot on the game
+// server they play on, so SJK's players there see who is who; the main thread prints,
+// and in a match says the player's own lines in the game server's chat too, once the
+// hub took them.
 
 #include "client.h"
 
@@ -46,6 +48,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 #include <shlobj.h>
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <cctype>
 #include <cstdarg>
@@ -80,6 +83,16 @@ static const int		SJK_SERVER_SAY_GAP_MS	= 1100;	// a game server one command a s
 static const size_t		SJK_SERVER_SAY_MAX	= MAX_SAY_TEXT - 1;	// what a game server keeps of a say
 static const size_t		SJK_ANSWER_MAX		= 256 * 1024;
 static const int		SJK_RANDOM_TRIES	= 3;		// for a request's nonce, then it fails
+// Slot claims, as SJK's client makes them (its docs/identity.md, "What happens"): a claim
+// lives 90 s at the hub and is repeated every 45 s; a refused or failed one waits 10 s,
+// doubled up to 2 minutes. The player's place is read twice a second. Quitting waits up
+// to 2 s for the claim to be withdrawn. A claim never says "active": the hub counts play
+// time toward holocrons only from SJK's own client, so a JoF player gets the mark only.
+static const int64_t	SJK_CLAIM_EVERY_MS	= 45000;
+static const int64_t	SJK_CLAIM_RETRY_MIN_MS	= 10000;
+static const int64_t	SJK_CLAIM_RETRY_MAX_MS	= 120000;
+static const int		SJK_PLACE_EVERY_MS	= 500;
+static const int		SJK_RELEASE_WAIT_MS	= 2000;
 
 /*
 ===============================================================================
@@ -502,6 +515,19 @@ struct sjkServerCopy_t {
 	std::string		id;
 };
 
+// Where the player is, as a claim tells the hub: the game server (a literal ip:port, empty
+// in no game server's match), their slot there and the name the game shows in it (UTF-8,
+// colours kept).
+struct sjkPlace_t {
+	std::string		server;
+	int				slot = 0;
+	std::string		name;
+
+	bool SameClaim( const sjkPlace_t &other ) const {
+		return server == other.server && slot == other.slot && name == other.name;
+	}
+};
+
 // One worker's view of the hub: what it calls, as whom. Each start of SJK chat makes
 // a new one and lets go of the last, so a worker still waiting on the network never
 // holds up the client; whoever lets go last frees it (SJK_Release).
@@ -509,7 +535,7 @@ struct sjkSession_t {
 	std::mutex						lock;
 	std::condition_variable			wake;
 	std::atomic<bool>				stop{ false };
-	std::atomic<int>				holders{ 0 };	// its two workers, and the client while it is current
+	std::atomic<int>				holders{ 0 };	// its three workers, and the client while it is current
 
 	std::string						hub;		// https://host[:port], no path
 	std::wstring					agent;		// SJK_UserAgent
@@ -524,6 +550,10 @@ struct sjkSession_t {
 	bool							registered = false;
 	bool							reachable = true;
 	int								online = 0;
+	sjkPlace_t						place;			// where the player is (SJK_FollowPlace)
+	int								placeRevision = 0;
+	std::string						claimStatus;	// for sjkstatus
+	bool							claimEnded = false;	// the claim worker is done, its claim withdrawn
 };
 
 static std::string SJK_NetError( DWORD code ) {
@@ -1128,6 +1158,179 @@ static void SJK_SendWorker( sjkSession_t *s ) {
 /*
 ===============================================================================
 
+SLOT CLAIMS
+
+What SJK's client does (its docs/identity.md, "What happens"; the hub's PROTOCOL.md,
+"Claims"): while the player is in a game server's match, the key says every 45 s
+"this key is in slot N of server S, shown as NAME", and withdraws it when the player
+leaves the server or quits. SJK's players on that server then mark the slot with the
+player's hub identity when the claimed name matches the one their game shows there.
+
+===============================================================================
+*/
+
+// POST /v1/claim's body: the server, the slot and the name, never "active" (JoF players
+// earn no play time at the hub).
+static std::string SJK_ClaimBody( const sjkPlace_t &place ) {
+	cJSON *root = cJSON_CreateObject();
+	cJSON_AddStringToObject( root, "server", place.server.c_str() );
+	cJSON_AddNumberToObject( root, "slot", place.slot );
+	cJSON_AddStringToObject( root, "name", place.name.c_str() );
+	char *printed = cJSON_PrintUnformatted( root );
+	std::string body = printed ? printed : "{}";
+	cJSON_free( printed );
+	cJSON_Delete( root );
+	return body;
+}
+
+// DELETE /v1/claim's body: the server the claim is withdrawn from.
+static std::string SJK_ReleaseBody( const std::string &server ) {
+	cJSON *root = cJSON_CreateObject();
+	cJSON_AddStringToObject( root, "server", server.c_str() );
+	char *printed = cJSON_PrintUnformatted( root );
+	std::string body = printed ? printed : "{}";
+	cJSON_free( printed );
+	cJSON_Delete( root );
+	return body;
+}
+
+static bool SJK_IsUTF8( const std::string &text ) {
+	return text.empty() || MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), (int)text.size(), NULL, 0 ) > 0;
+}
+
+// The name the game shows in a slot (its configstring's n), as UTF-8 for a claim, read as
+// SJK reads it (decode_legacy_text): the bytes as they are when they are UTF-8, else the
+// game's own set (SJK_ToUTF8). Colour codes are kept: SJK compares the claimed name with
+// the shown one without them. Control characters, which the hub refuses in a claim and
+// SJK's comparison skips, are dropped.
+static std::string SJK_ShownName( const char *gameName, const char *language ) {
+	const std::string raw = gameName;
+	const std::string utf8 = SJK_IsUTF8( raw ) ? raw : SJK_ToUTF8( gameName, language );
+	std::string out;
+	for ( size_t at = 0; at < utf8.size(); ) {
+		const size_t start = at;
+		const uint32_t cp = SJK_NextUTF8( utf8, &at );
+		if ( cp < 0x20 || ( cp >= 0x7F && cp < 0xA0 ) )
+			continue;
+		out.append( utf8, start, at - start );
+	}
+	return out;
+}
+
+// What the claim worker knows of the hub's claim for this key.
+struct sjkClaimer_t {
+	std::string		held;				// the server the hub holds the claim on, empty for none
+	sjkPlace_t		tried;				// the claim last sent
+	bool			sent = false;		// tried is set
+	int64_t			due = 0;			// when the claim goes again
+	int64_t			backoff = SJK_CLAIM_RETRY_MIN_MS;
+};
+
+typedef enum { SJK_CLAIM_WAIT, SJK_CLAIM_SEND, SJK_CLAIM_RELEASE } sjkClaimStep_t;
+
+// What the claim worker does next, for the player at `place`: withdraw a claim held on a
+// server the player has left (for the menus or another server), else claim when there
+// is no claim yet, it is another (slot or name changed) or it is due again. Only a
+// registered key claims.
+static sjkClaimStep_t SJK_ClaimNext( const sjkClaimer_t &c, const sjkPlace_t &place, bool registered, int64_t now ) {
+	if ( !c.held.empty() && c.held != place.server )
+		return SJK_CLAIM_RELEASE;
+	if ( place.server.empty() || !registered )
+		return SJK_CLAIM_WAIT;
+	if ( !c.sent || !c.tried.SameClaim( place ) || now >= c.due )
+		return SJK_CLAIM_SEND;
+	return SJK_CLAIM_WAIT;
+}
+
+// A claim's answer: accepted, it goes again in 45 s; refused or lost, after the backoff,
+// so a slot another key holds or a full server is not asked again and again.
+static void SJK_Claimed( sjkClaimer_t *c, const sjkPlace_t &place, bool accepted, int64_t now ) {
+	c->tried = place;
+	c->sent = true;
+	if ( accepted ) {
+		c->held = place.server;
+		c->due = now + SJK_CLAIM_EVERY_MS;
+		c->backoff = SJK_CLAIM_RETRY_MIN_MS;
+	} else {
+		c->due = now + c->backoff;
+		c->backoff = c->backoff * 2 > SJK_CLAIM_RETRY_MAX_MS ? SJK_CLAIM_RETRY_MAX_MS : c->backoff * 2;
+	}
+}
+
+// Withdraws the claim the hub holds, ignoring a failure, as SJK does: it lapses in 90 s.
+static void SJK_ReleaseClaim( sjkSession_t *s, sjkClaimer_t *c ) {
+	SJK_Call( s, "DELETE", "/v1/claim", SJK_ReleaseBody( c->held ) );
+	c->held.clear();
+	c->sent = false;
+	std::lock_guard<std::mutex> hold( s->lock );
+	s->claimStatus = "no claim";
+}
+
+// How a claim's answer reads in sjkstatus. A refusal is only shown there: the claim
+// waits and tries again, quietly.
+static std::string SJK_ClaimStatus( const sjkPlace_t &place, const sjkAnswer_t &a ) {
+	if ( a.status == 200 )
+		return SJK_Format( "claims slot %d on %s", place.slot, place.server.c_str() );
+	if ( a.error == "slot_taken" )
+		return "claim refused: another key claims this slot under this name";
+	if ( a.error == "server_full" )
+		return "claim refused: the hub lists no more claims on this server";
+	return "claim not made: " + SJK_Refusal( a );
+}
+
+static void SJK_ClaimWorker( sjkSession_t *s ) {
+	sjkClaimer_t claimer;
+	while ( !s->stop ) {
+		sjkPlace_t place;
+		bool registered;
+		int revision;
+		{
+			std::lock_guard<std::mutex> hold( s->lock );
+			place = s->place;
+			registered = s->registered;
+			revision = s->placeRevision;
+		}
+		// Back on a server after the menus, the claim goes at once.
+		if ( place.server.empty() && claimer.held.empty() )
+			claimer.sent = false;
+		const int64_t now = (int64_t)GetTickCount64();
+		const sjkClaimStep_t step = SJK_ClaimNext( claimer, place, registered, now );
+		if ( step == SJK_CLAIM_RELEASE ) {
+			SJK_ReleaseClaim( s, &claimer );
+			continue;
+		}
+		if ( step == SJK_CLAIM_SEND ) {
+			const sjkAnswer_t a = SJK_Call( s, "POST", "/v1/claim", SJK_ClaimBody( place ) );
+			SJK_Claimed( &claimer, place, a.status == 200, (int64_t)GetTickCount64() );
+			std::lock_guard<std::mutex> hold( s->lock );
+			s->claimStatus = SJK_ClaimStatus( place, a );
+			if ( a.error == "not_registered" )
+				s->registered = false;	// the feed worker registers again
+			continue;
+		}
+		// Until the claim is due again, the player moves, the key is registered or SJK
+		// chat stops.
+		int64_t wait = claimer.sent && !place.server.empty() ? claimer.due - now : 60000;
+		wait = wait < 0 ? 0 : wait > 60000 ? 60000 : wait;
+		std::unique_lock<std::mutex> hold( s->lock );
+		s->wake.wait_for( hold, std::chrono::milliseconds( wait ), [s, revision, registered]() {
+			return s->stop || s->placeRevision != revision || s->registered != registered;
+		} );
+	}
+	// SJK chat stops, or the game quits (SJK_Stop waits for this a little).
+	if ( !claimer.held.empty() )
+		SJK_ReleaseClaim( s, &claimer );
+	{
+		std::lock_guard<std::mutex> hold( s->lock );
+		s->claimEnded = true;
+	}
+	s->wake.notify_all();
+	SJK_Release( s );
+}
+
+/*
+===============================================================================
+
 CLIENT (main thread)
 
 ===============================================================================
@@ -1173,6 +1376,7 @@ static void SJK_Notice( const std::string &line ) {
 static std::deque<std::string>	s_serverSays;	// pieces still to say in the server's chat
 static std::string		s_serverSaysMatch;		// the match they are for
 static int				s_serverSayAt;			// Sys_Milliseconds when the next may go
+static int				s_placeAt;				// Sys_Milliseconds when the place is read again
 
 // The match this client is in, as the server's sv_serverid and map, which a new map
 // changes; empty when it is in none (the menus, a demo, loading).
@@ -1252,6 +1456,10 @@ static std::string SJK_UserAgent( const char *tag, const char *version, const ch
 	return agent;
 }
 
+// Stops the session. Its claim worker withdraws the player's claim first: this waits for
+// that a little (SJK_RELEASE_WAIT_MS), so it is done before the game quits, and before a
+// new session claims again on SJK chat turned off and on (a late withdrawal would take
+// the new claim away).
 static void SJK_Stop( void ) {
 	sjkSession_t *s = s_session;
 	if ( !s )
@@ -1259,6 +1467,10 @@ static void SJK_Stop( void ) {
 	s_session = NULL;
 	s->stop = true;
 	s->wake.notify_all();
+	{
+		std::unique_lock<std::mutex> hold( s->lock );
+		s->wake.wait_for( hold, std::chrono::milliseconds( SJK_RELEASE_WAIT_MS ), [s]() { return s->claimEnded; } );
+	}
 	SJK_Release( s );		// its workers let go as they end; a long poll may hold one 40 s
 }
 
@@ -1284,10 +1496,44 @@ static void SJK_Start( void ) {
 	s_agent = SJK_UserAgent( JOF_RELEASE_TAG, JOF_VERSION_STRING, JOF_COMMIT_SHA_SHORT );
 	s->agent = SJK_Widen( s_agent );
 	s->name = SJK_WornName();
-	s->holders = 3;
+	s->claimStatus = "no claim";
+	s->holders = 4;
 	std::thread( SJK_FeedWorker, s ).detach();
 	std::thread( SJK_SendWorker, s ).detach();
+	std::thread( SJK_ClaimWorker, s ).detach();
 	s_session = s;
+	s_placeAt = Sys_Milliseconds();	// the new session learns where the player is now
+}
+
+// Tells the claim worker where the player is, twice a second (CL_SJK_Place): the server,
+// slot and name to claim. While a map loads on the same server the claim stays as it
+// was; anywhere else it goes.
+static void SJK_FollowPlace( void ) {
+	if ( !s_session || Sys_Milliseconds() - s_placeAt < 0 )
+		return;
+	s_placeAt = Sys_Milliseconds() + SJK_PLACE_EVERY_MS;
+	char server[64] = "", name[MAX_STRING_CHARS] = "";
+	int slot = 0;
+	const sjkPlaceKind_t kind = CL_SJK_Place( server, sizeof( server ), &slot, name, sizeof( name ) );
+	bool changed;
+	{
+		std::lock_guard<std::mutex> hold( s_session->lock );
+		sjkPlace_t place;
+		if ( kind == SJK_PLACE_HERE ) {
+			place.server = server;
+			place.slot = slot;
+			place.name = SJK_ShownName( name, Cvar_VariableString( "se_language" ) );
+		} else if ( kind == SJK_PLACE_LOADING && s_session->place.server == server ) {
+			place = s_session->place;
+		}
+		changed = !place.SameClaim( s_session->place );
+		if ( changed ) {
+			s_session->place = place;
+			s_session->placeRevision++;
+		}
+	}
+	if ( changed )
+		s_session->wake.notify_all();
 }
 
 // Says text (game text, as the chat field holds it) on SJK chat and, in a match, in the
@@ -1349,14 +1595,17 @@ static void CL_SJK_Status_f( void ) {
 	}
 	bool registered, reachable;
 	int online;
+	std::string claim;
 	{
 		std::lock_guard<std::mutex> hold( s_session->lock );
 		registered = s_session->registered;
 		reachable = s_session->reachable;
 		online = s_session->online;
+		claim = s_session->claimStatus;
 	}
 	Com_Printf( "SJK chat: hub %s, identity %s, key id %s, as %s\n", s_session->hub.c_str(), s_identityWhere.c_str(), s_identityKeyId.c_str(), s_agent.c_str() );
 	Com_Printf( "  %s, %s, %d reading now\n", registered ? "registered" : "not registered yet", reachable ? "connected" : "not connected", online );
+	Com_Printf( "  %s\n", SJK_FromUTF8( claim ).c_str() );
 }
 
 // cl_sjkChatStatus, which the SJK chat menu shows: whether SJK chat is on and connected,
@@ -1397,6 +1646,7 @@ void CL_SJK_Frame( void ) {
 		cl_hubUrl->modified = qfalse;
 		SJK_Start();
 	}
+	SJK_FollowPlace();
 
 	std::deque<sjkLine_t> lines;
 	std::deque<sjkServerCopy_t> copies;

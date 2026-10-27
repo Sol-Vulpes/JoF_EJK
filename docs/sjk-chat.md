@@ -59,8 +59,14 @@ players on SJK's own client. Players on other clients never see it.
   message of more than one line or more than 300 characters, sending too often (the
   hub is stricter with new players), a link from a player it has not verified, or a
   muted player. Lines said in a burst go out a second apart.
+- **SJK's players see who plays on JoF EternalJK.** While SJK chat is on and the
+  player is in a match on a game server, the client tells the hub which slot of that
+  server is theirs (a *claim*, as SJK's client makes). SJK's players on the same
+  server then mark that slot on their scoreboard and nameplates with the player's hub
+  identity. Nothing else is sent: no look, no whispers, nothing of SJK's holocrons.
 - `/sjkstatus` shows the hub, which identity is in use and its key id, whether it is
-  registered and connected, and how many players read SJK chat now.
+  registered and connected, how many players read SJK chat now, and the claim: the
+  slot and server it holds, or why the hub refused it.
 - `cl_sjkChat 0` turns SJK chat off: the client then makes no request to the hub at
   all. It is on by default, and switching it takes effect at once. Setup has it too, as
   **SJK Chat** in its **SJK** section, in the main menu's Setup and in the game's, with
@@ -144,6 +150,32 @@ hub's protocol, as SJK's client implements it (Sol-Vulpes/SJK,
   reached, a new line is refused at once instead of going out minutes later. Lines
   still waiting when the hub turns out to be unreachable are dropped the same way,
   each with a notice that it was not sent.
+- **Slot claims.** A third worker claims the player's slot as SJK's client does (SJK's
+  `docs/identity.md`, "What happens"; the hub's `PROTOCOL.md`, "Claims"), once the key
+  is registered: `POST /v1/claim` with `{"server":"<ip>:<port>","slot":N,"name":".."}`,
+  repeated every 45 seconds (a claim lives 90 at the hub). The main thread reads where
+  the player is twice a second (`CL_SJK_Place` in
+  [cl_parse.cpp](../codemp/client/cl_parse.cpp), `SJK_FollowPlace`):
+  - `server` is the address the client connected to, as `NET_AdrToString` writes it
+    (the hub takes only a literal `ip:port`); `slot` is the client number.
+  - `name` is the name the game shows in that slot, the `n` of the player's
+    `CS_PLAYERS` configstring, colour codes kept, in UTF-8 as SJK reads it: the bytes as
+    they are when they are UTF-8, else the game's charset as for chat. SJK's players
+    take the claim only when it matches the name their game shows in the slot, compared
+    without colour codes, symbols or case, so this is what they compare.
+  - A claim never says `active`: the hub counts play time only from SJK builds (it
+    ignores `active` from other agents since 27/10/2026), so JoF players get the mark only.
+  - No claim in the menus, a demo, a listen server or a local game. A map change on the
+    same server keeps the claim. A new slot or name claims at once.
+  - Leaving the server, or moving to another, withdraws the claim (`DELETE /v1/claim`
+    with `{"server":".."}`) before anything else. So do quitting and SJK chat stopping:
+    `SJK_Stop` waits up to 2 seconds for it, so it goes before the game closes and before
+    a new session claims again. A withdrawal that fails is left alone: the claim lapses.
+  - A refused or failed claim (another key holds the slot under that name,
+    `slot_taken`; the hub lists 64 claims on that server already, `server_full`; the
+    hub cannot be reached) is tried again after 10 seconds, doubled each time up to 2
+    minutes, and only `/sjkstatus` says so. `not_registered` has the reading worker
+    register the key again.
 - **Said on a server too.** A convention between JoF EternalJK and SJK, which SJK's
   `docs/hub-chat.md` describes too ("Said on the game server too"); the hub takes no
   part in it. In a match, `CL_SJK_SayText`
@@ -269,3 +301,9 @@ with that message's id (`/say text^9^1^5` for id 5) shows as it came when its wo
 are not the message's, when it has none, or when another player says it. A line the
 hub refuses, or said with `cl_hubUrl` set to a port nothing listens on, says it was
 not sent and reaches no one on the server.
+
+To try a slot claim, run a dedicated server (not a listen server: a game hosted in the
+client claims nothing), join it from this client and from SJK's, both on the local hub.
+`/sjkstatus` here says `claims slot N on <ip>:<port>`, and SJK's scoreboard marks this
+client's row with the hub identity. Leaving the server, or quitting, takes the mark away
+within SJK's next read of the claims (5 seconds); otherwise a claim lapses after 90.
