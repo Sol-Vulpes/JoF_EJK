@@ -63,7 +63,17 @@ players on SJK's own client. Players on other clients never see it.
   player is in a match on a game server, the client tells the hub which slot of that
   server is theirs (a *claim*, as SJK's client makes). SJK's players on the same
   server then mark that slot on their scoreboard and nameplates with the player's hub
-  identity. Nothing else is sent: no look, no whispers, nothing of SJK's holocrons.
+  identity.
+- **What a claim tells the hub.** The game server's address (`ip:port`), the player's
+  slot there and the name they wear in it, signed with the player's key, when they
+  join and then every 45 seconds while they play. So the hub learns which server each
+  JoF player with SJK chat on plays on, and when, under the same identity as their
+  chat. The hub lists a server's live claims to whoever asks for that server (that is
+  how SJK's players there read them), and drops a claim 90 seconds after the last one.
+  Nothing else goes with it: no look, no whispers, nothing of SJK's holocrons.
+- `cl_sjkClaims 0` stops the claims and keeps SJK chat: the client withdraws its claim
+  and the player's slot is no longer marked. It is on by default and takes effect within
+  a second.
 - `/sjkstatus` shows the hub, which identity is in use and its key id, whether it is
   registered and connected, how many players read SJK chat now, and the claim: the
   slot and server it holds, or why the hub refused it.
@@ -133,9 +143,11 @@ hub's protocol, as SJK's client implements it (Sol-Vulpes/SJK,
   nonce Windows cannot give after three tries fails the request, so a line says it
   was not sent.
 - **Sessions.** Each start of SJK chat (turning it on, a new `cl_hubUrl`) makes a new
-  session for its two workers and lets go of the last. The workers and the client
-  each hold a share; the last to let go frees it and wipes its copy of the key
-  (`SJK_Release`), so a worker still in a long poll never holds up the client.
+  session for its three workers and lets go of the last without waiting for it
+  (`SJK_Stop`, which sets `stop` under the session's lock so no worker misses it). The
+  workers and the client each hold a share; the last to let go frees it and wipes its
+  copy of the key (`SJK_Release`), so a worker still in a long poll never holds up the
+  client.
 - **Reading.** A worker thread registers the key (`POST /v1/register`), then
   long-polls `GET /v1/feed`: its first read does not wait and learns where the
   conversation is, and what it holds goes to the SJK chat menu only. Later reads let
@@ -152,30 +164,48 @@ hub's protocol, as SJK's client implements it (Sol-Vulpes/SJK,
   each with a notice that it was not sent.
 - **Slot claims.** A third worker claims the player's slot as SJK's client does (SJK's
   `docs/identity.md`, "What happens"; the hub's `PROTOCOL.md`, "Claims"), once the key
-  is registered: `POST /v1/claim` with `{"server":"<ip>:<port>","slot":N,"name":".."}`,
-  repeated every 45 seconds (a claim lives 90 at the hub). The main thread reads where
-  the player is twice a second (`CL_SJK_Place` in
-  [cl_parse.cpp](../codemp/client/cl_parse.cpp), `SJK_FollowPlace`):
+  is registered: `POST /v1/claim` with `{"server":"<ip>:<port>","slot":N,"name":".."}`.
+  The hub answers `{"ttl":90}`, the claim's life in seconds, and the claim is renewed
+  halfway through it, 10 to 45 seconds on (`SJK_Claimed`). Only that answer holds a
+  claim: a 200 without a `ttl`, such as a proxy's page, counts as a failure
+  (`SJK_ClaimTTL`). The main thread reads where the player is twice a second
+  (`CL_SJK_Place` in [cl_parse.cpp](../codemp/client/cl_parse.cpp), `SJK_FollowPlace`,
+  `SJK_NextPlace`):
   - `server` is the address the client connected to, as `NET_AdrToString` writes it
     (the hub takes only a literal `ip:port`); `slot` is the client number.
   - `name` is the name the game shows in that slot, the `n` of the player's
-    `CS_PLAYERS` configstring, colour codes kept, in UTF-8 as SJK reads it: the bytes as
-    they are when they are UTF-8, else the game's charset as for chat. SJK's players
-    take the claim only when it matches the name their game shows in the slot, compared
-    without colour codes, symbols or case, so this is what they compare.
+    `CS_PLAYERS` configstring, colour codes kept, in UTF-8 exactly as SJK decodes it
+    (`SJK_ShownName`, after SJK's `decode_legacy_text`): the bytes as they are when they
+    are UTF-8, else Windows-1251 when they read as Russian to SJK (`SJK_LooksCyrillic`,
+    its `looks_cyrillic`), else Latin-1, whatever `se_language` says. SJK's players take
+    the claim only when it matches the name their game shows in the slot, compared
+    without colour codes, symbols or case, so this is what they compare. Control
+    characters, Latin-1's 0x80-0x9F among them, are dropped: the hub refuses them and
+    SJK's comparison skips them.
+  - A name the hub would refuse (empty once control characters are dropped, or over 64
+    characters, `SJK_ClaimableName`) is not claimed, and a claim held under it is
+    withdrawn. `/sjkstatus` says why.
   - A claim never says `active`: the hub counts play time only from SJK builds (it
     ignores `active` from other agents since 27/10/2026), so JoF players get the mark only.
-  - No claim in the menus, a demo, a listen server or a local game. A map change on the
-    same server keeps the claim. A new slot or name claims at once.
+  - No claim in the menus, a demo, a listen server or a local game, nor with
+    `cl_sjkClaims 0`. A map change on the same server keeps the claim. A held claim
+    follows a new slot or name 5 seconds after its last claim at the soonest.
   - Leaving the server, or moving to another, withdraws the claim (`DELETE /v1/claim`
-    with `{"server":".."}`) before anything else. So do quitting and SJK chat stopping:
-    `SJK_Stop` waits up to 2 seconds for it, so it goes before the game closes and before
-    a new session claims again. A withdrawal that fails is left alone: the claim lapses.
+    with `{"server":".."}`) before anything else, as does SJK chat stopping. Neither
+    the client nor `SJK_Stop` waits for it. A new session claims nothing until the last
+    session's claim worker has withdrawn its claim (`s_claimGate`), so a late
+    withdrawal cannot take the new claim away. A withdrawal that fails, or that the game
+    quits before, is left alone: the claim lapses within 90 seconds.
   - A refused or failed claim (another key holds the slot under that name,
     `slot_taken`; the hub lists 64 claims on that server already, `server_full`; the
     hub cannot be reached) is tried again after 10 seconds, doubled each time up to 2
-    minutes, and only `/sjkstatus` says so. `not_registered` has the reading worker
-    register the key again.
+    minutes, a new slot or name included, and only `/sjkstatus` says so. That wait starts
+    over on another server, or back from the menus (`SJK_ClaimFollow`). `not_registered`
+    has the reading worker register the key again; until it is registered, the claim
+    worker sends nothing and sleeps a minute at a time, woken at once by the
+    registration (`SJK_ClaimWait`, never 0 ms, so it cannot spin).
+  - Once the player claims nothing, `/sjkstatus` says `no claim` again, so a refusal's
+    line does not outlive the server it was about.
 - **Said on a server too.** A convention between JoF EternalJK and SJK, which SJK's
   `docs/hub-chat.md` describes too ("Said on the game server too"); the hub takes no
   part in it. In a match, `CL_SJK_SayText`
