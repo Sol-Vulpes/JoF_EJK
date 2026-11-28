@@ -43,7 +43,7 @@ typedef struct {
     vec3_t turAngles, lerpOrigin, modelScale;
 } centity_t;
 typedef centity_t testEntity_t;
-static testEntity_t cg_entities[MAX_GENTITIES];
+static testEntity_t cg_entities[MAX_GENTITIES_EXTENDED];
 bgLoadedAnim_t bgAllAnims[MAX_ANIM_FILES];
 bgLoadedEvents_t bgAllEvents[MAX_ANIM_FILES];
 int bgNumAnimEvents = 1;
